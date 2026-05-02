@@ -6,7 +6,7 @@ import Settings from './pages/Settings'
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/ai-novel-assistant">
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/projects" replace />} />

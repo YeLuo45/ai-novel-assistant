@@ -108,6 +108,9 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
     }
     
     const data = await response.json()
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('OpenAI API返回格式错误')
+    }
     return data.choices[0].message.content
   }
 
@@ -133,6 +136,9 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
     }
 
     const data = await response.json()
+    if (!data.content || !data.content[0] || !data.content[0].text) {
+      throw new Error('Claude API返回格式错误')
+    }
     return data.content[0].text
   }
 
@@ -155,7 +161,14 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
     }
 
     const data = await response.json()
-    return data.choices[0].message.content
+    if (!data.choices || !data.choices[0]) {
+      throw new Error('MiniMax API返回格式错误')
+    }
+    const content = data.choices[0].text || data.choices[0].message?.content
+    if (!content) {
+      throw new Error('MiniMax API返回内容为空')
+    }
+    return content
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

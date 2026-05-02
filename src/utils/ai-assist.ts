@@ -1,13 +1,15 @@
 /**
- * AI 辅助写作 prompt 模板
- * 复用 AIChat 的 callOpenAI/callClaude/callMiniMax 函数签名
+ * AI 辅助写作模块
+ * 封装 LLM 调用
  */
 
-import { db } from '../db'
+import type { AIAssistType } from './ai-assist-types'
+export type { AIAssistType } from './ai-assist-types'
 
-export type AIAssistType = 'continue' | 'polish' | 'expand' | 'summarize' | 'grammar'
+import { callLLM } from '../ai/llm'
+import { PROVIDERS } from '../ai/providers'
+// ============ Prompt 模板 ============
 
-/** 各功能的 prompt 模板 */
 const PROMPTS = {
   continue: (content: string) =>
     `你是一位专业的小说作家。请根据以下内容继续写作，保持文风、语调和叙事节奏的一致性。
@@ -19,7 +21,7 @@ const PROMPTS = {
 
 已有内容：
 ${content}`,
-  
+
   polish: (selectedText: string) =>
     `你是一位专业的中文写作润色专家。请对以下文字进行润色，使其更加流畅、生动、富有表现力。
 
@@ -31,7 +33,7 @@ ${content}`,
 
 原文：
 ${selectedText}`,
-  
+
   expand: (selectedText: string) =>
     `你是一位专业的小说作家。请对以下内容进行扩写，增加细节描写、场景氛围和情感深度。
 
@@ -43,7 +45,7 @@ ${selectedText}`,
 
 原文：
 ${selectedText}`,
-  
+
   summarize: (selectedText: string) =>
     `你是一位专业的内容编辑。请对以下内容进行缩写，保留核心信息和关键情节。
 
@@ -55,7 +57,7 @@ ${selectedText}`,
 
 原文：
 ${selectedText}`,
-  
+
   grammar: (selectedText: string) =>
     `你是一位专业的中文语法纠错专家。请检查以下文本的语法错误、标点问题和表达不当之处，并给出修改建议。
 
@@ -69,138 +71,124 @@ ${selectedText}`,
 ${selectedText}`
 }
 
-/** 通用系统提示词 */
 const SYSTEM_PROMPT = '你是一位专业的小说创作助手，擅长写作润色、语法纠错、情节扩写缩写等工作。'
 
-/** 获取 API Key */
-async function getApiKeys() {
-  const keys = await db.apiKeys.toArray()
-  const keyMap: Record<string, string> = {}
-  keys.forEach(k => { if (k.key) keyMap[k.provider] = k.key })
-  return keyMap
-}
+// ============ Provider 配置映射 ============
 
-/** 调用 OpenAI API */
-async function callOpenAI(apiKey: string, model: string, system: string, userInput: string): Promise<string> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userInput }
-      ],
-      temperature: 0.7
-    })
-  })
-  
-  if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error?.message || 'API请求失败')
-  }
-  
-  const data = await response.json()
-  return data.choices[0].message.content
-}
-
-/** 调用 Claude API */
-async function callClaude(apiKey: string, model: string, system: string, userInput: string): Promise<string> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1024,
-      system,
-      messages: [{ role: 'user', content: userInput }]
-    })
-  })
-
-  if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error?.message || 'API请求失败')
-  }
-
-  const data = await response.json()
-  return data.content[0].text
-}
-
-/** 调用 MiniMax API */
-async function callMiniMax(apiKey: string, userInput: string): Promise<string> {
-  const response = await fetch('https://api.minimax.chat/v1/text/chatcompletion', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: 'abab5.5-chat',
-      messages: [{ role: 'user', content: userInput }]
-    })
-  })
-
-  if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error?.message || 'API请求失败')
-  }
-
-  const data = await response.json()
-  return data.choices[0].message.content
+const MODEL_TO_PROVIDER: Record<string, string> = {
+  'gpt-4o-mini': 'openai',
+  'gpt-4o': 'openai',
+  'gpt-4-turbo': 'openai',
+  'gpt-3.5-turbo': 'openai',
+  'claude-sonnet-4-20250514': 'anthropic',
+  'claude-opus-4-20250514': 'anthropic',
+  'claude-3-5-sonnet-latest': 'anthropic',
+  'claude-3-opus': 'anthropic',
+  'abab5.5-chat': 'minimax',
+  'abab5.5s-chat': 'minimax',
+  'deepseek-chat': 'deepseek',
+  'deepseek-coder': 'deepseek',
+  'Qwen/Qwen2.5-7B-Instruct': 'siliconflow',
+  'deepseek-ai/DeepSeek-V2.5': 'siliconflow'
 }
 
 /**
- * 执行 AI 辅助操作
- * @param type 辅助类型
- * @param content 当前全文内容（用于续写）
- * @param selectedText 选中文本（用于润色/扩写/缩写/语法检查）
- * @param model 使用的模型
+ * 根据模型 ID 获取 Provider 配置
+ */
+function getProviderForModel(model: string) {
+  const providerId = MODEL_TO_PROVIDER[model]
+  if (!providerId) return null
+  return PROVIDERS[providerId]
+}
+
+/**
+ * 执行 AI 辅助操作（非流式）
  */
 export async function performAIAssist(
   type: AIAssistType,
   content: string,
   selectedText: string,
-  model: string = 'gpt-3.5-turbo'
+  model: string = 'gpt-4o-mini',
+  apiKey?: string
 ): Promise<string> {
-  const apiKeys = await getApiKeys()
-  
   let prompt: string
-  let apiKey: string
-  
-  // 根据操作类型构建 prompt
   if (type === 'continue') {
     prompt = PROMPTS.continue(content)
-    apiKey = apiKeys.openai || apiKeys.anthropic || apiKeys.minimax || ''
   } else {
     prompt = PROMPTS[type](selectedText)
-    if (model.startsWith('gpt')) {
-      apiKey = apiKeys.openai || ''
-    } else if (model.startsWith('claude')) {
-      apiKey = apiKeys.anthropic || ''
-    } else {
-      apiKey = apiKeys.minimax || ''
+  }
+
+  const provider = getProviderForModel(model)
+  if (!provider) {
+    throw new Error(`Unsupported model: ${model}`)
+  }
+
+  const effectiveApiKey = apiKey || provider.apiKey || ''
+  if (!effectiveApiKey) {
+    throw new Error('API Key is required. Please configure it in settings.')
+  }
+
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: prompt }
+  ]
+
+  const response = await callLLM(
+    {
+      model,
+      messages,
+      temperature: 0.7
+    },
+    'ai-assist',
+    {
+      maxRetries: 3,
+      retryDelay: 1000
     }
-  }
-  
-  if (!apiKey) {
-    throw new Error('请先在设置页面配置 API Key')
-  }
-  
-  // 根据模型调用对应 API
-  if (model.startsWith('gpt')) {
-    return await callOpenAI(apiKey, model, SYSTEM_PROMPT, prompt)
-  } else if (model.startsWith('claude')) {
-    return await callClaude(apiKey, model, SYSTEM_PROMPT, prompt)
-  } else {
-    return await callMiniMax(apiKey, prompt)
-  }
+  )
+
+  return response
+}
+
+// ============ 快捷方法 ============
+
+export async function continueWriting(
+  content: string,
+  model: string = 'gpt-4o-mini',
+  apiKey?: string
+): Promise<string> {
+  return performAIAssist('continue', content, '', model, apiKey)
+}
+
+export async function polishText(
+  text: string,
+  model: string = 'gpt-4o-mini',
+  apiKey?: string
+): Promise<string> {
+  return performAIAssist('polish', '', text, model, apiKey)
+}
+
+export async function expandText(
+  text: string,
+  model: string = 'gpt-4o-mini',
+  apiKey?: string
+): Promise<string> {
+  return performAIAssist('expand', '', text, model, apiKey)
+}
+
+export async function summarizeText(
+  text: string,
+  model: string = 'gpt-4o-mini',
+  apiKey?: string
+): Promise<string> {
+  return performAIAssist('summarize', '', text, model, apiKey)
+}
+
+export async function grammarCheck(
+  text: string,
+  model: string = 'gpt-4o-mini',
+  apiKey?: string
+): Promise<string> {
+  return performAIAssist('grammar', '', text, model, apiKey)
 }
 
 export { PROMPTS }
