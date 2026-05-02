@@ -25,6 +25,12 @@ interface AppState {
   createAgentConfig: (config: Omit<AgentConfig, 'id'>) => Promise<AgentConfig>
   updateAgentConfig: (id: number, updates: Partial<AgentConfig>) => Promise<void>
   deleteAgentConfig: (id: number) => Promise<void>
+
+  // 编辑器状态
+  currentNodeId: number | null
+  isFullscreen: boolean
+  setCurrentNodeId: (id: number | null) => void
+  setIsFullscreen: (isFullscreen: boolean) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -32,6 +38,8 @@ export const useStore = create<AppState>((set, get) => ({
   currentProject: null,
   outlineNodes: [],
   agentConfigs: [],
+  currentNodeId: null,
+  isFullscreen: false,
 
   // 项目管理
   loadProjects: async () => {
@@ -138,4 +146,8 @@ export const useStore = create<AppState>((set, get) => ({
     await db.agentConfigs.delete(id)
     set(state => ({ agentConfigs: state.agentConfigs.filter(c => c.id !== id) }))
   },
+
+  // 编辑器状态
+  setCurrentNodeId: (id) => set({ currentNodeId: id }),
+  setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
 }))

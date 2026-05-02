@@ -7,6 +7,8 @@ interface Props {
   onEdit: (id: number) => void
   onDelete: (id: number) => void
   onAddChild: (parentId: number | null, type: 'volume' | 'chapter' | 'section' | 'scene') => void
+  onOpenNode?: (id: number) => void
+  activeNodeId?: number | null
   depth?: number
 }
 
@@ -30,7 +32,7 @@ const statusIcons = {
   completed: '●'
 }
 
-export default function OutlineTree({ nodes, allNodes, onEdit, onDelete, onAddChild, depth = 0 }: Props) {
+export default function OutlineTree({ nodes, allNodes, onEdit, onDelete, onAddChild, onOpenNode, activeNodeId, depth = 0 }: Props) {
   return (
     <div>
       {nodes.map((node, index) => {
@@ -46,9 +48,10 @@ export default function OutlineTree({ nodes, allNodes, onEdit, onDelete, onAddCh
                 className={`mb-2 ${snapshot.isDragging ? 'opacity-80' : ''}`}
               >
                 <div
-                  className={`p-3 bg-white rounded-lg border ${typeColors[node.type]} ${
+                  className={`p-3 rounded-lg border ${typeColors[node.type]} ${
                     snapshot.isDragging ? 'shadow-lg' : 'shadow-sm'
-                  }`}
+                  } ${activeNodeId === node.id ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'}
+                  `}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-xs opacity-60">{statusIcons[node.status]}</span>
@@ -56,7 +59,13 @@ export default function OutlineTree({ nodes, allNodes, onEdit, onDelete, onAddCh
                       {typeLabels[node.type]}
                     </span>
                     <button
-                      onClick={() => node.id && onEdit(node.id)}
+                      onClick={() => {
+                        if (onOpenNode && node.id) {
+                          onOpenNode(node.id)
+                        } else if (node.id) {
+                          onEdit(node.id)
+                        }
+                      }}
                       className="flex-1 text-left text-sm font-medium hover:text-indigo-600 truncate"
                     >
                       {node.title}
@@ -96,6 +105,8 @@ export default function OutlineTree({ nodes, allNodes, onEdit, onDelete, onAddCh
                       onEdit={onEdit}
                       onDelete={onDelete}
                       onAddChild={onAddChild}
+                      onOpenNode={onOpenNode}
+                      activeNodeId={activeNodeId}
                       depth={depth + 1}
                     />
                   </div>

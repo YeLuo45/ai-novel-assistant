@@ -4,6 +4,7 @@ import { useStore } from '../store'
 import { db } from '../db'
 import OutlineTree from '../components/OutlineTree'
 import AIChat from '../components/AIChat'
+import WritingEditor from '../components/WritingEditor'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
 type Tab = 'outline' | 'chat'
@@ -15,7 +16,8 @@ export default function ProjectEditor() {
     currentProject, setCurrentProject, 
     outlineNodes, loadOutline,
     createOutlineNode, updateOutlineNode, deleteOutlineNode, moveOutlineNode,
-    agentConfigs
+    agentConfigs,
+    currentNodeId, setCurrentNodeId
   } = useStore()
   const [activeTab, setActiveTab] = useState<Tab>('outline')
   const [showNodeModal, setShowNodeModal] = useState(false)
@@ -122,6 +124,16 @@ export default function ProjectEditor() {
     await moveOutlineNode(parseInt(draggableId), null, destination.index)
   }
 
+  // 打开 WritingEditor
+  const handleOpenNode = (nodeId: number) => {
+    setCurrentNodeId(nodeId)
+  }
+
+  // 关闭 WritingEditor
+  const handleCloseEditor = () => {
+    setCurrentNodeId(null)
+  }
+
   if (!currentProject) return null
 
   return (
@@ -168,6 +180,8 @@ export default function ProjectEditor() {
                       onEdit={openEditModal}
                       onDelete={handleDeleteNode}
                       onAddChild={openAddModal}
+                      onOpenNode={handleOpenNode}
+                      activeNodeId={currentNodeId}
                     />
                     {provided.placeholder}
                   </div>
@@ -193,17 +207,17 @@ export default function ProjectEditor() {
 
       {/* 右侧内容区 */}
       <div className="flex-1 bg-gray-50 overflow-y-auto">
-        {editingNode ? (
-          <NodeEditor
-            node={outlineNodes.find(n => n.id === editingNode)!}
-            onSave={async (updates) => {
-              if (editingNode) await updateOutlineNode(editingNode, updates)
-            }}
-            onClose={() => setEditingNode(null)}
+        {currentNodeId ? (
+          <WritingEditor
+            nodeId={currentNodeId}
+            onClose={handleCloseEditor}
           />
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400">
-            <p>从左侧大纲选择一个节点开始编辑</p>
+            <div className="text-center">
+              <p className="text-lg mb-2">从左侧大纲选择一个节点开始编辑</p>
+              <p className="text-sm">点击章节标题将打开完整的写作编辑器</p>
+            </div>
           </div>
         )}
       </div>
@@ -279,92 +293,6 @@ export default function ProjectEditor() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function NodeEditor({ node, onSave, onClose }: { node: any; onSave: (u: any) => void; onClose: () => void }) {
-  const [form, setForm] = useState({
-    title: node.title,
-    summary: node.summary,
-    content: node.content,
-    status: node.status
-  })
-
-  useEffect(() => {
-    setForm({
-      title: node.title,
-      summary: node.summary,
-      content: node.content,
-      status: node.status
-    })
-  }, [node])
-
-  const handleSave = () => {
-    onSave(form)
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-xl shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <span className={`px-2 py-1 text-xs rounded ${
-              node.type === 'volume' ? 'bg-purple-100 text-purple-700' :
-              node.type === 'chapter' ? 'bg-blue-100 text-blue-700' :
-              node.type === 'section' ? 'bg-green-100 text-green-700' :
-              'bg-orange-100 text-orange-700'
-            }`}>
-              {node.type === 'volume' ? '卷' : node.type === 'chapter' ? '章' : node.type === 'section' ? '节' : '场景'}
-            </span>
-            <select
-              value={form.status}
-              onChange={e => setForm({ ...form, status: e.target.value })}
-              className="ml-2 px-2 py-1 text-sm border rounded"
-            >
-              <option value="planning">构思中</option>
-              <option value="writing">写作中</option>
-              <option value="completed">已完成</option>
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">关闭</button>
-            <button onClick={handleSave} className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">保存</button>
-          </div>
-        </div>
-        
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">标题</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">简述</label>
-            <textarea
-              value={form.summary}
-              onChange={e => setForm({ ...form, summary: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24"
-              placeholder="章节概述..."
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">正文</label>
-            <textarea
-              value={form.content}
-              onChange={e => setForm({ ...form, content: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-96"
-              placeholder="开始写作..."
-            />
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
