@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { db, Project, OutlineNode, AgentConfig } from './db'
+import { db, Project, OutlineNode, AgentConfig, MaterialCard } from './db'
 
 interface AppState {
   // 项目列表
@@ -26,6 +26,13 @@ interface AppState {
   updateAgentConfig: (id: number, updates: Partial<AgentConfig>) => Promise<void>
   deleteAgentConfig: (id: number) => Promise<void>
 
+  // 素材库
+  materialCards: MaterialCard[]
+  loadMaterialCards: (projectId: number) => Promise<void>
+  createMaterialCard: (card: Omit<MaterialCard, 'id'>) => Promise<MaterialCard>
+  updateMaterialCard: (id: number, updates: Partial<MaterialCard>) => Promise<void>
+  deleteMaterialCard: (id: number) => Promise<void>
+
   // 编辑器状态
   currentNodeId: number | null
   isFullscreen: boolean
@@ -38,6 +45,7 @@ export const useStore = create<AppState>((set, get) => ({
   currentProject: null,
   outlineNodes: [],
   agentConfigs: [],
+  materialCards: [],
   currentNodeId: null,
   isFullscreen: false,
 
@@ -68,6 +76,7 @@ export const useStore = create<AppState>((set, get) => ({
     await db.projects.delete(id)
     await db.outlineNodes.where('projectId').equals(id).delete()
     await db.agentConfigs.where('projectId').equals(id).delete()
+    await db.materialCards.where('projectId').equals(id).delete()
     set(state => ({
       projects: state.projects.filter(p => p.id !== id),
       currentProject: state.currentProject?.id === id ? null : state.currentProject
@@ -79,6 +88,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (project?.id) {
       get().loadOutline(project.id)
       get().loadAgentConfigs(project.id)
+      get().loadMaterialCards(project.id)
     }
   },
 
@@ -104,7 +114,6 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteOutlineNode: async (id) => {
     await db.outlineNodes.delete(id)
-    // 递归删除子节点
     const { outlineNodes } = get()
     const childIds = outlineNodes.filter(n => n.parentId === id).map(n => n.id)
     for (const childId of childIds) {
@@ -145,6 +154,33 @@ export const useStore = create<AppState>((set, get) => ({
   deleteAgentConfig: async (id) => {
     await db.agentConfigs.delete(id)
     set(state => ({ agentConfigs: state.agentConfigs.filter(c => c.id !== id) }))
+  },
+
+  // 素材库
+  loadMaterialCards: async (projectId) => {
+    const cards = await db.materialCards.where('projectId').equals(projectId).toArray()
+    set({ materialCards: cards })
+  },
+
+  createMaterialCard: async (card) => {
+    const now = new Date()
+    const newCard: MaterialCard = { ...card, createdAt: now, updatedAt: now }
+    const id = await db.materialCards.add(newCard)
+    const result = { ...newCard, id: id as number }
+    set(state => ({ materialCards: [...state.materialCards, result] }))
+    return result
+  },
+
+  updateMaterialCard: async (id, updates) => {
+    await db.materialCards.update(id, { ...updates, updatedAt: new Date() })
+    set(state => ({
+      materialCards: state.materialCards.map(c => c.id === id ? { ...c, ...updates } : c)
+    }))
+  },
+
+  deleteMaterialCard: async (id) => {
+    await db.materialCards.delete(id)
+    set(state => ({ materialCards: state.materialCards.filter(c => c.id !== id) }))
   },
 
   // 编辑器状态

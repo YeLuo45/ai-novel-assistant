@@ -36,11 +36,24 @@ export interface ApiKey {
   key: string
 }
 
+export interface MaterialCard {
+  id?: number
+  projectId: number
+  type: 'character' | 'location' | 'item'
+  name: string
+  fields: Record<string, string>
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type MaterialCardType = 'character' | 'location' | 'item'
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
   agentConfigs!: Table<AgentConfig>
   apiKeys!: Table<ApiKey>
+  materialCards!: Table<MaterialCard>
 
   constructor() {
     super('NovelDB')
@@ -49,6 +62,13 @@ class NovelDatabase extends Dexie {
       outlineNodes: '++id, projectId, parentId, type, status, order',
       agentConfigs: '++id, projectId, name, model',
       apiKeys: '++id, provider'
+    })
+    this.version(2).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt'
     })
   }
 }

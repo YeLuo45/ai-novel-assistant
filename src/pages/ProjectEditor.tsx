@@ -5,6 +5,7 @@ import { db } from '../db'
 import OutlineTree from '../components/OutlineTree'
 import AIChat from '../components/AIChat'
 import WritingEditor from '../components/WritingEditor'
+import { MaterialPanel } from '../components/MaterialPanel'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
 type Tab = 'outline' | 'chat'
@@ -22,6 +23,7 @@ export default function ProjectEditor() {
   const [activeTab, setActiveTab] = useState<Tab>('outline')
   const [showNodeModal, setShowNodeModal] = useState(false)
   const [editingNode, setEditingNode] = useState<number | null>(null)
+  const [showMaterialPanel, setShowMaterialPanel] = useState(true)
   const [nodeForm, setNodeForm] = useState<{
     type: 'volume' | 'chapter' | 'section' | 'scene'
     title: string
@@ -221,6 +223,12 @@ export default function ProjectEditor() {
           </div>
         )}
       </div>
+
+      {/* 素材库面板 */}
+      <MaterialPanel 
+        isOpen={showMaterialPanel} 
+        onToggle={() => setShowMaterialPanel(!showMaterialPanel)} 
+      />
 
       {/* 添加/编辑节点弹窗 */}
       {showNodeModal && (

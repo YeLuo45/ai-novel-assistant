@@ -4,6 +4,7 @@ import { useStore } from '../store'
 import { OutlineNode } from '../db'
 import AIAssistBar from './AIAssistBar'
 import WordCountBar from './WordCountBar'
+import CardReference from './CardReference'
 
 interface Props {
   nodeId: number
@@ -22,6 +23,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [lastSavedContent, setLastSavedContent] = useState(content)
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [previewMode, setPreviewMode] = useState(false)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -198,7 +200,16 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             {isFullscreen ? '⊠' : '⛶'}
           </button>
-          
+
+          {/* 预览模式切换 */}
+          <button
+            onClick={() => setPreviewMode(!previewMode)}
+            className={`px-3 py-1.5 text-sm rounded ${previewMode ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}
+            title={previewMode ? '切换到编辑模式' : '切换到预览模式（可点击素材卡片）'}
+          >
+            {previewMode ? '编辑' : '预览'}
+          </button>
+
           {/* 保存按钮 */}
           <button
             onClick={() => handleSave(false)}
@@ -240,28 +251,34 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             />
           </div>
           
-          {/* Markdown 编辑器 */}
+          {/* Markdown 编辑器 / 预览 */}
           <div className="p-6" data-color-mode="light">
-            <MDEditor
-              value={content}
-              onChange={(val) => setContent(val || '')}
-              height="100%"
-              preview="edit"
-              visibleDragbar={false}
-              style={{
-                minHeight: '400px',
-                backgroundColor: 'transparent'
-              }}
-              textareaProps={{
-                placeholder: '开始写作...',
-                onMouseUp: () => {
-                  const selection = window.getSelection()
-                  if (selection && selection.toString().trim()) {
-                    setSelectedText(selection.toString().trim())
+            {previewMode ? (
+              <div className="prose max-w-none min-h-[400px]">
+                <CardReference content={content} />
+              </div>
+            ) : (
+              <MDEditor
+                value={content}
+                onChange={(val) => setContent(val || '')}
+                height="100%"
+                preview="edit"
+                visibleDragbar={false}
+                style={{
+                  minHeight: '400px',
+                  backgroundColor: 'transparent'
+                }}
+                textareaProps={{
+                  placeholder: '开始写作...',
+                  onMouseUp: () => {
+                    const selection = window.getSelection()
+                    if (selection && selection.toString().trim()) {
+                      setSelectedText(selection.toString().trim())
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+            )}
           </div>
           
           {/* 字数统计 */}
