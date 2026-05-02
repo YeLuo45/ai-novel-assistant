@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import { exportToPDF, ExportChapter } from '../utils/pdf-export'
+import { generateEpub, downloadEpub } from '../services/EpubExportService'
 
 interface Props {
   isOpen: boolean
@@ -61,9 +62,28 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
         })
         setStatus('PDF 导出成功！')
       } else {
-        // EPUB placeholder - log for now
-        setStatus('EPUB 导出功能开发中...')
-        console.log('EPUB export not yet implemented')
+        // EPUB export
+        setStatus('正在生成 EPUB...')
+        const allChaptersForEpub = buildChapterList(null)
+        if (allChaptersForEpub.length === 0) {
+          setStatus('没有可导出的章节')
+          setIsExporting(false)
+          return
+        }
+        const epubChapters = allChaptersForEpub.map((ch, i) => ({
+          id: String(ch.id),
+          title: ch.title || `第${i + 1}章`,
+          content: `<p>${(ch.content || '').replace(/\n/g, '</p><p>')}</p>`
+        }))
+        const metadata = {
+          title: title,
+          author: author || '未知作者',
+          language: 'zh-CN',
+          description: ''
+        }
+        const blob = await generateEpub(metadata, epubChapters)
+        downloadEpub(blob, `${title}.epub`)
+        setStatus('EPUB 导出成功！')
       }
 
       setTimeout(() => setStatus(''), 3000)
@@ -146,8 +166,8 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
             </button>
           </div>
           {format === 'epub' && (
-            <p className="mt-1 text-xs text-amber-600">
-              ⚠️ EPUB 导出功能开发中，敬请期待
+            <p className="mt-1 text-xs text-green-600">
+              ✅ EPUB 导出功能已就绪
             </p>
           )}
         </div>
@@ -223,9 +243,9 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
       <div className="p-4 border-t border-gray-200">
         <button
           onClick={handleExport}
-          disabled={isExporting || format === 'epub'}
+          disabled={isExporting}
           className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            isExporting || format === 'epub'
+            isExporting
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-indigo-600 text-white hover:bg-indigo-700'
           }`}
