@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useStore } from '../store'
+import { ExportPanel } from './ExportPanel'
 
 export default function Layout() {
   const location = useLocation()
   const { currentProject } = useStore()
+  const [showExport, setShowExport] = useState(false)
 
   const isActive = (path: string) => location.pathname === path
 
@@ -38,12 +41,23 @@ export default function Layout() {
             </nav>
           </div>
           {currentProject && (
-            <div className="text-sm text-gray-500">
-              当前项目: <span className="font-medium text-gray-700">{currentProject.title}</span>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                当前项目: <span className="font-medium text-gray-700">{currentProject.title}</span>
+              </div>
+              <button
+                onClick={() => setShowExport(true)}
+                className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                📤 导出
+              </button>
             </div>
           )}
         </div>
       </header>
+
+      {/* Export Panel */}
+      <ExportPanel isOpen={showExport} onToggle={() => setShowExport(false)} />
 
       {/* 主内容区 */}
       <main className="flex-1">

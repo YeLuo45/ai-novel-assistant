@@ -37,5 +37,27 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src')
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/')) {
+            // Split each major package into its own chunk
+            if (id.includes('node_modules/react/')) return 'vendor-react'
+            if (id.includes('node_modules/zustand/')) return 'vendor-zustand'
+            if (id.includes('node_modules/dexie/')) return 'vendor-dexie'
+            if (id.includes('node_modules/react-router/')) return 'vendor-router'
+            if (id.includes('node_modules/@uiw/')) return 'vendor-editor'
+            if (id.includes('node_modules/prosemirror/')) return 'vendor-prosemirror'
+            if (id.includes('node_modules/codemirror/')) return 'vendor-codemirror'
+            if (id.includes('node_modules/react-beautiful-dnd/')) return 'vendor-dnd'
+            if (id.includes('node_modules/markdown-it/') || id.includes('node_modules/remark-')) return 'vendor-markdown'
+            return 'vendor-misc'
+          }
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600
   }
 })
