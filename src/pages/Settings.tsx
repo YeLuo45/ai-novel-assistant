@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { db } from '../db'
+import { useStore } from '../store'
 import BackupPanel from '../components/BackupPanel'
+import MilestonePanel from '../components/MilestonePanel'
+import { reminderService } from '../services/ReminderService'
 
-type SettingsTab = 'api' | 'backup'
+type SettingsTab = 'api' | 'backup' | 'milestones' | 'reminders'
 
 export default function Settings() {
+  const { currentProject } = useStore()
   const [activeTab, setActiveTab] = useState<SettingsTab>('api')
   const [apiKeys, setApiKeys] = useState<{
     openai: string
@@ -18,10 +22,37 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showBackup, setShowBackup] = useState(false)
+  const [showMilestone, setShowMilestone] = useState(false)
+  
+  // Reminder settings state
+  const [reminderEnabled, setReminderEnabled] = useState(true)
+  const [reminderTime, setReminderTime] = useState('20:00')
+  const [reminderDays, setReminderDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 0])
+  const [autoRemindMilestones, setAutoRemindMilestones] = useState(true)
+  const [minWordCount, setMinWordCount] = useState(500)
 
   useEffect(() => {
     loadKeys()
+    loadReminderSettings()
   }, [])
+
+  useEffect(() => {
+    if (currentProject) {
+      loadReminderSettings()
+    }
+  }, [currentProject])
+
+  const loadReminderSettings = async () => {
+    if (!currentProject || currentProject.id === undefined) return
+    const settings = await db.reminderSettings.where('projectId').equals(currentProject.id as number).first()
+    if (settings) {
+      setReminderEnabled(settings.enabled)
+      setReminderTime(settings.dailyReminderTime)
+      setReminderDays(settings.reminderDays)
+      setAutoRemindMilestones(settings.autoRemindMilestones)
+      setMinWordCount(settings.minWordCountForReminder)
+    }
+  }
 
   const loadKeys = async () => {
     const keys = await db.apiKeys.toArray()
@@ -54,6 +85,36 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const handleSaveReminderSettings = async () => {
+    if (!currentProject || currentProject.id === undefined) return
+    const pid = currentProject.id as number
+    await db.reminderSettings.where('projectId').equals(pid).delete()
+    await db.reminderSettings.add({
+      projectId: pid,
+      enabled: reminderEnabled,
+      dailyReminderTime: reminderTime,
+      reminderDays,
+      autoRemindMilestones,
+      minWordCountForReminder: minWordCount,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
+    
+    // Restart reminder service with new settings
+    reminderService.stop()
+    reminderService.start({
+      projectId: pid,
+      enabled: reminderEnabled,
+      dailyReminderTime: reminderTime,
+      reminderDays,
+      autoRemindMilestones,
+      minWordCountForReminder: minWordCount
+    })
+    
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   if (loading) {
     return <div className="p-6 text-center text-gray-500">加载中...</div>
   }
@@ -81,6 +142,26 @@ export default function Settings() {
           }`}
         >
           💾 备份与同步
+        </button>
+        <button
+          onClick={() => { setActiveTab('milestones'); setShowMilestone(true) }}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === 'milestones'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          🏆 里程碑
+        </button>
+        <button
+          onClick={() => setActiveTab('reminders')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === 'reminders'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          ⏰ 写作提醒
         </button>
       </div>
 
@@ -192,11 +273,175 @@ export default function Settings() {
         </div>
       )}
 
+      {activeTab === 'milestones' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">🏆 里程碑管理</h2>
+          {showMilestone && currentProject ? (
+            <MilestonePanel
+              isOpen={showMilestone}
+              projectId={currentProject.id ?? 0}
+              onClose={() => setShowMilestone(false)}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">点击按钮管理您的写作里程碑</p>
+              <button
+                onClick={() => setShowMilestone(true)}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                打开里程碑面板
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'reminders' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">⏰ 写作提醒设置</h2>
+          
+          <div className="space-y-6">
+            {/* Enable Reminders */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-medium text-gray-800">启用写作提醒</label>
+                <p className="text-sm text-gray-500">定时提醒您进行写作练习</p>
+              </div>
+              <button
+                onClick={() => setReminderEnabled(!reminderEnabled)}
+                className={`w-12 h-6 rounded-full transition-colors ${
+                  reminderEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                  reminderEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* Reminder Time */}
+            <div>
+              <label className="block font-medium text-gray-800 mb-2">每日提醒时间</label>
+              <input
+                type="time"
+                value={reminderTime}
+                onChange={e => setReminderTime(e.target.value)}
+                disabled={!reminderEnabled}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+
+            {/* Reminder Days */}
+            <div>
+              <label className="block font-medium text-gray-800 mb-2">提醒日期</label>
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { day: 0, label: '日' },
+                  { day: 1, label: '一' },
+                  { day: 2, label: '二' },
+                  { day: 3, label: '三' },
+                  { day: 4, label: '四' },
+                  { day: 5, label: '五' },
+                  { day: 6, label: '六' },
+                ].map(({ day, label }) => (
+                  <button
+                    key={day}
+                    onClick={() => {
+                      if (reminderDays.includes(day)) {
+                        setReminderDays(reminderDays.filter(d => d !== day))
+                      } else {
+                        setReminderDays([...reminderDays, day])
+                      }
+                    }}
+                    disabled={!reminderEnabled}
+                    className={`w-10 h-10 rounded-full font-medium transition-colors ${
+                      reminderDays.includes(day)
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Auto Remind Milestones */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-medium text-gray-800">里程碑自动提醒</label>
+                <p className="text-sm text-gray-500">当接近里程碑目标时自动提醒</p>
+              </div>
+              <button
+                onClick={() => setAutoRemindMilestones(!autoRemindMilestones)}
+                disabled={!reminderEnabled}
+                className={`w-12 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                  autoRemindMilestones ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                  autoRemindMilestones ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* Min Word Count */}
+            <div>
+              <label className="block font-medium text-gray-800 mb-2">
+                最低字数要求 ({minWordCount} 字)
+              </label>
+              <p className="text-xs text-gray-500 mb-2">当天写作达到此字数才不提醒</p>
+              <input
+                type="range"
+                min="100"
+                max="5000"
+                step="100"
+                value={minWordCount}
+                onChange={e => setMinWordCount(Number(e.target.value))}
+                disabled={!reminderEnabled}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>100字</span>
+                <span>5000字</span>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex items-center gap-4 pt-4">
+              {saved && (
+                <span className="text-sm text-green-600">已保存 ✓</span>
+              )}
+              <button
+                onClick={handleSaveReminderSettings}
+                disabled={!reminderEnabled || !currentProject}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                保存提醒设置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Backup Panel Modal */}
       <BackupPanel 
         isOpen={showBackup} 
         onClose={() => setShowBackup(false)} 
       />
+
+      {/* Milestone Panel Modal */}
+      {showMilestone && currentProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <MilestonePanel
+              isOpen={showMilestone}
+              projectId={currentProject.id ?? 0}
+              onClose={() => setShowMilestone(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

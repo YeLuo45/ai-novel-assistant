@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink, CharacterRelationship, ProjectViewpoint, ViewpointType } from './db'
+import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink, CharacterRelationship, ProjectViewpoint, ViewpointType, Milestone, ReminderSettings } from './db'
 
 interface AppState {
   // 项目列表
@@ -80,6 +80,19 @@ interface AppState {
   currentPOVCharacterId: number | null
   loadProjectViewpoint: (projectId: number) => Promise<void>
   setViewpoint: (viewpoint: ViewpointType, characterId?: number) => Promise<void>
+
+  // 里程碑管理 (V11)
+  milestones: Milestone[]
+  loadMilestones: (projectId: number) => Promise<void>
+  createMilestone: (milestone: Omit<Milestone, 'id'>) => Promise<Milestone>
+  updateMilestone: (id: number, updates: Partial<Milestone>) => Promise<void>
+  deleteMilestone: (id: number) => Promise<void>
+  markMilestoneAchieved: (id: number) => Promise<void>
+
+  // 提醒设置 (V11)
+  reminderSettings: ReminderSettings | null
+  loadReminderSettings: (projectId: number) => Promise<void>
+  updateReminderSettings: (projectId: number, updates: Partial<ReminderSettings>) => Promise<void>
 }
 
 const DEFAULT_DAILY_GOAL = 3000
@@ -104,6 +117,8 @@ export const useStore = create<AppState>((set, get) => ({
   characterRelationships: [],
   currentViewpoint: 'third_person_limited',
   currentPOVCharacterId: null,
+  milestones: [],
+  reminderSettings: null,
 
   // 备份时间追踪
   updateLastBackupTime: () => {
@@ -527,5 +542,67 @@ export const useStore = create<AppState>((set, get) => ({
       })
     }
     set({ currentViewpoint: viewpoint, currentPOVCharacterId: characterId || null })
+  },
+
+  // 里程碑管理 (V11)
+  loadMilestones: async (projectId) => {
+    const milestones = await db.milestones
+      .where('projectId').equals(projectId)
+      .toArray()
+    set({ milestones })
+  },
+
+  createMilestone: async (milestone) => {
+    const id = await db.milestones.add(milestone)
+    const newMilestone = { ...milestone, id: id as number }
+    set(state => ({ milestones: [...state.milestones, newMilestone] }))
+    return newMilestone
+  },
+
+  updateMilestone: async (id, updates) => {
+    await db.milestones.update(id, updates)
+    set(state => ({
+      milestones: state.milestones.map(m => m.id === id ? { ...m, ...updates } : m)
+    }))
+  },
+
+  deleteMilestone: async (id) => {
+    await db.milestones.delete(id)
+    set(state => ({ milestones: state.milestones.filter(m => m.id !== id) }))
+  },
+
+  markMilestoneAchieved: async (id) => {
+    await db.milestones.update(id, { status: 'achieved', achievedAt: new Date() })
+    set(state => ({
+      milestones: state.milestones.map(m => m.id === id ? { ...m, status: 'achieved' as const, achievedAt: new Date() } : m)
+    }))
+  },
+
+  // 提醒设置 (V11)
+  loadReminderSettings: async (projectId) => {
+    const settings = await db.reminderSettings.where('projectId').equals(projectId).first()
+    set({ reminderSettings: settings || null })
+  },
+
+  updateReminderSettings: async (projectId, updates) => {
+    const existing = await db.reminderSettings.where('projectId').equals(projectId).first()
+    if (existing && existing.id) {
+      await db.reminderSettings.update(existing.id, { ...updates, updatedAt: new Date() })
+      set(state => ({ reminderSettings: state.reminderSettings ? { ...state.reminderSettings, ...updates } : null }))
+    } else {
+      const newSettings = {
+        projectId,
+        enabled: true,
+        dailyReminderTime: '20:00',
+        reminderDays: [1, 2, 3, 4, 5, 6, 0],
+        autoRemindMilestones: true,
+        minWordCountForReminder: 500,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...updates
+      }
+      const id = await db.reminderSettings.add(newSettings)
+      set({ reminderSettings: { ...newSettings, id: id as number } })
+    }
   },
 }))

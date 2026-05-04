@@ -8,7 +8,7 @@ import WritingEditor from '../components/WritingEditor'
 import { MaterialPanel } from '../components/MaterialPanel'
 import WorldbuildingTab from '../components/WorldbuildingTab'
 import AIShortcutBar from '../components/AIShortcutBar'
-import WordGoalTracker from '../components/WordGoalTracker'
+import DailyGoalTracker from '../components/DailyGoalTracker'
 import CharacterRelationshipList from '../components/CharacterRelationshipList'
 import TimelineView from '../components/TimelineView'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
@@ -455,7 +455,7 @@ export default function ProjectEditor() {
 
       {/* Right Sidebar - Goal Tracker */}
       {showGoalTracker && currentProject && (
-        <WordGoalTracker projectId={currentProject.id!} />
+        <DailyGoalTracker projectId={currentProject.id!} />
       )}
 
       {/* Material Panel */}

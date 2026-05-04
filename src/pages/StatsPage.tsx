@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useStore } from '../store'
 import { db } from '../db'
 import WritingStatsDashboard from '../components/WritingStatsDashboard'
-import WordGoalTracker from '../components/WordGoalTracker'
+import DailyGoalTracker from '../components/DailyGoalTracker'
 
 export default function StatsPage() {
   const { id } = useParams<{ id: string }>()
@@ -54,8 +54,8 @@ export default function StatsPage() {
         <WritingStatsDashboard projectId={currentProject.id!} />
       </div>
 
-      {/* Right Sidebar - Word Goal Tracker */}
-      <WordGoalTracker projectId={currentProject.id!} />
+      {/* Right Sidebar - Daily Goal Tracker */}
+      <DailyGoalTracker projectId={currentProject.id!} />
     </div>
   )
 }

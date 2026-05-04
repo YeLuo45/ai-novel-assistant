@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, AreaChart, Area } from 'recharts'
 import { useStore } from '../store'
 import { db } from '../db'
+import WritingHeatmap from './WritingHeatmap'
 
 interface Props {
   projectId: number
@@ -15,7 +16,7 @@ export default function WritingStatsDashboard({ projectId }: Props) {
   const [last7Days, setLast7Days] = useState<{ date: string; wordCount: number; dayName: string }[]>([])
   const [chapterStats, setChapterStats] = useState<{ title: string; wordCount: number; progress: number }[]>([])
   const [radarData, setRadarData] = useState<{ chapter: string; words: number }[]>([])
-  const [viewMode, setViewMode] = useState<'overview' | 'detailed' | 'characters'>('overview')
+  const [viewMode, setViewMode] = useState<'overview' | 'detailed' | 'characters' | 'heatmap'>('overview')
 
   // Character statistics for the new Characters tab
   const [characterStats, setCharacterStats] = useState<{
@@ -134,6 +135,14 @@ export default function WritingStatsDashboard({ projectId }: Props) {
               }`}
             >
               角色统计
+            </button>
+            <button
+              onClick={() => setViewMode('heatmap')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                viewMode === 'heatmap' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              热力图
             </button>
           </div>
         </div>
@@ -390,6 +399,11 @@ export default function WritingStatsDashboard({ projectId }: Props) {
               </div>
             </div>
           </>
+        )}
+
+        {/* Heatmap Mode */}
+        {viewMode === 'heatmap' && (
+          <WritingHeatmap projectId={projectId} days={365} />
         )}
       </div>
     </div>

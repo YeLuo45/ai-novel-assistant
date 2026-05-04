@@ -45,54 +45,47 @@ export interface MaterialCard {
   createdAt: Date
   updatedAt: Date
 }
-// Character type material card already exists, adding avatar support
+
 export type MaterialCardType = 'character' | 'location' | 'item'
 
-// Character relationship model
 export interface CharacterRelationship {
   id?: number
   projectId: number
-  fromCharacterId: number // source character card id
-  toCharacterId: number   // target character card id
-  relationshipType: string // e.g., "friend", "enemy", "family", "rival"
+  fromCharacterId: number
+  toCharacterId: number
+  relationshipType: string
   description: string
 }
 
-// Viewpoint type
 export type ViewpointType = 'first_person' | 'third_person_limited' | 'third_person_omniscient'
 
-// Project viewpoint settings
 export interface ProjectViewpoint {
   id?: number
   projectId: number
   viewpoint: ViewpointType
-  currentCharacterId?: number // For first person, which character is the POV
+  currentCharacterId?: number
 }
 
-// Writing stats for daily word count tracking
 export interface WritingStats {
   id?: number
   projectId: number
-  date: string // YYYY-MM-DD format
+  date: string
   wordCount: number
 }
 
-// Storyline model
 export interface Storyline {
   id?: number
   projectId: number
   name: string
-  color: string // hex color
+  color: string
 }
 
-// Chapter-Storyline link
 export interface ChapterStorylineLink {
   id?: number
   chapterId: number
   storylineId: number
 }
 
-// Chat message for multi-turn conversation memory
 export interface ChatMessage {
   id?: number
   projectId: number
@@ -101,7 +94,6 @@ export interface ChatMessage {
   timestamp: Date
 }
 
-// Book metadata for EPUB export
 export interface BookMeta {
   id?: number
   projectId: number
@@ -112,12 +104,49 @@ export interface BookMeta {
   language: string
 }
 
-// Book cover image
 export interface BookCover {
   id?: number
   projectId: number
-  dataUrl: string // base64 data URL
+  dataUrl: string
   createdAt: Date
+}
+
+// Milestone model for writing milestones
+export interface Milestone {
+  id?: number
+  projectId: number
+  title: string
+  description: string
+  targetDate: string
+  targetWordCount: number
+  status: 'pending' | 'achieved' | 'missed'
+  achievedAt?: Date
+  createdAt: Date
+}
+
+// Daily Goal Config model
+export interface DailyGoalConfig {
+  id?: number
+  projectId: number
+  dailyWordGoal: number
+  totalWordGoal: number
+  reminderEnabled: boolean
+  reminderInterval: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Reminder settings for writing reminders
+export interface ReminderSettings {
+  id?: number
+  projectId: number
+  enabled: boolean
+  dailyReminderTime: string
+  reminderDays: number[]
+  autoRemindMilestones: boolean
+  minWordCountForReminder: number
+  createdAt: Date
+  updatedAt: Date
 }
 
 class NovelDatabase extends Dexie {
@@ -134,6 +163,9 @@ class NovelDatabase extends Dexie {
   bookCovers!: Table<BookCover>
   characterRelationships!: Table<CharacterRelationship>
   projectViewpoint!: Table<ProjectViewpoint>
+  dailyGoalConfigs!: Table<DailyGoalConfig>
+  milestones!: Table<Milestone>
+  reminderSettings!: Table<ReminderSettings>
 
   constructor() {
     super('NovelDB')
@@ -209,7 +241,25 @@ class NovelDatabase extends Dexie {
       bookMeta: '++id, projectId',
       bookCovers: '++id, projectId',
       characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
-      projectViewpoint: '++id, projectId'
+      projectViewpoint: '++id, projectId',
+      dailyGoalConfigs: '++id, projectId'
+    })
+    this.version(8).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId'
     })
   }
 }
