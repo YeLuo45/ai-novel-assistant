@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink } from './db'
+import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink, CharacterRelationship, ProjectViewpoint, ViewpointType } from './db'
 
 interface AppState {
   // 项目列表
@@ -68,6 +68,18 @@ interface AppState {
   setDailyGoal: (goal: number) => void
   setTotalWordGoal: (goal: number) => void
   updateStreak: () => Promise<void>
+
+  // 角色关系
+  characterRelationships: CharacterRelationship[]
+  loadCharacterRelationships: (projectId: number) => Promise<void>
+  createCharacterRelationship: (rel: Omit<CharacterRelationship, 'id'>) => Promise<CharacterRelationship>
+  deleteCharacterRelationship: (id: number) => Promise<void>
+
+  // 叙事视角
+  currentViewpoint: ViewpointType
+  currentPOVCharacterId: number | null
+  loadProjectViewpoint: (projectId: number) => Promise<void>
+  setViewpoint: (viewpoint: ViewpointType, characterId?: number) => Promise<void>
 }
 
 const DEFAULT_DAILY_GOAL = 3000
@@ -89,6 +101,9 @@ export const useStore = create<AppState>((set, get) => ({
   todayWordCount: 0,
   streak: 0,
   lastBackupTime: null,
+  characterRelationships: [],
+  currentViewpoint: 'third_person_limited',
+  currentPOVCharacterId: null,
 
   // 备份时间追踪
   updateLastBackupTime: () => {
@@ -408,5 +423,50 @@ export const useStore = create<AppState>((set, get) => ({
     }
     
     set({ streak: currentStreak })
+  },
+
+  // 角色关系
+  loadCharacterRelationships: async (projectId) => {
+    const rels = await db.characterRelationships.where('projectId').equals(projectId).toArray()
+    set({ characterRelationships: rels })
+  },
+  createCharacterRelationship: async (rel) => {
+    const id = await db.characterRelationships.add(rel)
+    const newRel = { ...rel, id: id as number }
+    set(state => ({ characterRelationships: [...state.characterRelationships, newRel] }))
+    return newRel
+  },
+  deleteCharacterRelationship: async (id) => {
+    await db.characterRelationships.delete(id)
+    set(state => ({ characterRelationships: state.characterRelationships.filter(r => r.id !== id) }))
+  },
+
+  // 叙事视角
+  loadProjectViewpoint: async (projectId) => {
+    const viewpoint = await db.projectViewpoint.where('projectId').equals(projectId).first()
+    if (viewpoint) {
+      set({ 
+        currentViewpoint: viewpoint.viewpoint, 
+        currentPOVCharacterId: viewpoint.currentCharacterId || null 
+      })
+    } else {
+      set({ currentViewpoint: 'third_person_limited', currentPOVCharacterId: null })
+    }
+  },
+  setViewpoint: async (viewpoint, characterId) => {
+    const { currentProject } = get()
+    if (!currentProject?.id) return
+    
+    const existing = await db.projectViewpoint.where('projectId').equals(currentProject.id).first()
+    if (existing) {
+      await db.projectViewpoint.update(existing.id!, { viewpoint, currentCharacterId: characterId })
+    } else {
+      await db.projectViewpoint.add({ 
+        projectId: currentProject.id, 
+        viewpoint, 
+        currentCharacterId: characterId 
+      })
+    }
+    set({ currentViewpoint: viewpoint, currentPOVCharacterId: characterId || null })
   },
 }))

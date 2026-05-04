@@ -5,6 +5,7 @@ import { OutlineNode } from '../db'
 import AIShortcutBar from './AIShortcutBar'
 import WordCountBar from './WordCountBar'
 import CardReference from './CardReference'
+import ViewpointSwitcher from './ViewpointSwitcher'
 
 interface Props {
   nodeId: number
@@ -221,6 +222,11 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             {previewMode ? '编辑' : '预览'}
           </button>
+
+          {/* Viewpoint Switcher */}
+          {currentProject && (
+            <ViewpointSwitcher projectId={currentProject.id!} />
+          )}
 
           {/* Save Button */}
           <button

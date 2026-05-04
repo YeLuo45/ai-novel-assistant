@@ -9,9 +9,10 @@ import { MaterialPanel } from '../components/MaterialPanel'
 import WorldbuildingTab from '../components/WorldbuildingTab'
 import AIShortcutBar from '../components/AIShortcutBar'
 import WordGoalTracker from '../components/WordGoalTracker'
+import CharacterRelationshipList from '../components/CharacterRelationshipList'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
-type Tab = 'outline' | 'chat' | 'storyline' | 'worldbuilding'
+type Tab = 'outline' | 'chat' | 'storyline' | 'worldbuilding' | 'relationships'
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>()
@@ -266,6 +267,16 @@ export default function ProjectEditor() {
           >
             世界观
           </button>
+          <button
+            onClick={() => setActiveTab('relationships')}
+            className={`flex-1 py-3 text-sm font-medium ${
+              activeTab === 'relationships' 
+                ? 'text-indigo-600 border-b-2 border-indigo-600' 
+                : 'text-gray-500'
+            }`}
+          >
+            关系图
+          </button>
         </div>
 
         {activeTab === 'outline' && (
@@ -311,6 +322,12 @@ export default function ProjectEditor() {
         {activeTab === 'worldbuilding' && (
           <div className="flex-1 overflow-hidden">
             <WorldbuildingTab />
+          </div>
+        )}
+
+        {activeTab === 'relationships' && currentProject && (
+          <div className="flex-1 overflow-hidden">
+            <CharacterRelationshipList projectId={currentProject.id!} />
           </div>
         )}
 

@@ -45,8 +45,29 @@ export interface MaterialCard {
   createdAt: Date
   updatedAt: Date
 }
-
+// Character type material card already exists, adding avatar support
 export type MaterialCardType = 'character' | 'location' | 'item'
+
+// Character relationship model
+export interface CharacterRelationship {
+  id?: number
+  projectId: number
+  fromCharacterId: number // source character card id
+  toCharacterId: number   // target character card id
+  relationshipType: string // e.g., "friend", "enemy", "family", "rival"
+  description: string
+}
+
+// Viewpoint type
+export type ViewpointType = 'first_person' | 'third_person_limited' | 'third_person_omniscient'
+
+// Project viewpoint settings
+export interface ProjectViewpoint {
+  id?: number
+  projectId: number
+  viewpoint: ViewpointType
+  currentCharacterId?: number // For first person, which character is the POV
+}
 
 // Writing stats for daily word count tracking
 export interface WritingStats {
@@ -111,6 +132,8 @@ class NovelDatabase extends Dexie {
   chatMessages!: Table<ChatMessage>
   bookMeta!: Table<BookMeta>
   bookCovers!: Table<BookCover>
+  characterRelationships!: Table<CharacterRelationship>
+  projectViewpoint!: Table<ProjectViewpoint>
 
   constructor() {
     super('NovelDB')
@@ -172,6 +195,21 @@ class NovelDatabase extends Dexie {
       chatMessages: '++id, projectId, timestamp',
       bookMeta: '++id, projectId',
       bookCovers: '++id, projectId'
+    })
+    this.version(7).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId'
     })
   }
 }

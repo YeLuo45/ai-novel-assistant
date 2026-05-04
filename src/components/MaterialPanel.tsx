@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import { MaterialCard } from '../db'
+import CharacterAvatar from './CharacterAvatar'
 
 interface Props {
   isOpen: boolean
@@ -150,23 +151,15 @@ export function MaterialPanel({ isOpen, onToggle }: Props) {
                   className="bg-gray-50 rounded-lg p-3 border border-gray-100 hover:border-indigo-200 transition-colors"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {material.type === 'character' && material.id ? (
+                        <CharacterAvatar characterId={material.id} size="sm" showTooltip />
+                      ) : (
                         <span className={`px-2 py-0.5 text-xs rounded-full ${getTypeColor(material.type)}`}>
                           {getTypeLabel(material.type)}
                         </span>
-                        <span className="font-medium text-gray-800">{material.name}</span>
-                      </div>
-                      {Object.keys(material.fields).length > 0 && (
-                        <div className="mt-2 text-xs text-gray-500 space-y-1">
-                          {Object.entries(material.fields).slice(0, 3).map(([key, value]) => (
-                            <div key={key}>
-                              <span className="text-gray-400">{key}: </span>
-                              <span>{value}</span>
-                            </div>
-                          ))}
-                        </div>
                       )}
+                      <span className="font-medium text-gray-800 truncate">{material.name}</span>
                     </div>
                     <div className="flex gap-1 ml-2">
                       <button
