@@ -80,6 +80,25 @@ export interface ChatMessage {
   timestamp: Date
 }
 
+// Book metadata for EPUB export
+export interface BookMeta {
+  id?: number
+  projectId: number
+  title: string
+  author: string
+  category: string
+  description: string
+  language: string
+}
+
+// Book cover image
+export interface BookCover {
+  id?: number
+  projectId: number
+  dataUrl: string // base64 data URL
+  createdAt: Date
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
@@ -90,6 +109,8 @@ class NovelDatabase extends Dexie {
   storylines!: Table<Storyline>
   chapterStorylineLinks!: Table<ChapterStorylineLink>
   chatMessages!: Table<ChatMessage>
+  bookMeta!: Table<BookMeta>
+  bookCovers!: Table<BookCover>
 
   constructor() {
     super('NovelDB')
@@ -126,6 +147,31 @@ class NovelDatabase extends Dexie {
       storylines: '++id, projectId, name',
       chapterStorylineLinks: '++id, chapterId, storylineId',
       chatMessages: '++id, projectId, timestamp'
+    })
+    this.version(5).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId'
+    })
+    this.version(6).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId'
     })
   }
 }

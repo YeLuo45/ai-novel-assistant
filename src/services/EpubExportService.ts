@@ -11,11 +11,13 @@ export interface EpubMetadata {
   author: string
   language: string
   description?: string
+  category?: string
 }
 
 export async function generateEpub(
   metadata: EpubMetadata,
-  chapters: EpubChapter[]
+  chapters: EpubChapter[],
+  coverImage?: string | null
 ): Promise<Blob> {
   const zip = new JSZip()
   
@@ -32,12 +34,26 @@ export async function generateEpub(
   
   // 3. OEBPS/content.opf（OPF 文件）
   const uuid = `urn:uuid:${crypto.randomUUID()}`
-  const manifestItems = chapters.map((_ch, i) => 
-    `<item id="chapter${i}" href="chapters/chapter_${i}.xhtml" media-type="application/xhtml+xml"/>`
-  ).join('\n        ')
+  
+  // Build manifest items
+  let manifestItems = ''
+  if (coverImage) {
+    manifestItems += `    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml" properties="cover-image"/>\n`
+    manifestItems += `    <item id="cover-image" href="images/cover.jpg" media-type="image/jpeg"/>\n`
+  }
+  manifestItems += `    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n`
+  manifestItems += `    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n`
+  manifestItems += `    <item id="css" href="styles.css" media-type="text/css"/>\n`
+  
+  const chapterManifest = chapters.map((_ch, i) => 
+    `    <item id="chapter${i}" href="chapters/chapter_${i}.xhtml" media-type="application/xhtml+xml"/>`
+  ).join('\n')
+  manifestItems += chapterManifest
+  
+  // Build spine items
   const spineItems = chapters.map((_ch, i) => 
-    `<itemref idref="chapter${i}"/>`
-  ).join('\n      ')
+    `    <itemref idref="chapter${i}"/>`
+  ).join('\n')
   
   const opfContent = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
@@ -46,6 +62,7 @@ export async function generateEpub(
     <dc:creator>${metadata.author}</dc:creator>
     <dc:language>${metadata.language}</dc:language>
     <dc:identifier>${uuid}</dc:identifier>
+    <dc:type>${metadata.category || 'Novel'}</dc:type>
     ${metadata.description ? `<dc:description>${metadata.description}</dc:description>` : ''}
     <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
   </metadata>
@@ -60,8 +77,7 @@ export async function generateEpub(
   </spine>
 </package>`
   zip.file('OEBPS/content.opf', opfContent)
-  
-  // 4. OEBPS/toc.ncx（目录）
+
   const navPoints = chapters.map((ch, i) => 
     `<navPoint id="navpoint-${i}" playOrder="${i}">
       <navLabel><text>${ch.title}</text></navLabel>
@@ -99,7 +115,35 @@ h1 { font-size: 1.5em; text-align: center; margin: 1em 0; }
 h2 { font-size: 1.2em; margin: 0.8em 0; }
 p { text-indent: 2em; margin: 0.5em 0; }`)
 
-  // 7. OEBPS/chapters/chapter_*.xhtml
+  // 7. Cover image (if provided)
+  if (coverImage) {
+    // Extract base64 data and mime type from data URL
+    const matches = coverImage.match(/^data:([^;]+);base64,(.+)$/)
+    if (matches) {
+      const mimeType = matches[1]
+      const base64Data = matches[2]
+      const binaryData = atob(base64Data)
+      const bytes = new Uint8Array(binaryData.length)
+      for (let i = 0; i < binaryData.length; i++) {
+        bytes[i] = binaryData.charCodeAt(i)
+      }
+      zip.file('OEBPS/images/cover.jpg', bytes)
+      
+      // 8. OEBPS/cover.xhtml
+      zip.file('OEBPS/cover.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>Cover</title></head>
+<body>
+  <section epub:type="cover-image">
+    <img src="images/cover.jpg" alt="Cover" style="width: 100%; height: auto;"/>
+  </section>
+</body>
+</html>`)
+    }
+  }
+
+  // 9. OEBPS/chapters/chapter_*.xhtml
   for (let i = 0; i < chapters.length; i++) {
     const ch = chapters[i]
     zip.file(`OEBPS/chapters/chapter_${i}.xhtml`, `<?xml version="1.0" encoding="UTF-8"?>
@@ -113,7 +157,7 @@ p { text-indent: 2em; margin: 0.5em 0; }`)
 </html>`)
   }
   
-  // 生成 zip
+  // Generate zip
   return await zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' })
 }
 

@@ -1,7 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
-import { exportToPDF, ExportChapter } from '../utils/pdf-export'
+import { generatePdf, PdfChapter, PdfExportOptions, buildPdfChapterList } from '../services/PdfExportService'
 import { generateEpub, downloadEpub } from '../services/EpubExportService'
+
+interface ExportChapter {
+  id: number
+  title: string
+  content: string
+  type: 'volume' | 'chapter' | 'section' | 'scene'
+}
 
 interface Props {
   isOpen: boolean
@@ -18,8 +25,50 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
   const [includeMaterials, setIncludeMaterials] = useState(false)
   const [bookTitle, setBookTitle] = useState('')
   const [author, setAuthor] = useState('')
+  const [category, setCategory] = useState('')
+  const [description, setDescription] = useState('')
+  const [language, setLanguage] = useState('zh-CN')
   const [isExporting, setIsExporting] = useState(false)
   const [status, setStatus] = useState('')
+  const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [showCropper, setShowCropper] = useState(false)
+  const [cropCanvas, setCropCanvas] = useState<HTMLCanvasElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Initialize cropper canvas when image is selected
+  useEffect(() => {
+    if (!showCropper || !coverImage || !canvasRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const img = new Image()
+    img.onload = () => {
+      // 1:1.4 aspect ratio (standard book cover)
+      const targetRatio = 1 / 1.4
+      let sx = 0, sy = 0, sw = img.width, sh = img.height
+      const imgRatio = img.width / img.height
+      if (imgRatio > targetRatio) {
+        sw = img.height * targetRatio
+        sx = (img.width - sw) / 2
+      } else {
+        sh = img.width / targetRatio
+        sy = (img.height - sh) / 2
+      }
+      canvas.width = 300
+      canvas.height = 300 / targetRatio
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+      setCropCanvas(canvas)
+    }
+    img.src = coverImage
+  }, [showCropper, coverImage])
+
+  const applyCrop = () => {
+    if (!cropCanvas) return
+    const cropped = cropCanvas.toDataURL('image/jpeg', 0.9)
+    setCoverImage(cropped)
+    setShowCropper(false)
+  }
 
   if (!isOpen) return null
 
@@ -54,12 +103,30 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
 
       if (format === 'pdf') {
         setStatus('正在生成 PDF...')
-        await exportToPDF(chaptersToExport, {
-          title,
-          author: author || undefined,
+        const pdfChapters: PdfChapter[] = chaptersToExport.map(ch => ({
+          title: ch.title,
+          content: ch.content || '',
+          type: ch.type as 'volume' | 'chapter' | 'section',
+        }))
+        const pdfOptions: PdfExportOptions = {
           includeMaterials,
-          materialCards: includeMaterials ? materialCards : [],
-        })
+          materialCards: includeMaterials ? materialCards.map(card => ({
+            type: card.type,
+            name: card.name,
+            fields: card.fields,
+          })) : undefined,
+        }
+        await generatePdf(
+          {
+            title,
+            author: author || undefined,
+            language,
+            description,
+            category,
+          },
+          pdfChapters,
+          pdfOptions
+        )
         setStatus('PDF 导出成功！')
       } else {
         // EPUB export
@@ -78,10 +145,11 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
         const metadata = {
           title: title,
           author: author || '未知作者',
-          language: 'zh-CN',
-          description: ''
+          language: language || 'zh-CN',
+          description: description,
+          category: category
         }
-        const blob = await generateEpub(metadata, epubChapters)
+        const blob = await generateEpub(metadata, epubChapters, coverImage)
         downloadEpub(blob, `${title}.epub`)
         setStatus('EPUB 导出成功！')
       }
@@ -136,6 +204,52 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
             placeholder="（留空）"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+        </div>
+
+        {/* Category */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            分类
+          </label>
+          <input
+            type="text"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            placeholder="（留空）"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            简介
+          </label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="（留空）"
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          />
+        </div>
+
+        {/* Language */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            语言
+          </label>
+          <select
+            value={language}
+            onChange={e => setLanguage(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁体中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
         </div>
 
         {/* Format */}
@@ -213,6 +327,70 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
           <label htmlFor="includeMaterials" className="text-sm text-gray-700">
             包含素材卡（作为附录）
           </label>
+        </div>
+
+        {/* Cover Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            书籍封面
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = ev => {
+                const src = ev.target?.result as string
+                setCoverImage(src)
+                setShowCropper(true)
+              }
+              reader.readAsDataURL(file)
+              e.target.value = ''
+            }}
+            className="hidden"
+          />
+          {coverImage && !showCropper ? (
+            <div className="relative">
+              <img src={coverImage} alt="Cover" className="w-full h-auto rounded border" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2 w-full py-1.5 px-3 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+              >
+                重新上传
+              </button>
+            </div>
+          ) : showCropper ? (
+            <div>
+              <canvas ref={canvasRef} className="border rounded w-full" />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={applyCrop}
+                  className="flex-1 py-1.5 px-3 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+                >
+                  确认裁剪
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCropper(false)
+                    setCoverImage(null)
+                  }}
+                  className="flex-1 py-1.5 px-3 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-2 px-3 border-2 border-dashed border-gray-300 text-gray-600 text-sm rounded hover:border-indigo-400 hover:text-indigo-600"
+            >
+              + 上传封面图片
+            </button>
+          )}
         </div>
 
         {/* Chapter count */}
