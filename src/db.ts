@@ -48,12 +48,38 @@ export interface MaterialCard {
 
 export type MaterialCardType = 'character' | 'location' | 'item'
 
+// Writing stats for daily word count tracking
+export interface WritingStats {
+  id?: number
+  projectId: number
+  date: string // YYYY-MM-DD format
+  wordCount: number
+}
+
+// Storyline model
+export interface Storyline {
+  id?: number
+  projectId: number
+  name: string
+  color: string // hex color
+}
+
+// Chapter-Storyline link
+export interface ChapterStorylineLink {
+  id?: number
+  chapterId: number
+  storylineId: number
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
   agentConfigs!: Table<AgentConfig>
   apiKeys!: Table<ApiKey>
   materialCards!: Table<MaterialCard>
+  writingStats!: Table<WritingStats>
+  storylines!: Table<Storyline>
+  chapterStorylineLinks!: Table<ChapterStorylineLink>
 
   constructor() {
     super('NovelDB')
@@ -69,6 +95,16 @@ class NovelDatabase extends Dexie {
       agentConfigs: '++id, projectId, name, model',
       apiKeys: '++id, provider',
       materialCards: '++id, projectId, type, name, createdAt, updatedAt'
+    })
+    this.version(3).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId'
     })
   }
 }

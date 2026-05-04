@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function WritingEditor({ nodeId, onClose }: Props) {
-  const { outlineNodes, updateOutlineNode } = useStore()
+  const { outlineNodes, updateOutlineNode, currentProject, updateDailyWordCount, todayWordCount } = useStore()
   const node = outlineNodes.find(n => n.id === nodeId)
   
   const [title, setTitle] = useState(node?.title || '')
@@ -24,11 +24,12 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
+  const [initialWordCount, setInitialWordCount] = useState(0)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
 
-  // 计算面包屑路径
+  // Calculate breadcrumb path
   const getBreadcrumb = useCallback((): string => {
     if (!node) return ''
     
@@ -47,10 +48,21 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     return path.join(' > ')
   }, [node, outlineNodes])
 
-  // 计算字数
+  // Calculate word count
   const wordCount = content.replace(/\s/g, '').length
 
-  // 监听文字选中
+  // Track initial word count when node loads
+  useEffect(() => {
+    if (node) {
+      setTitle(node.title)
+      setContent(node.content)
+      setStatus(node.status)
+      setLastSavedContent(node.content)
+      setInitialWordCount(node.content?.replace(/\s/g, '').length || 0)
+    }
+  }, [node])
+
+  // Listen for text selection
   useEffect(() => {
     const handleSelectionChange = () => {
       const selection = window.getSelection()
@@ -65,12 +77,12 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     return () => document.removeEventListener('mouseup', handleSelectionChange)
   }, [])
 
-  // 检测内容变化
+  // Detect content changes
   useEffect(() => {
     setHasChanges(content !== lastSavedContent)
   }, [content, lastSavedContent])
 
-  // 自动保存（30秒）
+  // Auto-save (30 seconds)
   useEffect(() => {
     if (saveTimerRef.current) {
       clearInterval(saveTimerRef.current)
@@ -89,7 +101,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     }
   }, [hasChanges, isSaving, content, title, status])
 
-  // Ctrl+S 保存
+  // Ctrl+S to save
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -101,16 +113,6 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [content, title, status, nodeId])
-
-  // 内容变化时更新 node（用于其他组件获取最新内容）
-  useEffect(() => {
-    if (node) {
-      setTitle(node.title)
-      setContent(node.content)
-      setStatus(node.status)
-      setLastSavedContent(node.content)
-    }
-  }, [node])
 
   const handleSave = async (isAutoSave = false) => {
     if (!nodeId || isSaving) return
@@ -125,8 +127,18 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
       setLastSavedContent(content)
       setHasChanges(false)
       
+      // Update daily word count
+      if (currentProject?.id) {
+        const newWordCount = content.replace(/\s/g, '').length
+        const wordDelta = newWordCount - initialWordCount
+        if (wordDelta > 0) {
+          await updateDailyWordCount(currentProject.id, todayWordCount + wordDelta)
+          setInitialWordCount(newWordCount)
+        }
+      }
+      
       if (!isAutoSave) {
-        // 手动保存成功提示（可添加 toast）
+        // Manual save success toast (optional)
       }
     } catch (error) {
       console.error('保存失败:', error)
@@ -135,9 +147,9 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     }
   }
 
-  // 应用 AI 修改结果
+  // Apply AI modification result
   const handleAIApply = (text: string) => {
-    // 替换选中文本或追加到内容末尾
+    // Replace selected text or append to content end
     if (selectedText) {
       setContent(content.replace(selectedText, text))
     } else {
@@ -145,7 +157,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     }
   }
 
-  // 计算项目总字数和完成进度
+  // Calculate project total word count and completion progress
   const totalWordCount = outlineNodes.reduce((sum, n) => {
     return sum + (n.content?.replace(/\s/g, '').length || 0)
   }, 0)
@@ -166,22 +178,22 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
       ref={editorRef}
       className={`flex flex-col h-full bg-gray-50 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}
     >
-      {/* 顶部工具栏 */}
+      {/* Top Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* 面包屑 */}
+          {/* Breadcrumb */}
           <div className="text-sm text-gray-500">
             {getBreadcrumb()}
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          {/* 保存状态 */}
+          {/* Save Status */}
           <span className="text-xs text-gray-400">
             {isSaving ? '保存中...' : hasChanges ? '有未保存的更改' : '已保存'}
           </span>
           
-          {/* 状态选择 */}
+          {/* Status Select */}
           <select
             value={status}
             onChange={e => setStatus(e.target.value as any)}
@@ -192,7 +204,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             <option value="completed">已完成</option>
           </select>
           
-          {/* 全屏切换 */}
+          {/* Fullscreen Toggle */}
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded"
@@ -201,7 +213,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             {isFullscreen ? '⊠' : '⛶'}
           </button>
 
-          {/* 预览模式切换 */}
+          {/* Preview Mode Toggle */}
           <button
             onClick={() => setPreviewMode(!previewMode)}
             className={`px-3 py-1.5 text-sm rounded ${previewMode ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}
@@ -210,7 +222,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             {previewMode ? '编辑' : '预览'}
           </button>
 
-          {/* 保存按钮 */}
+          {/* Save Button */}
           <button
             onClick={() => handleSave(false)}
             disabled={!hasChanges || isSaving}
@@ -219,7 +231,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             保存
           </button>
           
-          {/* 关闭 */}
+          {/* Close */}
           <button
             onClick={() => {
               if (hasChanges) {
@@ -237,10 +249,10 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         </div>
       </div>
 
-      {/* 编辑器主体 */}
+      {/* Editor Body */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm">
-          {/* 标题输入 */}
+          {/* Title Input */}
           <div className="p-6 pb-0">
             <input
               type="text"
@@ -251,7 +263,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             />
           </div>
           
-          {/* Markdown 编辑器 / 预览 */}
+          {/* Markdown Editor / Preview */}
           <div className="p-6" data-color-mode="light">
             {previewMode ? (
               <div className="prose max-w-none min-h-[400px]">
@@ -281,14 +293,14 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             )}
           </div>
           
-          {/* 字数统计 */}
+          {/* Word Count */}
           <div className="px-6 pb-4 text-sm text-gray-500">
             本章字数：{wordCount.toLocaleString()}
           </div>
         </div>
       </div>
 
-      {/* 底部字数栏 */}
+      {/* Bottom Word Count Bar */}
       <WordCountBar
         chapterWordCount={wordCount}
         totalWordCount={totalWordCount}
@@ -296,7 +308,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         totalChapters={totalChapters}
       />
 
-      {/* AI 辅助浮窗 */}
+      {/* AI Assist Bar */}
       <AIAssistBar
         selectedText={selectedText}
         content={content}

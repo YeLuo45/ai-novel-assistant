@@ -1,18 +1,22 @@
 import { useState } from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useParams } from 'react-router-dom'
 import { useStore } from '../store'
 import { ExportPanel } from './ExportPanel'
 
 export default function Layout() {
   const location = useLocation()
+  const params = useParams()
   const { currentProject } = useStore()
   const [showExport, setShowExport] = useState(false)
 
   const isActive = (path: string) => location.pathname === path
 
+  // Check if we're in a project context
+  const isProjectContext = location.pathname.startsWith('/projects/') && params.id
+
   return (
     <div className="min-h-screen flex flex-col">
-      {/* 顶部导航 */}
+      {/* Top Navigation */}
       <header className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-8">
@@ -45,6 +49,18 @@ export default function Layout() {
               <div className="text-sm text-gray-500">
                 当前项目: <span className="font-medium text-gray-700">{currentProject.title}</span>
               </div>
+              {isProjectContext && (
+                <Link
+                  to={`/projects/${params.id}/stats`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    location.pathname.includes('/stats')
+                      ? 'bg-green-50 text-green-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  📊 统计
+                </Link>
+              )}
               <button
                 onClick={() => setShowExport(true)}
                 className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
@@ -59,7 +75,7 @@ export default function Layout() {
       {/* Export Panel */}
       <ExportPanel isOpen={showExport} onToggle={() => setShowExport(false)} />
 
-      {/* 主内容区 */}
+      {/* Main Content Area */}
       <main className="flex-1">
         <Outlet />
       </main>

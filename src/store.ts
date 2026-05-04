@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { db, Project, OutlineNode, AgentConfig, MaterialCard } from './db'
+import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink } from './db'
 
 interface AppState {
   // 项目列表
@@ -38,7 +38,35 @@ interface AppState {
   isFullscreen: boolean
   setCurrentNodeId: (id: number | null) => void
   setIsFullscreen: (isFullscreen: boolean) => void
+
+  // 故事线管理
+  storylines: Storyline[]
+  loadStorylines: (projectId: number) => Promise<void>
+  createStoryline: (storyline: Omit<Storyline, 'id'>) => Promise<Storyline>
+  updateStoryline: (id: number, updates: Partial<Storyline>) => Promise<void>
+  deleteStoryline: (id: number) => Promise<void>
+
+  // 章节-故事线关联
+  chapterStorylineLinks: ChapterStorylineLink[]
+  loadChapterStorylineLinks: (projectId: number) => Promise<void>
+  addChapterStorylineLink: (link: Omit<ChapterStorylineLink, 'id'>) => Promise<ChapterStorylineLink>
+  removeChapterStorylineLink: (chapterId: number, storylineId: number) => Promise<void>
+
+  // 写作统计
+  writingStats: WritingStats[]
+  loadWritingStats: (projectId: number) => Promise<void>
+  updateDailyWordCount: (projectId: number, wordCount: number) => Promise<void>
+  dailyGoal: number
+  totalWordGoal: number
+  todayWordCount: number
+  streak: number
+  setDailyGoal: (goal: number) => void
+  setTotalWordGoal: (goal: number) => void
+  updateStreak: () => Promise<void>
 }
+
+const DEFAULT_DAILY_GOAL = 3000
+const DEFAULT_TOTAL_WORD_GOAL = 100000
 
 export const useStore = create<AppState>((set, get) => ({
   projects: [],
@@ -48,6 +76,13 @@ export const useStore = create<AppState>((set, get) => ({
   materialCards: [],
   currentNodeId: null,
   isFullscreen: false,
+  storylines: [],
+  chapterStorylineLinks: [],
+  writingStats: [],
+  dailyGoal: DEFAULT_DAILY_GOAL,
+  totalWordGoal: DEFAULT_TOTAL_WORD_GOAL,
+  todayWordCount: 0,
+  streak: 0,
 
   // 项目管理
   loadProjects: async () => {
@@ -77,6 +112,8 @@ export const useStore = create<AppState>((set, get) => ({
     await db.outlineNodes.where('projectId').equals(id).delete()
     await db.agentConfigs.where('projectId').equals(id).delete()
     await db.materialCards.where('projectId').equals(id).delete()
+    await db.writingStats.where('projectId').equals(id).delete()
+    await db.storylines.where('projectId').equals(id).delete()
     set(state => ({
       projects: state.projects.filter(p => p.id !== id),
       currentProject: state.currentProject?.id === id ? null : state.currentProject
@@ -89,6 +126,9 @@ export const useStore = create<AppState>((set, get) => ({
       get().loadOutline(project.id)
       get().loadAgentConfigs(project.id)
       get().loadMaterialCards(project.id)
+      get().loadStorylines(project.id)
+      get().loadChapterStorylineLinks(project.id)
+      get().loadWritingStats(project.id)
     }
   },
 
@@ -114,6 +154,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteOutlineNode: async (id) => {
     await db.outlineNodes.delete(id)
+    await db.chapterStorylineLinks.where('chapterId').equals(id).delete()
     const { outlineNodes } = get()
     const childIds = outlineNodes.filter(n => n.parentId === id).map(n => n.id)
     for (const childId of childIds) {
@@ -186,4 +227,158 @@ export const useStore = create<AppState>((set, get) => ({
   // 编辑器状态
   setCurrentNodeId: (id) => set({ currentNodeId: id }),
   setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
+
+  // 故事线管理
+  loadStorylines: async (projectId) => {
+    const storylines = await db.storylines.where('projectId').equals(projectId).toArray()
+    set({ storylines })
+  },
+
+  createStoryline: async (storyline) => {
+    const id = await db.storylines.add(storyline)
+    const newStoryline = { ...storyline, id: id as number }
+    set(state => ({ storylines: [...state.storylines, newStoryline] }))
+    return newStoryline
+  },
+
+  updateStoryline: async (id, updates) => {
+    await db.storylines.update(id, updates)
+    set(state => ({
+      storylines: state.storylines.map(s => s.id === id ? { ...s, ...updates } : s)
+    }))
+  },
+
+  deleteStoryline: async (id) => {
+    await db.storylines.delete(id)
+    await db.chapterStorylineLinks.where('storylineId').equals(id).delete()
+    set(state => ({
+      storylines: state.storylines.filter(s => s.id !== id),
+      chapterStorylineLinks: state.chapterStorylineLinks.filter(l => l.storylineId !== id)
+    }))
+  },
+
+  // 章节-故事线关联
+  loadChapterStorylineLinks: async (projectId) => {
+    // Get all chapter IDs for this project
+    const chapterIds = await db.outlineNodes.where('projectId').equals(projectId).toArray()
+      .then(nodes => nodes.map(n => n.id!).filter(Boolean))
+    
+    const links: ChapterStorylineLink[] = []
+    for (const chapterId of chapterIds) {
+      const chapterLinks = await db.chapterStorylineLinks.where('chapterId').equals(chapterId).toArray()
+      links.push(...chapterLinks)
+    }
+    set({ chapterStorylineLinks: links })
+  },
+
+  addChapterStorylineLink: async (link) => {
+    // Check if link already exists
+    const existing = await db.chapterStorylineLinks
+      .where('chapterId').equals(link.chapterId)
+      .and(l => l.storylineId === link.storylineId)
+      .first()
+    
+    if (existing) return existing
+    
+    const id = await db.chapterStorylineLinks.add(link)
+    const newLink = { ...link, id: id as number }
+    set(state => ({ chapterStorylineLinks: [...state.chapterStorylineLinks, newLink] }))
+    return newLink
+  },
+
+  removeChapterStorylineLink: async (chapterId, storylineId) => {
+    await db.chapterStorylineLinks
+      .where('chapterId').equals(chapterId)
+      .and(l => l.storylineId === storylineId)
+      .delete()
+    set(state => ({
+      chapterStorylineLinks: state.chapterStorylineLinks.filter(
+        l => !(l.chapterId === chapterId && l.storylineId === storylineId)
+      )
+    }))
+  },
+
+  // 写作统计
+  loadWritingStats: async (projectId) => {
+    const stats = await db.writingStats.where('projectId').equals(projectId).toArray()
+    set({ writingStats: stats })
+    
+    // Calculate today's word count
+    const today = new Date().toISOString().split('T')[0]
+    const todayStats = stats.find(s => s.date === today)
+    set({ todayWordCount: todayStats?.wordCount || 0 })
+    
+    // Calculate streak
+    get().updateStreak()
+  },
+
+  updateDailyWordCount: async (projectId, wordCount) => {
+    const today = new Date().toISOString().split('T')[0]
+    const existing = await db.writingStats
+      .where(['projectId', 'date']).equals([projectId, today])
+      .first()
+    
+    if (existing) {
+      await db.writingStats.update(existing.id!, { wordCount })
+      set(state => ({
+        writingStats: state.writingStats.map(s => 
+          s.id === existing.id ? { ...s, wordCount } : s
+        ),
+        todayWordCount: wordCount
+      }))
+    } else {
+      const id = await db.writingStats.add({ projectId, date: today, wordCount })
+      set(state => ({
+        writingStats: [...state.writingStats, { id: id as number, projectId, date: today, wordCount }],
+        todayWordCount: wordCount
+      }))
+    }
+    
+    // Check if goal achieved and update streak
+    const { dailyGoal, streak } = get()
+    if (wordCount >= dailyGoal && streak === 0) {
+      get().updateStreak()
+    }
+  },
+
+  setDailyGoal: (goal) => set({ dailyGoal: goal }),
+  
+  setTotalWordGoal: (goal) => set({ totalWordGoal: goal }),
+
+  updateStreak: async () => {
+    const { writingStats, dailyGoal } = get()
+    
+    // Sort stats by date descending
+    const sortedStats = [...writingStats]
+      .filter(s => s.wordCount >= dailyGoal)
+      .sort((a, b) => b.date.localeCompare(a.date))
+    
+    let currentStreak = 0
+    const today = new Date()
+    let checkDate = new Date(today)
+    
+    // Check if today has goal met
+    const todayStr = today.toISOString().split('T')[0]
+    const todayMet = sortedStats.some(s => s.date === todayStr)
+    
+    if (!todayMet) {
+      // Check yesterday
+      checkDate.setDate(checkDate.getDate() - 1)
+    }
+    
+    // Count consecutive days
+    while (true) {
+      const dateStr = checkDate.toISOString().split('T')[0]
+      const hasStat = sortedStats.some(s => s.date === dateStr)
+      
+      if (hasStat) {
+        currentStreak++
+        checkDate.setDate(checkDate.getDate() - 1)
+      } else {
+        break
+      }
+    }
+    
+    set({ streak: currentStreak })
+  },
 }))
