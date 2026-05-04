@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
-import { AgentConfig } from '../db'
+import { AgentConfig, ChatMessage } from '../db'
 import { db } from '../db'
+import { getChatHistory, addUserMessage, addAssistantMessage, buildContextualPrompt, trimChatHistory } from '../ai/chatMemory'
+import { streamLLM } from '../ai/llm'
+import type { LLMEvent } from '../ai/types'
 
 interface Props {
   agentConfigs: AgentConfig[]
+  projectId?: number
 }
 
 interface Message {
@@ -12,17 +16,31 @@ interface Message {
   timestamp: Date
 }
 
-export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
+export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo')
   const [isLoading, setIsLoading] = useState(false)
   const [apiKeys, setApiKeys] = useState<{ openai?: string; anthropic?: string; minimax?: string }>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const subscriptionRef = useRef<(() => void) | null>(null)
 
+  // 加载 API keys
   useEffect(() => {
     loadApiKeys()
   }, [])
+
+  // 加载聊天历史
+  useEffect(() => {
+    if (projectId) {
+      loadChatHistory()
+    }
+  }, [projectId])
+
+  // 滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const loadApiKeys = async () => {
     const keys = await db.apiKeys.toArray()
@@ -31,144 +49,110 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
     setApiKeys(keyMap)
   }
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  const loadChatHistory = async () => {
+    if (!projectId) return
+    try {
+      const history = await getChatHistory(projectId)
+      const msgs: Message[] = history.map(m => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp
+      }))
+      setMessages(msgs)
+    } catch (error) {
+      console.error('Failed to load chat history:', error)
+    }
+  }
+
+  const getApiKey = (model: string): string | undefined => {
+    if (model.startsWith('gpt')) return apiKeys.openai
+    if (model.startsWith('claude')) return apiKeys.anthropic
+    return apiKeys.minimax
+  }
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
+    if (!input.trim() || isLoading || !projectId) return
 
-    const userMessage: Message = { role: 'user', content: input.trim(), timestamp: new Date() }
+    const userContent = input.trim()
+    
+    // 添加用户消息到UI
+    const userMessage: Message = { role: 'user', content: userContent, timestamp: new Date() }
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
 
+    // 保存用户消息到数据库
+    await addUserMessage(projectId, userContent)
+
+    const apiKey = getApiKey(selectedModel)
+    if (!apiKey) {
+      const errorMsg = '请先在设置页面配置API Key'
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMsg, timestamp: new Date() }])
+      await addAssistantMessage(projectId, errorMsg)
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const apiKey = selectedModel.startsWith('gpt') ? apiKeys.openai : 
-                     selectedModel.startsWith('claude') ? apiKeys.anthropic : apiKeys.minimax
-      
-      if (!apiKey) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: '请先在设置页面配置API Key',
-          timestamp: new Date()
-        }])
-        setIsLoading(false)
-        return
-      }
+      // 获取对话历史用于上下文
+      const history = await getChatHistory(projectId)
+      const historyForLLM: ChatMessage[] = history.slice(0, -1) // 不包含刚添加的用户消息
 
-      // 构建提示词
-      const systemPrompt = `你是一位专业的小说创作助手，帮助作者进行小说大纲规划、情节设计、角色塑造等工作。`
-      
-      let response: string
-      if (selectedModel.startsWith('gpt')) {
-        response = await callOpenAI(apiKey, selectedModel, systemPrompt, input.trim())
-      } else if (selectedModel.startsWith('claude')) {
-        response = await callClaude(apiKey, selectedModel, systemPrompt, input.trim())
-      } else {
-        response = await callMiniMax(apiKey, input.trim())
-      }
+      // 获取项目信息
+      const project = await db.projects.get(projectId)
+      const chapterCount = await db.outlineNodes
+        .where('projectId')
+        .equals(projectId)
+        .filter(n => n.status === 'completed')
+        .count()
 
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: response,
-        timestamp: new Date()
-      }])
+      // 构建带上下文的 prompt
+      const { messages: contextualMessages } = buildContextualPrompt(
+        { title: project?.title || '', genre: project?.genre || '', chapterCount },
+        historyForLLM,
+        userContent
+      )
+
+      let accumulated = ''
+
+      // 使用流式 API
+      const observable = streamLLM({
+        model: selectedModel,
+        messages: contextualMessages,
+        temperature: 0.7
+      }, 'ai-chat')
+
+      subscriptionRef.current = () => observable.unsubscribe()
+
+      observable.subscribe((event: LLMEvent) => {
+        if (event.type === 'done') {
+          // 保存助手消息到数据库
+          addAssistantMessage(projectId, accumulated)
+          // 清理旧消息
+          trimChatHistory(projectId)
+          setIsLoading(false)
+        } else if (event.type === 'text' && event.content) {
+          accumulated += event.content
+          setMessages(prev => {
+            const last = prev[prev.length - 1]
+            if (last?.role === 'assistant') {
+              return [...prev.slice(0, -1), { ...last, content: accumulated }]
+            }
+            return [...prev, { role: 'assistant', content: accumulated, timestamp: new Date() }]
+          })
+        } else if (event.type === 'error') {
+          const errorMsg = `错误: ${event.content}`
+          setMessages(prev => [...prev, { role: 'assistant', content: errorMsg, timestamp: new Date() }])
+          addAssistantMessage(projectId, errorMsg)
+          setIsLoading(false)
+        }
+      })
     } catch (error: any) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `错误: ${error.message}`,
-        timestamp: new Date()
-      }])
-    } finally {
+      const errorMsg = `错误: ${error.message}`
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMsg, timestamp: new Date() }])
+      await addAssistantMessage(projectId, errorMsg)
       setIsLoading(false)
     }
-  }
-
-  const callOpenAI = async (apiKey: string, model: string, system: string, userInput: string): Promise<string> => {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: userInput }
-        ],
-        temperature: 0.7
-      })
-    })
-    
-    if (!response.ok) {
-      const err = await response.json()
-      throw new Error(err.error?.message || 'API请求失败')
-    }
-    
-    const data = await response.json()
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('OpenAI API返回格式错误')
-    }
-    return data.choices[0].message.content
-  }
-
-  const callClaude = async (apiKey: string, model: string, system: string, userInput: string): Promise<string> => {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        system,
-        messages: [{ role: 'user', content: userInput }]
-      })
-    })
-
-    if (!response.ok) {
-      const err = await response.json()
-      throw new Error(err.error?.message || 'API请求失败')
-    }
-
-    const data = await response.json()
-    if (!data.content || !data.content[0] || !data.content[0].text) {
-      throw new Error('Claude API返回格式错误')
-    }
-    return data.content[0].text
-  }
-
-  const callMiniMax = async (apiKey: string, userInput: string): Promise<string> => {
-    const response = await fetch('https://api.minimax.chat/v1/text/chatcompletion', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'abab5.5-chat',
-        messages: [{ role: 'user', content: userInput }]
-      })
-    })
-
-    if (!response.ok) {
-      const err = await response.json()
-      throw new Error(err.error?.message || 'API请求失败')
-    }
-
-    const data = await response.json()
-    if (!data.choices || !data.choices[0]) {
-      throw new Error('MiniMax API返回格式错误')
-    }
-    const content = data.choices[0].text || data.choices[0].message?.content
-    if (!content) {
-      throw new Error('MiniMax API返回内容为空')
-    }
-    return content
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -178,17 +162,35 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
     }
   }
 
+  const handleCancel = () => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current()
+      subscriptionRef.current = null
+    }
+    setIsLoading(false)
+  }
+
+  const clearChat = async () => {
+    if (!projectId) return
+    if (confirm('确定要清空对话历史吗？')) {
+      const { clearChatHistory } = await import('../ai/chatMemory')
+      await clearChatHistory(projectId)
+      setMessages([])
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* 模型选择 */}
-      <div className="p-3 border-b border-gray-200">
+      <div className="p-3 border-b border-gray-200 flex items-center justify-between">
         <select
           value={selectedModel}
           onChange={e => setSelectedModel(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <optgroup label="OpenAI">
             <option value="gpt-4">GPT-4</option>
+            <option value="gpt-4o-mini">GPT-4o Mini</option>
             <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
           </optgroup>
           <optgroup label="Anthropic">
@@ -199,6 +201,15 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
             <option value="minimax">MiniMax</option>
           </optgroup>
         </select>
+        {projectId && messages.length > 0 && (
+          <button
+            onClick={clearChat}
+            className="ml-2 px-2 py-1 text-xs text-gray-400 hover:text-red-500"
+            title="清空对话历史"
+          >
+            🗑️
+          </button>
+        )}
       </div>
 
       {/* 消息列表 */}
@@ -207,6 +218,9 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
           <div className="text-center text-gray-400 py-8">
             <p className="text-sm">开始和AI对话吧！</p>
             <p className="text-xs mt-2">可以询问大纲建议、情节发展、角色设定等</p>
+            {projectId && (
+              <p className="text-xs mt-1 text-indigo-400">AI会记住对话上下文</p>
+            )}
           </div>
         )}
         
@@ -251,14 +265,26 @@ export default function AIChat({ agentConfigs: _agentConfigs }: Props) {
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none h-20"
             disabled={isLoading}
           />
-          <button
-            onClick={sendMessage}
-            disabled={isLoading || !input.trim()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            发送
-          </button>
+          {isLoading ? (
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              取消
+            </button>
+          ) : (
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              发送
+            </button>
+          )}
         </div>
+        <p className="text-xs text-gray-400 mt-1">
+          {projectId ? `对话历史将保存在当前项目（最多10轮）` : '切换到项目后可保留对话历史'}
+        </p>
       </div>
     </div>
   )

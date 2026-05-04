@@ -71,6 +71,15 @@ export interface ChapterStorylineLink {
   storylineId: number
 }
 
+// Chat message for multi-turn conversation memory
+export interface ChatMessage {
+  id?: number
+  projectId: number
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
@@ -80,6 +89,7 @@ class NovelDatabase extends Dexie {
   writingStats!: Table<WritingStats>
   storylines!: Table<Storyline>
   chapterStorylineLinks!: Table<ChapterStorylineLink>
+  chatMessages!: Table<ChatMessage>
 
   constructor() {
     super('NovelDB')
@@ -105,6 +115,17 @@ class NovelDatabase extends Dexie {
       writingStats: '++id, projectId, date',
       storylines: '++id, projectId, name',
       chapterStorylineLinks: '++id, chapterId, storylineId'
+    })
+    this.version(4).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp'
     })
   }
 }

@@ -6,10 +6,12 @@ import OutlineTree from '../components/OutlineTree'
 import AIChat from '../components/AIChat'
 import WritingEditor from '../components/WritingEditor'
 import { MaterialPanel } from '../components/MaterialPanel'
+import WorldbuildingTab from '../components/WorldbuildingTab'
+import AIShortcutBar from '../components/AIShortcutBar'
 import WordGoalTracker from '../components/WordGoalTracker'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
-type Tab = 'outline' | 'chat' | 'storyline'
+type Tab = 'outline' | 'chat' | 'storyline' | 'worldbuilding'
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>()
@@ -254,6 +256,16 @@ export default function ProjectEditor() {
           >
             故事线
           </button>
+          <button
+            onClick={() => setActiveTab('worldbuilding')}
+            className={`flex-1 py-3 text-sm font-medium ${
+              activeTab === 'worldbuilding' 
+                ? 'text-indigo-600 border-b-2 border-indigo-600' 
+                : 'text-gray-500'
+            }`}
+          >
+            世界观
+          </button>
         </div>
 
         {activeTab === 'outline' && (
@@ -292,7 +304,13 @@ export default function ProjectEditor() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 overflow-hidden">
-            <AIChat agentConfigs={agentConfigs} />
+            <AIChat agentConfigs={agentConfigs} projectId={currentProject.id} />
+          </div>
+        )}
+
+        {activeTab === 'worldbuilding' && (
+          <div className="flex-1 overflow-hidden">
+            <WorldbuildingTab />
           </div>
         )}
 

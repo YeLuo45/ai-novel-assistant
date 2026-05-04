@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import MDEditor from '@uiw/react-md-editor'
 import { useStore } from '../store'
 import { OutlineNode } from '../db'
-import AIAssistBar from './AIAssistBar'
+import AIShortcutBar from './AIShortcutBar'
 import WordCountBar from './WordCountBar'
 import CardReference from './CardReference'
 
@@ -308,8 +308,8 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         totalChapters={totalChapters}
       />
 
-      {/* AI Assist Bar */}
-      <AIAssistBar
+      {/* AI Shortcut Bar */}
+      <AIShortcutBar
         selectedText={selectedText}
         content={content}
         onApply={handleAIApply}
