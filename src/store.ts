@@ -209,9 +209,68 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   moveOutlineNode: async (id, newParentId, newOrder) => {
-    await db.outlineNodes.update(id, { parentId: newParentId, order: newOrder })
+    const { outlineNodes } = get()
+    const node = outlineNodes.find(n => n.id === id)
+    if (!node) return
+
+    const oldParentId = node.parentId
+    const oldOrder = node.order
+
+    // Same parent and same position - nothing to do
+    if (oldParentId === newParentId && oldOrder === newOrder) return
+
+    // Get siblings at source location (before removal)
+    const sourceSiblings = outlineNodes
+      .filter(n => n.parentId === oldParentId && n.id !== id)
+      .sort((a, b) => a.order - b.order)
+
+    // Get siblings at destination (before insertion)
+    const destSiblings = oldParentId === newParentId
+      ? sourceSiblings
+      : outlineNodes
+          .filter(n => n.parentId === newParentId)
+          .sort((a, b) => a.order - b.order)
+
+    // Calculate new orders for all affected nodes
+    const updates: { id: number; parentId: number | null; order: number }[] = []
+
+    // Add the moved node
+    updates.push({ id, parentId: newParentId, order: newOrder })
+
+    // Reorder source siblings (remove gap left by the moved node)
+    sourceSiblings.forEach((sibling, idx) => {
+      const newSiblingOrder = idx
+      if (sibling.order !== newSiblingOrder) {
+        updates.push({ id: sibling.id!, parentId: sibling.parentId, order: newSiblingOrder })
+      }
+    })
+
+    // Reorder destination siblings (make room for the moved node)
+    destSiblings.forEach((sibling, idx) => {
+      let newSiblingOrder: number
+      if (idx >= newOrder) {
+        newSiblingOrder = idx + 1
+      } else {
+        newSiblingOrder = idx
+      }
+      // Only update if order changed
+      if (sibling.order !== newSiblingOrder) {
+        updates.push({ id: sibling.id!, parentId: sibling.parentId, order: newSiblingOrder })
+      }
+    })
+
+    // Apply all updates to DB
+    await Promise.all(updates.map(u => db.outlineNodes.update(u.id, { parentId: u.parentId, order: u.order })))
+
+    // Update state
     set(state => ({
-      outlineNodes: state.outlineNodes.map(n => n.id === id ? { ...n, parentId: newParentId, order: newOrder } : n)
+      outlineNodes: state.outlineNodes.map(n => {
+        const update = updates.find(u => u.id === n.id)
+        if (update) {
+          return { ...n, parentId: update.parentId, order: update.order }
+        }
+        return n
+      })
     }))
   },
 

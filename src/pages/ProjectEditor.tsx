@@ -10,9 +10,10 @@ import WorldbuildingTab from '../components/WorldbuildingTab'
 import AIShortcutBar from '../components/AIShortcutBar'
 import WordGoalTracker from '../components/WordGoalTracker'
 import CharacterRelationshipList from '../components/CharacterRelationshipList'
+import TimelineView from '../components/TimelineView'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
-type Tab = 'outline' | 'chat' | 'storyline' | 'worldbuilding' | 'relationships'
+type Tab = 'outline' | 'chat' | 'storyline' | 'worldbuilding' | 'relationships' | 'timeline'
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>()
@@ -277,6 +278,16 @@ export default function ProjectEditor() {
           >
             关系图
           </button>
+          <button
+            onClick={() => setActiveTab('timeline')}
+            className={`flex-1 py-3 text-sm font-medium ${
+              activeTab === 'timeline' 
+                ? 'text-indigo-600 border-b-2 border-indigo-600' 
+                : 'text-gray-500'
+            }`}
+          >
+            时间线
+          </button>
         </div>
 
         {activeTab === 'outline' && (
@@ -328,6 +339,15 @@ export default function ProjectEditor() {
         {activeTab === 'relationships' && currentProject && (
           <div className="flex-1 overflow-hidden">
             <CharacterRelationshipList projectId={currentProject.id!} />
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="flex-1 overflow-hidden">
+            <TimelineView
+              onEditNode={openEditModal}
+              onOpenNode={handleOpenNode}
+            />
           </div>
         )}
 
