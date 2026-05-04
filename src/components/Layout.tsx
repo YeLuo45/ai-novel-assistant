@@ -2,17 +2,24 @@ import { useState } from 'react'
 import { Outlet, Link, useLocation, useParams } from 'react-router-dom'
 import { useStore } from '../store'
 import { ExportPanel } from './ExportPanel'
+import BackupReminderToast from './BackupReminderToast'
+import BackupPanel from './BackupPanel'
 
 export default function Layout() {
   const location = useLocation()
   const params = useParams()
-  const { currentProject } = useStore()
+  const { currentProject, updateLastBackupTime } = useStore()
   const [showExport, setShowExport] = useState(false)
+  const [showBackup, setShowBackup] = useState(false)
 
   const isActive = (path: string) => location.pathname === path
 
   // Check if we're in a project context
   const isProjectContext = location.pathname.startsWith('/projects/') && params.id
+
+  const handleBackupSuccess = () => {
+    updateLastBackupTime()
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -62,6 +69,12 @@ export default function Layout() {
                 </Link>
               )}
               <button
+                onClick={() => setShowBackup(true)}
+                className="px-3 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+              >
+                💾 备份
+              </button>
+              <button
                 onClick={() => setShowExport(true)}
                 className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
               >
@@ -74,6 +87,16 @@ export default function Layout() {
 
       {/* Export Panel */}
       <ExportPanel isOpen={showExport} onToggle={() => setShowExport(false)} />
+
+      {/* Backup Panel Modal */}
+      <BackupPanel 
+        isOpen={showBackup} 
+        onClose={() => setShowBackup(false)}
+        onBackupSuccess={handleBackupSuccess}
+      />
+
+      {/* Backup Reminder Toast */}
+      <BackupReminderToast onOpenBackup={() => setShowBackup(true)} />
 
       {/* Main Content Area */}
       <main className="flex-1">

@@ -11,6 +11,11 @@ interface AppState {
   deleteProject: (id: number) => Promise<void>
   setCurrentProject: (project: Project | null) => void
 
+  // 备份时间追踪
+  lastBackupTime: number | null
+  updateLastBackupTime: () => void
+  checkBackupReminder: () => { shouldRemind: boolean; minutesSinceBackup: number }
+
   // 大纲节点
   outlineNodes: OutlineNode[]
   loadOutline: (projectId: number) => Promise<void>
@@ -83,11 +88,34 @@ export const useStore = create<AppState>((set, get) => ({
   totalWordGoal: DEFAULT_TOTAL_WORD_GOAL,
   todayWordCount: 0,
   streak: 0,
+  lastBackupTime: null,
+
+  // 备份时间追踪
+  updateLastBackupTime: () => {
+    const now = Date.now()
+    localStorage.setItem('lastBackupTime', String(now))
+    set({ lastBackupTime: now })
+  },
+
+  checkBackupReminder: () => {
+    const lastTime = get().lastBackupTime
+    if (!lastTime) {
+      return { shouldRemind: true, minutesSinceBackup: 999 }
+    }
+    const minutesSinceBackup = Math.floor((Date.now() - lastTime) / 60000)
+    return {
+      shouldRemind: minutesSinceBackup >= 30,
+      minutesSinceBackup
+    }
+  },
 
   // 项目管理
   loadProjects: async () => {
     const projects = await db.projects.toArray()
-    set({ projects })
+    // Load last backup time from localStorage
+    const lastBackup = localStorage.getItem('lastBackupTime')
+    const lastBackupTime = lastBackup ? parseInt(lastBackup, 10) : null
+    set({ projects, lastBackupTime })
   },
 
   createProject: async (title, genre) => {
