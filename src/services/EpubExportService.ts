@@ -4,6 +4,8 @@ export interface EpubChapter {
   id: string
   title: string
   content: string  // HTML 富文本
+  type: 'volume' | 'chapter' | 'section' | 'scene'
+  children?: EpubChapter[]  // 子章节（层级结构）
 }
 
 export interface EpubMetadata {
@@ -12,6 +14,114 @@ export interface EpubMetadata {
   language: string
   description?: string
   category?: string
+}
+
+/**
+ * 扁平化层级章节为线性列表（用于spine/内容顺序）
+ */
+function flattenChapters(chapters: EpubChapter[]): EpubChapter[] {
+  const result: EpubChapter[] = []
+  for (const ch of chapters) {
+    result.push(ch)
+    if (ch.children && ch.children.length > 0) {
+      result.push(...flattenChapters(ch.children))
+    }
+  }
+  return result
+}
+
+/**
+ * 构建带id映射的扁平章节列表（用于内容文件和NCX索引）
+ */
+function buildChapterIndex(chapters: EpubChapter[]): Map<string, { chapter: EpubChapter; index: number }> {
+  const map = new Map()
+  let idx = 0
+  const process = (list: EpubChapter[]) => {
+    for (const ch of list) {
+      if (ch.type === 'volume' || ch.type === 'chapter' || ch.type === 'section') {
+        map.set(ch.id, { chapter: ch, index: idx++ })
+        if (ch.children) {
+          process(ch.children)
+        }
+      }
+    }
+  }
+  process(chapters)
+  return map
+}
+
+/**
+ * 生成嵌套的NCX结构
+ */
+function buildNavPoints(chapters: EpubChapter[], playOrderRef: { value: number }): string[] {
+  const points: string[] = []
+  for (const ch of chapters) {
+    // 只有 volume/chapter/section 类型的节点才进入目录
+    if (ch.type === 'volume' || ch.type === 'chapter' || ch.type === 'section') {
+      const order = playOrderRef.value++
+      points.push(`    <navPoint id="navpoint-${order}" playOrder="${order}">`)
+      points.push(`      <navLabel><text>${escapeXml(ch.title)}</text></navLabel>`)
+      points.push(`      <content src="chapters/chapter_${order}.xhtml"/>`)
+      // 递归处理子节点
+      if (ch.children && ch.children.length > 0) {
+        points.push('      <navMap>')
+        points.push(...buildNavPoints(ch.children, playOrderRef))
+        points.push('      </navMap>')
+      }
+      points.push('    </navPoint>')
+    }
+  }
+  return points
+}
+
+/**
+ * 生成nav.xhtml的多级列表
+ */
+function buildNavList(chapters: EpubChapter[]): string {
+  let html = ''
+  for (const ch of chapters) {
+    if (ch.type === 'volume' || ch.type === 'chapter' || ch.type === 'section') {
+      // 根据层级决定缩进
+      const depth = getDepth(ch)
+      const indent = '        '.repeat(depth)
+      html += `${indent}<li><a href="chapters/chapter_${ch.id}.xhtml">${escapeXml(ch.title)}</a>`
+      if (ch.children && ch.children.length > 0) {
+        const hasValidChildren = ch.children.some(
+          child => child.type === 'volume' || child.type === 'chapter' || child.type === 'section'
+        )
+        if (hasValidChildren) {
+          html += `\n${indent}  <ol>\n${buildNavList(ch.children)}\n${indent}  </ol>\n${indent}</li>`
+        } else {
+          html += '</li>'
+        }
+      } else {
+        html += '</li>'
+      }
+    }
+  }
+  return html
+}
+
+/**
+ * 获取节点深度（用于nav.xhtml缩进）
+ */
+function getDepth(chapter: EpubChapter): number {
+  switch (chapter.type) {
+    case 'volume': return 0
+    case 'chapter': return 1
+    case 'section':
+    case 'scene': return 2
+    default: return 0
+  }
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 export async function generateEpub(
@@ -35,6 +145,9 @@ export async function generateEpub(
   // 3. OEBPS/content.opf（OPF 文件）
   const uuid = `urn:uuid:${crypto.randomUUID()}`
   
+  // 建立章节索引映射
+  const chapterIndex = buildChapterIndex(chapters)
+  
   // Build manifest items
   let manifestItems = ''
   if (coverImage) {
@@ -45,25 +158,27 @@ export async function generateEpub(
   manifestItems += `    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n`
   manifestItems += `    <item id="css" href="styles.css" media-type="text/css"/>\n`
   
-  const chapterManifest = chapters.map((_ch, i) => 
-    `    <item id="chapter${i}" href="chapters/chapter_${i}.xhtml" media-type="application/xhtml+xml"/>`
+  // 按索引顺序添加章节manifest
+  const sortedEntries = Array.from(chapterIndex.entries()).sort((a, b) => a[1].index - b[1].index)
+  const chapterManifest = sortedEntries.map(([, { index }]) => 
+    `    <item id="chapter${index}" href="chapters/chapter_${index}.xhtml" media-type="application/xhtml+xml"/>`
   ).join('\n')
   manifestItems += chapterManifest
   
-  // Build spine items
-  const spineItems = chapters.map((_ch, i) => 
-    `    <itemref idref="chapter${i}"/>`
+  // Build spine items（按顺序引用）
+  const spineItems = sortedEntries.map(([, { index }]) => 
+    `    <itemref idref="chapter${index}"/>`
   ).join('\n')
   
   const opfContent = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:title>${metadata.title}</dc:title>
-    <dc:creator>${metadata.author}</dc:creator>
+    <dc:title>${escapeXml(metadata.title)}</dc:title>
+    <dc:creator>${escapeXml(metadata.author)}</dc:creator>
     <dc:language>${metadata.language}</dc:language>
     <dc:identifier>${uuid}</dc:identifier>
-    <dc:type>${metadata.category || 'Novel'}</dc:type>
-    ${metadata.description ? `<dc:description>${metadata.description}</dc:description>` : ''}
+    <dc:type>${escapeXml(metadata.category || 'Novel')}</dc:type>
+    ${metadata.description ? `<dc:description>${escapeXml(metadata.description)}</dc:description>` : ''}
     <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
   </metadata>
   <manifest>
@@ -78,49 +193,49 @@ export async function generateEpub(
 </package>`
   zip.file('OEBPS/content.opf', opfContent)
 
-  const navPoints = chapters.map((ch, i) => 
-    `<navPoint id="navpoint-${i}" playOrder="${i}">
-      <navLabel><text>${ch.title}</text></navLabel>
-      <content src="chapters/chapter_${i}.xhtml"/>
-    </navPoint>`
-  ).join('\n    ')
+  // 生成 NCX（多级目录）
+  const playOrderRef = { value: 0 }
+  const navPointsStr = buildNavPoints(chapters, playOrderRef).join('\n')
+  const ncxDepth = 3 // volume > chapter > section 三级
   zip.file('OEBPS/toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${uuid}"/>
-    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:depth" content="${ncxDepth}"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
-  <docTitle><text>${metadata.title}</text></docTitle>
-  <navMap>${navPoints}</navMap>
+  <docTitle><text>${escapeXml(metadata.title)}</text></docTitle>
+  <navMap>${navPointsStr}
+  </navMap>
 </ncx>`)
   
-  // 5. OEBPS/nav.xhtml（导航，用于 EPUB3 nav）
-  const navLinks = chapters.map((ch, i) => 
-    `<li><a href="chapters/chapter_${i}.xhtml">${ch.title}</a></li>`
-  ).join('\n          ')
+  // 5. OEBPS/nav.xhtml（导航，用于 EPUB3 nav）- 多级列表
+  const navListHtml = buildNavList(chapters)
   zip.file('OEBPS/nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head><title>目录</title></head>
 <body>
-  <nav epub:type="toc"><h1>目录</h1><ol>${navLinks}</ol></nav>
+  <nav epub:type="toc"><h1>目录</h1><ol>${navListHtml}
+  </ol></nav>
 </body>
 </html>`)
   
-  // 6. OEBPS/styles.css
-  zip.file('OEBPS/styles.css', `body { font-family: "SimSun", serif; font-size: 16px; line-height: 1.8; padding: 20px; }
+  // 6. OEBPS/styles.css - 增强样式
+  zip.file('OEBPS/styles.css', `body { font-family: "SimSun", "Noto Serif SC", serif; font-size: 16px; line-height: 1.8; padding: 20px; }
+h1.volume { font-size: 1.8em; text-align: center; margin: 1.5em 0 1em 0; font-weight: bold; }
+h1.chapter { font-size: 1.4em; text-align: left; margin: 1.2em 0 0.8em 0; font-weight: bold; }
+h1.section { font-size: 1.2em; text-align: left; margin: 1em 0 0.6em 0; font-weight: bold; }
 h1 { font-size: 1.5em; text-align: center; margin: 1em 0; }
 h2 { font-size: 1.2em; margin: 0.8em 0; }
-p { text-indent: 2em; margin: 0.5em 0; }`)
+p { text-indent: 2em; margin: 0.5em 0; }
+span.scene { display: block; margin: 0.5em 0; text-indent: 2em; }`)
 
   // 7. Cover image (if provided)
   if (coverImage) {
-    // Extract base64 data and mime type from data URL
     const matches = coverImage.match(/^data:([^;]+);base64,(.+)$/)
     if (matches) {
-      const mimeType = matches[1]
       const base64Data = matches[2]
       const binaryData = atob(base64Data)
       const bytes = new Uint8Array(binaryData.length)
@@ -143,16 +258,21 @@ p { text-indent: 2em; margin: 0.5em 0; }`)
     }
   }
 
-  // 9. OEBPS/chapters/chapter_*.xhtml
-  for (let i = 0; i < chapters.length; i++) {
-    const ch = chapters[i]
-    zip.file(`OEBPS/chapters/chapter_${i}.xhtml`, `<?xml version="1.0" encoding="UTF-8"?>
+  // 9. OEBPS/chapters/chapter_*.xhtml - 按索引顺序写入所有有效章节
+  for (const [, { chapter, index }] of sortedEntries) {
+    // 根据类型选择h1的class
+    const h1Class = chapter.type === 'volume' ? 'volume' : 
+                    chapter.type === 'chapter' ? 'chapter' : 
+                    chapter.type === 'section' ? 'section' : ''
+    const h1ClassAttr = h1Class ? ` class="${h1Class}"` : ''
+    
+    zip.file(`OEBPS/chapters/chapter_${index}.xhtml`, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
-<head><title>${ch.title}</title><link rel="stylesheet" type="text/css" href="../styles.css"/></head>
+<head><title>${escapeXml(chapter.title)}</title><link rel="stylesheet" type="text/css" href="../styles.css"/></head>
 <body>
-  <h1>${ch.title}</h1>
-  ${ch.content}
+  <h1${h1ClassAttr}>${escapeXml(chapter.title)}</h1>
+  ${chapter.content}
 </body>
 </html>`)
   }

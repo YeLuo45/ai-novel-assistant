@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
-import { generatePdf, PdfChapter, PdfExportOptions, buildPdfChapterList } from '../services/PdfExportService'
-import { generateEpub, downloadEpub } from '../services/EpubExportService'
+import { generatePdf, PdfChapter, PdfExportOptions } from '../services/PdfExportService'
+import { generateEpub, downloadEpub, EpubChapter } from '../services/EpubExportService'
 
 interface ExportChapter {
   id: number
@@ -131,17 +131,28 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
       } else {
         // EPUB export
         setStatus('正在生成 EPUB...')
-        const allChaptersForEpub = buildChapterList(null)
-        if (allChaptersForEpub.length === 0) {
+        
+        // Build hierarchical chapter structure for EPUB
+        const buildEpubChapterTree = (parentId: number | null): EpubChapter[] => {
+          return outlineNodes
+            .filter(n => n.parentId === parentId)
+            .sort((a, b) => a.order - b.order)
+            .map(n => ({
+              id: String(n.id),
+              title: n.title || '未命名',
+              content: `<p>${(n.content || '').replace(/\n/g, '</p><p>')}</p>`,
+              type: n.type as 'volume' | 'chapter' | 'section' | 'scene',
+              children: buildEpubChapterTree(n.id ?? null)
+            }))
+        }
+        
+        const epubChapterTree = buildEpubChapterTree(null)
+        if (epubChapterTree.length === 0) {
           setStatus('没有可导出的章节')
           setIsExporting(false)
           return
         }
-        const epubChapters = allChaptersForEpub.map((ch, i) => ({
-          id: String(ch.id),
-          title: ch.title || `第${i + 1}章`,
-          content: `<p>${(ch.content || '').replace(/\n/g, '</p><p>')}</p>`
-        }))
+        
         const metadata = {
           title: title,
           author: author || '未知作者',
@@ -149,7 +160,7 @@ export function ExportPanel({ isOpen, onToggle }: Props) {
           description: description,
           category: category
         }
-        const blob = await generateEpub(metadata, epubChapters, coverImage)
+        const blob = await generateEpub(metadata, epubChapterTree, coverImage)
         downloadEpub(blob, `${title}.epub`)
         setStatus('EPUB 导出成功！')
       }
