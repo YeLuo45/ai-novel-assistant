@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Draggable } from 'react-beautiful-dnd'
 import { OutlineNode, Storyline } from '../db'
 
@@ -14,6 +15,14 @@ interface Props {
   chapterStorylineLinks?: { chapterId: number; storylineId: number }[]
   totalBookWords?: number
   totalBookGoal?: number
+  onContinueOutline?: (nodeId: number) => void
+}
+
+interface ContextMenuState {
+  visible: boolean
+  x: number
+  y: number
+  nodeId: number | null
 }
 
 const typeLabels = {
@@ -38,10 +47,39 @@ const statusIcons = {
 
 export default function OutlineTree({ 
   nodes, allNodes, onEdit, onDelete, onAddChild, onOpenNode, activeNodeId, depth = 0,
-  storylines = [], chapterStorylineLinks = [], totalBookWords = 0, totalBookGoal = 0 
+  storylines = [], chapterStorylineLinks = [], totalBookWords = 0, totalBookGoal = 0,
+  onContinueOutline 
 }: Props) {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    nodeId: null
+  })
+
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent, nodeId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      nodeId
+    })
+  }
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClick = () => setContextMenu(prev => ({ ...prev, visible: false }))
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClick)
+      return () => document.removeEventListener('click', handleClick)
+    }
+  }, [contextMenu.visible])
+
   return (
-    <div>
+    <>
       {depth === 0 && (
         <div className="mb-3 px-2 py-2 bg-gray-50 rounded-lg">
           <div className="flex justify-between text-xs text-gray-500">
@@ -73,6 +111,7 @@ export default function OutlineTree({
                 {...provided.draggableProps}
                 {...provided.dragHandleProps}
                 className={`mb-2 ${snapshot.isDragging ? 'opacity-80' : ''}`}
+                onContextMenu={(e) => node.id && handleContextMenu(e, node.id)}
               >
                 <div
                   className={`p-3 rounded-lg border ${typeColors[node.type]} ${
@@ -143,6 +182,17 @@ export default function OutlineTree({
                     >
                       删除
                     </button>
+                    {onContinueOutline && (node.type === 'chapter' || node.type === 'section') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          node.id && handleContextMenu(e as any, node.id)
+                        }}
+                        className="text-xs px-2 py-1 bg-white/50 rounded hover:bg-indigo-50 hover:text-indigo-600"
+                      >
+                        ⋯ 更多
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -161,6 +211,7 @@ export default function OutlineTree({
                       chapterStorylineLinks={chapterStorylineLinks}
                       totalBookWords={totalBookWords}
                       totalBookGoal={totalBookGoal}
+                      onContinueOutline={onContinueOutline}
                     />
                   </div>
                 )}
@@ -169,6 +220,27 @@ export default function OutlineTree({
           </Draggable>
         )
       })}
-    </div>
+
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              if (contextMenu.nodeId && onContinueOutline) {
+                onContinueOutline(contextMenu.nodeId)
+              }
+              setContextMenu(prev => ({ ...prev, visible: false }))
+            }}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-indigo-50 text-indigo-700"
+          >
+            🤖 让AI续写大纲
+          </button>
+        </div>
+      )}
+    </>
   )
 }

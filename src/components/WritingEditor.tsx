@@ -9,6 +9,7 @@ import ViewpointSwitcher from './ViewpointSwitcher'
 import ChapterPlotGeneratorModal from './ChapterPlotGeneratorModal'
 import BatchPolishingModal from './BatchPolishingModal'
 import StyleConsistencyPanel from './StyleConsistencyPanel'
+import DialogueGeneratorModal from './DialogueGeneratorModal'
 import { applyPolishingResult } from '../ai/batchPolishing'
 
 interface Props {
@@ -33,6 +34,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [showPlotGenerator, setShowPlotGenerator] = useState(false)
   const [showPolishingModal, setShowPolishingModal] = useState(false)
   const [showStylePanel, setShowStylePanel] = useState(false)
+  const [showDialogueGenerator, setShowDialogueGenerator] = useState(false)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -260,6 +262,14 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             ✨ 批量润色
           </button>
 
+          <button
+            onClick={() => setShowDialogueGenerator(true)}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded"
+            title="生成对话"
+          >
+            💬 生成对话
+          </button>
+
           {/* Save Button */}
           <button
             onClick={() => handleSave(false)}
@@ -395,6 +405,16 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         isOpen={showStylePanel}
         onClose={() => setShowStylePanel(false)}
         chapterId={nodeId}
+      />
+
+      <DialogueGeneratorModal
+        isOpen={showDialogueGenerator}
+        onClose={() => setShowDialogueGenerator(false)}
+        onInsert={(dialogue) => {
+          // Insert dialogue at cursor or append to content end
+          setContent(content + '\n\n' + dialogue)
+          setShowDialogueGenerator(false)
+        }}
       />
     </div>
   )
