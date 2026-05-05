@@ -6,6 +6,10 @@ import AIShortcutBar from './AIShortcutBar'
 import WordCountBar from './WordCountBar'
 import CardReference from './CardReference'
 import ViewpointSwitcher from './ViewpointSwitcher'
+import ChapterPlotGeneratorModal from './ChapterPlotGeneratorModal'
+import BatchPolishingModal from './BatchPolishingModal'
+import StyleConsistencyPanel from './StyleConsistencyPanel'
+import { applyPolishingResult } from '../ai/batchPolishing'
 
 interface Props {
   nodeId: number
@@ -26,6 +30,9 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [hasChanges, setHasChanges] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
   const [initialWordCount, setInitialWordCount] = useState(0)
+  const [showPlotGenerator, setShowPlotGenerator] = useState(false)
+  const [showPolishingModal, setShowPolishingModal] = useState(false)
+  const [showStylePanel, setShowStylePanel] = useState(false)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -228,6 +235,31 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             <ViewpointSwitcher projectId={currentProject.id!} />
           )}
 
+          {/* AI Tools */}
+          <button
+            onClick={() => setShowPlotGenerator(true)}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded"
+            title="AI章节生成"
+          >
+            📖 生成章节
+          </button>
+          
+          <button
+            onClick={() => setShowStylePanel(true)}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded"
+            title="文风检测"
+          >
+            🎨 文风检测
+          </button>
+          
+          <button
+            onClick={() => setShowPolishingModal(true)}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded"
+            title="批量润色"
+          >
+            ✨ 批量润色
+          </button>
+
           {/* Save Button */}
           <button
             onClick={() => handleSave(false)}
@@ -319,6 +351,50 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         selectedText={selectedText}
         content={content}
         onApply={handleAIApply}
+      />
+
+      {/* Modals */}
+      <ChapterPlotGeneratorModal
+        isOpen={showPlotGenerator}
+        onClose={() => setShowPlotGenerator(false)}
+        onInsert={(generatedContent, generatedTitle, targetNodeId) => {
+          // Insert generated content
+          if (targetNodeId === nodeId) {
+            setContent(generatedContent)
+            setTitle(generatedTitle)
+          }
+          setShowPlotGenerator(false)
+        }}
+        preselectedNodeId={nodeId}
+      />
+
+      <BatchPolishingModal
+        isOpen={showPolishingModal}
+        onClose={() => setShowPolishingModal(false)}
+        onApplyResults={async (results) => {
+          // Apply polishing results
+          for (const result of results) {
+            if (result.success) {
+              try {
+                await applyPolishingResult(result)
+              } catch (err) {
+                console.error(`Failed to apply result for chapter ${result.chapterId}:`, err)
+              }
+            }
+          }
+          // Refresh content if current chapter was polished
+          const currentResult = results.find(r => r.chapterId === nodeId)
+          if (currentResult?.success) {
+            setContent(currentResult.polishedContent)
+          }
+        }}
+        preselectedChapterIds={[nodeId]}
+      />
+
+      <StyleConsistencyPanel
+        isOpen={showStylePanel}
+        onClose={() => setShowStylePanel(false)}
+        chapterId={nodeId}
       />
     </div>
   )

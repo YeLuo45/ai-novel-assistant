@@ -149,6 +149,27 @@ export interface ReminderSettings {
   updatedAt: Date
 }
 
+// Chapter style profile for consistency checking
+export interface ChapterStyleProfile {
+  id?: number
+  projectId: number
+  chapterId: number
+  profile: {
+    avgSentenceLength: number
+    dialogueRatio: number
+    descriptionDensity: number
+    tense: 'past' | 'present'
+    perspective: 'first' | 'third'
+    characterVoices: Record<string, {
+      speechPatterns: string[]
+      vocabulary: string[]
+      sentencePatterns: string[]
+    }>
+    commonPhrases: string[]
+  }
+  analyzedAt: Date
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
@@ -166,6 +187,7 @@ class NovelDatabase extends Dexie {
   dailyGoalConfigs!: Table<DailyGoalConfig>
   milestones!: Table<Milestone>
   reminderSettings!: Table<ReminderSettings>
+  chapterStyleProfiles!: Table<ChapterStyleProfile>
 
   constructor() {
     super('NovelDB')
@@ -260,6 +282,24 @@ class NovelDatabase extends Dexie {
       projectViewpoint: '++id, projectId',
       milestones: '++id, projectId, targetDate, status',
       reminderSettings: '++id, projectId'
+    })
+    this.version(9).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId'
     })
   }
 }
