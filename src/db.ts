@@ -170,6 +170,16 @@ export interface ChapterStyleProfile {
   analyzedAt: Date
 }
 
+// Chapter version snapshot for version history
+export interface ChapterVersion {
+  id?: number
+  chapterId: number
+  projectId: number
+  content: string
+  title: string
+  createdAt: Date
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
@@ -188,6 +198,7 @@ class NovelDatabase extends Dexie {
   milestones!: Table<Milestone>
   reminderSettings!: Table<ReminderSettings>
   chapterStyleProfiles!: Table<ChapterStyleProfile>
+  chapterVersions!: Table<ChapterVersion>
 
   constructor() {
     super('NovelDB')
@@ -300,6 +311,25 @@ class NovelDatabase extends Dexie {
       milestones: '++id, projectId, targetDate, status',
       reminderSettings: '++id, projectId',
       chapterStyleProfiles: '++id, projectId, chapterId'
+    })
+    this.version(10).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId',
+      chapterVersions: '++id, chapterId, projectId, createdAt'
     })
   }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import MDEditor from '@uiw/react-md-editor'
 import { useStore } from '../store'
-import { OutlineNode } from '../db'
+import { OutlineNode, db } from '../db'
 import AIShortcutBar from './AIShortcutBar'
 import WordCountBar from './WordCountBar'
 import CardReference from './CardReference'
@@ -10,7 +10,10 @@ import ChapterPlotGeneratorModal from './ChapterPlotGeneratorModal'
 import BatchPolishingModal from './BatchPolishingModal'
 import StyleConsistencyPanel from './StyleConsistencyPanel'
 import DialogueGeneratorModal from './DialogueGeneratorModal'
+import VersionHistoryPanel from './VersionHistoryPanel'
+import SensitiveWordPanel from './SensitiveWordPanel'
 import { applyPolishingResult } from '../ai/batchPolishing'
+import { detectSensitiveWords } from '../utils/sensitiveDetector'
 
 interface Props {
   nodeId: number
@@ -35,6 +38,9 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [showPolishingModal, setShowPolishingModal] = useState(false)
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [showDialogueGenerator, setShowDialogueGenerator] = useState(false)
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showSensitivePanel, setShowSensitivePanel] = useState(false)
+  const [sensitiveWordCount, setSensitiveWordCount] = useState(0)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -92,6 +98,12 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     setHasChanges(content !== lastSavedContent)
   }, [content, lastSavedContent])
 
+  // Detect sensitive words
+  useEffect(() => {
+    const results = detectSensitiveWords(content)
+    setSensitiveWordCount(results.length)
+  }, [content])
+
   // Auto-save (30 seconds)
   useEffect(() => {
     if (saveTimerRef.current) {
@@ -134,6 +146,25 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         content,
         status
       })
+      
+      // Create version snapshot (only for significant changes)
+      if (currentProject?.id && content !== lastSavedContent) {
+        const wordCountDiff = Math.abs(content.replace(/\s/g, '').length - lastSavedContent.replace(/\s/g, '').length)
+        if (wordCountDiff > 50 || isAutoSave) {
+          try {
+            await db.chapterVersions.add({
+              chapterId: nodeId,
+              projectId: currentProject.id,
+              content: lastSavedContent,
+              title: title,
+              createdAt: new Date()
+            })
+          } catch (err) {
+            console.error('Failed to create version snapshot:', err)
+          }
+        }
+      }
+      
       setLastSavedContent(content)
       setHasChanges(false)
       
@@ -268,6 +299,28 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             title="生成对话"
           >
             💬 生成对话
+          </button>
+
+          {/* Version History */}
+          <button
+            onClick={() => setShowVersionHistory(true)}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded"
+            title="版本历史"
+          >
+            📜 版本历史
+          </button>
+
+          {/* Sensitive Word Detection */}
+          <button
+            onClick={() => setShowSensitivePanel(true)}
+            className={`px-3 py-1.5 text-sm rounded ${
+              sensitiveWordCount > 0 
+                ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                : 'text-gray-500 hover:bg-gray-100'
+            }`}
+            title="敏感词检测"
+          >
+            ⚠️ 敏感词 {sensitiveWordCount > 0 && `(${sensitiveWordCount})`}
           </button>
 
           {/* Save Button */}
@@ -414,6 +467,28 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           // Insert dialogue at cursor or append to content end
           setContent(content + '\n\n' + dialogue)
           setShowDialogueGenerator(false)
+        }}
+      />
+
+      <VersionHistoryPanel
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        chapterId={nodeId}
+        projectId={currentProject?.id || 0}
+        currentContent={content}
+        currentTitle={title}
+        onRestore={(restoredContent, restoredTitle) => {
+          setContent(restoredContent)
+          setTitle(restoredTitle)
+        }}
+      />
+
+      <SensitiveWordPanel
+        isOpen={showSensitivePanel}
+        onClose={() => setShowSensitivePanel(false)}
+        content={content}
+        onReplace={(newContent) => {
+          setContent(newContent)
         }}
       />
     </div>
