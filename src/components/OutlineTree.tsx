@@ -118,6 +118,7 @@ export default function OutlineTree({
                     snapshot.isDragging ? 'shadow-lg' : 'shadow-sm'
                   } ${activeNodeId === node.id ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'}
                   `}
+                  style={node.color ? { borderLeftWidth: 4, borderLeftColor: node.color } : undefined}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs opacity-60">{statusIcons[node.status]}</span>

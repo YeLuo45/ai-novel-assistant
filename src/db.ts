@@ -19,6 +19,7 @@ export interface OutlineNode {
   content: string
   status: 'planning' | 'writing' | 'completed'
   order: number
+  color?: string
 }
 
 export interface AgentConfig {

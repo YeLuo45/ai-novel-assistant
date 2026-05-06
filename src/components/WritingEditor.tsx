@@ -104,6 +104,14 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     setSensitiveWordCount(results.length)
   }, [content])
 
+  // Progress sync: auto-set status to 'writing' when content has words
+  useEffect(() => {
+    const currentWordCount = content.replace(/\s/g, '').length
+    if (currentWordCount > 0 && status === 'planning') {
+      setStatus('writing')
+    }
+  }, [content, status])
+
   // Auto-save (30 seconds)
   useEffect(() => {
     if (saveTimerRef.current) {
