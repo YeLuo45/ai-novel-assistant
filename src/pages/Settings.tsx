@@ -5,8 +5,9 @@ import BackupPanel from '../components/BackupPanel'
 import MilestonePanel from '../components/MilestonePanel'
 import { reminderService } from '../services/ReminderService'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { PROVIDERS, MODELS, getProviderModels } from '../ai/providers'
 
-type SettingsTab = 'api' | 'backup' | 'milestones' | 'reminders' | 'appearance'
+type SettingsTab = 'api' | 'backup' | 'milestones' | 'reminders' | 'appearance' | 'providers'
 
 export default function Settings() {
   const { currentProject } = useStore()
@@ -15,11 +16,17 @@ export default function Settings() {
     openai: string
     anthropic: string
     minimax: string
+    google: string
   }>({
     openai: '',
     anthropic: '',
-    minimax: ''
+    minimax: '',
+    google: ''
   })
+  
+  // Provider settings state
+  const [selectedProvider, setSelectedProvider] = useState<string>('openai')
+  const [defaultModel, setDefaultModel] = useState<string>('')
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showBackup, setShowBackup] = useState(false)
@@ -63,8 +70,16 @@ export default function Settings() {
     setApiKeys({
       openai: keyMap.openai || '',
       anthropic: keyMap.anthropic || '',
-      minimax: keyMap.minimax || ''
+      minimax: keyMap.minimax || '',
+      google: keyMap.google || ''
     })
+    
+    // Load provider settings from localStorage
+    const savedProvider = localStorage.getItem('ai-novel-default-provider')
+    const savedModel = localStorage.getItem('ai-novel-default-model')
+    if (savedProvider) setSelectedProvider(savedProvider)
+    if (savedModel) setDefaultModel(savedModel)
+    
     setLoading(false)
   }
 
@@ -73,7 +88,7 @@ export default function Settings() {
     await db.apiKeys.clear()
     
     // 添加新的
-    const providers = ['openai', 'anthropic', 'minimax'] as const
+    const providers = ['openai', 'anthropic', 'minimax', 'google'] as const
     for (const provider of providers) {
       if (apiKeys[provider].trim()) {
         await db.apiKeys.add({
@@ -82,6 +97,10 @@ export default function Settings() {
         })
       }
     }
+    
+    // Save provider settings
+    localStorage.setItem('ai-novel-default-provider', selectedProvider)
+    localStorage.setItem('ai-novel-default-model', defaultModel)
     
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -174,6 +193,16 @@ export default function Settings() {
           }`}
         >
           ⏰ 写作提醒
+        </button>
+        <button
+          onClick={() => setActiveTab('providers')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'providers'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          🤖 AI模型
         </button>
       </div>
 
@@ -294,6 +323,23 @@ export default function Settings() {
                   value={apiKeys.minimax}
                   onChange={e => setApiKeys({ ...apiKeys, minimax: e.target.value })}
                   placeholder="..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Google */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Google API Key
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  用于Gemini系列模型对话
+                </p>
+                <input
+                  type="password"
+                  value={apiKeys.google}
+                  onChange={e => setApiKeys({ ...apiKeys, google: e.target.value })}
+                  placeholder="AIza..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -494,6 +540,131 @@ export default function Settings() {
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 保存提醒设置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'providers' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">🤖 AI模型设置</h2>
+
+          {/* Default Provider Selection */}
+          <div className="mb-8">
+            <h3 className="font-medium text-gray-800 mb-4">默认AI提供商</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {Object.entries(PROVIDERS).map(([id, provider]) => {
+                const models = getProviderModels(id)
+                const hasApiKey = apiKeys[id as keyof typeof apiKeys]?.trim()
+                return (
+                  <button
+                    key={id}
+                    onClick={() => {
+                      setSelectedProvider(id)
+                      if (models.length > 0) {
+                        setDefaultModel(provider.defaultModel || models[0].id)
+                      }
+                    }}
+                    className={`p-4 rounded-xl border-2 transition-all text-left ${
+                      selectedProvider === id
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-800">{provider.name}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {models.length} 个模型
+                    </div>
+                    <div className={`text-xs mt-1 ${
+                      hasApiKey ? 'text-green-600' : 'text-red-500'
+                    }`}>
+                      {hasApiKey ? '✓ 已配置API Key' : '✗ 未配置API Key'}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Default Model Selection */}
+          {selectedProvider && (
+            <div className="mb-8">
+              <h3 className="font-medium text-gray-800 mb-4">默认模型</h3>
+              <div className="space-y-2">
+                {getProviderModels(selectedProvider).map(model => (
+                  <label
+                    key={model.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      defaultModel === model.id
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="defaultModel"
+                      checked={defaultModel === model.id}
+                      onChange={() => setDefaultModel(model.id)}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-800">{model.name}</div>
+                      <div className="text-xs text-gray-500">
+                        上下文窗口: {model.contextWindow?.toLocaleString() || 'N/A'} tokens
+                        | 最大输出: {model.maxOutputTokens?.toLocaleString() || 'N/A'} tokens
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      {model.capabilities.vision && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">视觉</span>
+                      )}
+                      {model.thinking?.supported && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">思考</span>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Provider Info */}
+          <div className="bg-gray-50 rounded-xl p-4">
+            <h4 className="font-medium text-gray-800 mb-3">模型说明</h4>
+            <div className="space-y-2 text-sm text-gray-600">
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-indigo-600 w-24">Claude 3.5</span>
+                <span>擅长长文本创作和角色一致性分析</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-indigo-600 w-24">GPT-4</span>
+                <span>综合能力强，适合复杂的小说结构设计</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-indigo-600 w-24">Gemini</span>
+                <span>Google大模型，上下文窗口大，适合超长文本处理</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-indigo-600 w-24">DeepSeek</span>
+                <span>国产高性能模型，性价比高</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-8">
+            <p className="text-xs text-gray-400">
+              切换AI提供商后，直接生效无需刷新页面
+            </p>
+            <div className="flex items-center gap-4">
+              {saved && (
+                <span className="text-sm text-green-600">已保存 ✓</span>
+              )}
+              <button
+                onClick={handleSave}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                保存设置
               </button>
             </div>
           </div>

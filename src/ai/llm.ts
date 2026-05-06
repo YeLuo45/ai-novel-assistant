@@ -220,6 +220,11 @@ async function callOpenAICompatible(
     return callMiniMax(params, provider, model)
   }
 
+  // Google Gemini 特殊路径
+  if (provider.name === 'Google') {
+    return callGemini(params, provider, model)
+  }
+
   const url = provider.baseUrl + '/chat/completions'
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
@@ -262,6 +267,137 @@ async function callOpenAICompatible(
 
   const data = await response.json()
   return data.choices?.[0]?.message?.content || ''
+}
+
+// ============ Gemini Provider 调用 ============
+
+async function callGemini(
+  params: LLMCallOptions,
+  provider: ReturnType<typeof getProvider>,
+  _model: ReturnType<typeof getModel>
+): Promise<string> {
+  if (!provider) throw new Error('Provider not found')
+
+  const model = params.model
+  const url = `${provider.baseUrl}/models/${model}:generateContent?key=${provider.apiKey || ''}`
+  
+  const contents = params.messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }))
+
+  const systemInstruction = params.messages
+    .filter(m => m.role === 'system')
+    .map(m => ({ text: m.content }))
+
+  const body: Record<string, unknown> = {
+    contents,
+    generationConfig: {
+      temperature: params.temperature ?? 0.7,
+      maxOutputTokens: params.maxTokens || 8192
+    }
+  }
+
+  if (systemInstruction.length > 0) {
+    body.systemInstruction = { parts: systemInstruction }
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
+    throw new Error(error.error?.message || `API request failed: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+}
+
+async function streamGemini(
+  params: LLMCallOptions,
+  provider: ReturnType<typeof getProvider>,
+  model: ReturnType<typeof getModel>,
+  observable: ObservableClass<LLMEvent>
+): Promise<void> {
+  if (!provider || !model) return
+
+  const modelId = params.model
+  const url = `${provider.baseUrl}/models/${modelId}:streamGenerateContent?key=${provider.apiKey || ''}&alt=sse`
+
+  const contents = params.messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }))
+
+  const systemInstruction = params.messages
+    .filter(m => m.role === 'system')
+    .map(m => ({ text: m.content }))
+
+  const body: Record<string, unknown> = {
+    contents,
+    generationConfig: {
+      temperature: params.temperature ?? 0.7,
+      maxOutputTokens: params.maxTokens || 8192
+    }
+  }
+
+  if (systemInstruction.length > 0) {
+    body.systemInstruction = { parts: systemInstruction }
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
+    throw new Error(error.error?.message || `API request failed: ${response.status}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('Response body is not readable')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6))
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+          if (text) {
+            observable.emit({ type: 'text', content: text })
+          }
+        } catch (e) {
+          // Skip malformed JSON
+        }
+      }
+    }
+  }
+
+  observable.emit({ type: 'done' })
 }
 
 // ============ 流式调用实现 ============
@@ -356,6 +492,11 @@ async function streamOpenAICompatible(
   // MiniMax 特殊处理
   if (provider.name === 'MiniMax') {
     throw new Error('MiniMax streaming not implemented yet')
+  }
+
+  // Google Gemini 特殊处理
+  if (provider.name === 'Google') {
+    return streamGemini(params, provider, model, observable)
   }
 
   const url = provider.baseUrl + '/chat/completions'

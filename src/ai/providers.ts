@@ -46,6 +46,15 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     type: 'openai-compatible',
     defaultModel: 'Qwen/Qwen2.5-7B-Instruct',
     models: []
+  },
+
+  // Google Gemini
+  google: {
+    name: 'Google',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    type: 'openai-compatible',
+    defaultModel: 'gemini-2.0-flash',
+    models: []
   }
 }
 
@@ -130,6 +139,15 @@ export const MODELS: Record<string, ModelConfig> = {
     maxOutputTokens: 8192,
     supportsStreaming: true
   },
+  'claude-3-5-haiku-latest': {
+    id: 'claude-3-5-haiku-latest',
+    provider: 'anthropic',
+    name: 'Claude 3.5 Haiku',
+    capabilities: { ...TEXT_CAPABILITIES, vision: true },
+    contextWindow: 200000,
+    maxOutputTokens: 8192,
+    supportsStreaming: true
+  },
   'claude-3-opus': {
     id: 'claude-3-opus',
     provider: 'anthropic',
@@ -196,6 +214,35 @@ export const MODELS: Record<string, ModelConfig> = {
     name: 'DeepSeek V2.5',
     capabilities: { ...TEXT_CAPABILITIES, functionCalling: true },
     contextWindow: 64000,
+    maxOutputTokens: 8192,
+    supportsStreaming: true
+  },
+
+  // Google Gemini
+  'gemini-2.0-flash': {
+    id: 'gemini-2.0-flash',
+    provider: 'google',
+    name: 'Gemini 2.0 Flash',
+    capabilities: { ...TEXT_CAPABILITIES, vision: true },
+    contextWindow: 1000000,
+    maxOutputTokens: 8192,
+    supportsStreaming: true
+  },
+  'gemini-1.5-pro': {
+    id: 'gemini-1.5-pro',
+    provider: 'google',
+    name: 'Gemini 1.5 Pro',
+    capabilities: { ...TEXT_CAPABILITIES, vision: true },
+    contextWindow: 2000000,
+    maxOutputTokens: 8192,
+    supportsStreaming: true
+  },
+  'gemini-1.5-flash': {
+    id: 'gemini-1.5-flash',
+    provider: 'google',
+    name: 'Gemini 1.5 Flash',
+    capabilities: { ...TEXT_CAPABILITIES, vision: true },
+    contextWindow: 1000000,
     maxOutputTokens: 8192,
     supportsStreaming: true
   }

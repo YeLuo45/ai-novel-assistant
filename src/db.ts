@@ -32,7 +32,7 @@ export interface AgentConfig {
 
 export interface ApiKey {
   id?: number
-  provider: 'openai' | 'anthropic' | 'minimax'
+  provider: 'openai' | 'anthropic' | 'minimax' | 'google'
   key: string
 }
 
@@ -180,6 +180,30 @@ export interface ChapterVersion {
   createdAt: Date
 }
 
+// AI Chat Messages table for enhanced chat memory persistence
+export interface AIChatMessage {
+  id?: number
+  projectId: number
+  conversationId: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  model?: string
+  provider?: string
+  timestamp: Date
+}
+
+// AI Conversation metadata
+export interface AIConversation {
+  id?: string
+  projectId: number
+  title: string
+  model: string
+  provider: string
+  messageCount: number
+  createdAt: Date
+  updatedAt: Date
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
@@ -199,6 +223,8 @@ class NovelDatabase extends Dexie {
   reminderSettings!: Table<ReminderSettings>
   chapterStyleProfiles!: Table<ChapterStyleProfile>
   chapterVersions!: Table<ChapterVersion>
+  aiChatMessages!: Table<AIChatMessage>
+  aiConversations!: Table<AIConversation>
 
   constructor() {
     super('NovelDB')
@@ -330,6 +356,27 @@ class NovelDatabase extends Dexie {
       reminderSettings: '++id, projectId',
       chapterStyleProfiles: '++id, projectId, chapterId',
       chapterVersions: '++id, chapterId, projectId, createdAt'
+    })
+    this.version(11).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId',
+      chapterVersions: '++id, chapterId, projectId, createdAt',
+      aiChatMessages: '++id, projectId, conversationId, timestamp',
+      aiConversations: '++id, projectId, createdAt'
     })
   }
 }

@@ -3,6 +3,7 @@ import { AgentConfig, ChatMessage } from '../db'
 import { db } from '../db'
 import { getChatHistory, addUserMessage, addAssistantMessage, buildContextualPrompt, trimChatHistory } from '../ai/chatMemory'
 import { streamLLM } from '../ai/llm'
+import { PROVIDERS, MODELS, getProviderModels } from '../ai/providers'
 import type { LLMEvent } from '../ai/types'
 
 interface Props {
@@ -19,15 +20,17 @@ interface Message {
 export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo')
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini')
+  const [selectedProvider, setSelectedProvider] = useState<string>('openai')
   const [isLoading, setIsLoading] = useState(false)
-  const [apiKeys, setApiKeys] = useState<{ openai?: string; anthropic?: string; minimax?: string }>({})
+  const [apiKeys, setApiKeys] = useState<{ openai?: string; anthropic?: string; minimax?: string; google?: string }>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const subscriptionRef = useRef<(() => void) | null>(null)
 
-  // 加载 API keys
+  // 加载 API keys and provider settings
   useEffect(() => {
     loadApiKeys()
+    loadProviderSettings()
   }, [])
 
   // 加载聊天历史
@@ -64,10 +67,15 @@ export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props
     }
   }
 
-  const getApiKey = (model: string): string | undefined => {
-    if (model.startsWith('gpt')) return apiKeys.openai
-    if (model.startsWith('claude')) return apiKeys.anthropic
-    return apiKeys.minimax
+  const loadProviderSettings = () => {
+    const savedProvider = localStorage.getItem('ai-novel-default-provider') || 'openai'
+    const savedModel = localStorage.getItem('ai-novel-default-model') || 'gpt-4o-mini'
+    setSelectedProvider(savedProvider)
+    setSelectedModel(savedModel)
+  }
+
+  const getApiKey = (provider: string): string | undefined => {
+    return apiKeys[provider as keyof typeof apiKeys]
   }
 
   const sendMessage = async () => {
@@ -84,13 +92,19 @@ export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props
     // 保存用户消息到数据库
     await addUserMessage(projectId, userContent)
 
-    const apiKey = getApiKey(selectedModel)
+    const apiKey = getApiKey(selectedProvider)
     if (!apiKey) {
       const errorMsg = '请先在设置页面配置API Key'
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg, timestamp: new Date() }])
       await addAssistantMessage(projectId, errorMsg)
       setIsLoading(false)
       return
+    }
+
+    // Set API key on provider
+    const provider = PROVIDERS[selectedProvider]
+    if (provider) {
+      provider.apiKey = apiKey
     }
 
     try {
@@ -181,25 +195,33 @@ export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props
 
   return (
     <div className="flex flex-col h-full">
-      {/* 模型选择 */}
-      <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+      {/* Provider and Model Selection */}
+      <div className="p-3 border-b border-gray-200 flex items-center gap-2">
+        <select
+          value={selectedProvider}
+          onChange={e => {
+            const newProvider = e.target.value
+            setSelectedProvider(newProvider)
+            const models = getProviderModels(newProvider)
+            if (models.length > 0) {
+              const provider = PROVIDERS[newProvider]
+              setSelectedModel(provider?.defaultModel || models[0].id)
+            }
+          }}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {Object.entries(PROVIDERS).map(([id, provider]) => (
+            <option key={id} value={id}>{provider.name}</option>
+          ))}
+        </select>
         <select
           value={selectedModel}
           onChange={e => setSelectedModel(e.target.value)}
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <optgroup label="OpenAI">
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4o-mini">GPT-4o Mini</option>
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-          </optgroup>
-          <optgroup label="Anthropic">
-            <option value="claude-3-opus">Claude 3 Opus</option>
-            <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-          </optgroup>
-          <optgroup label="MiniMax">
-            <option value="minimax">MiniMax</option>
-          </optgroup>
+          {getProviderModels(selectedProvider).map(model => (
+            <option key={model.id} value={model.id}>{model.name}</option>
+          ))}
         </select>
         {projectId && messages.length > 0 && (
           <button
