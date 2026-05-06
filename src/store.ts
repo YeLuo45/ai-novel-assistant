@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink, CharacterRelationship, ProjectViewpoint, ViewpointType, Milestone, ReminderSettings } from './db'
 
 interface AppState {
+  // Theme
+  theme: 'light' | 'dark' | 'system'
+  setTheme: (theme: 'light' | 'dark' | 'system') => void
+
   // 项目列表
   projects: Project[]
   currentProject: Project | null
@@ -99,6 +103,10 @@ const DEFAULT_DAILY_GOAL = 3000
 const DEFAULT_TOTAL_WORD_GOAL = 100000
 
 export const useStore = create<AppState>((set, get) => ({
+  // Theme - default to system preference
+  theme: (typeof window !== 'undefined' && localStorage.getItem('ai-novel-theme') as 'light' | 'dark' | 'system') || 'system',
+  setTheme: (theme) => set({ theme }),
+
   projects: [],
   currentProject: null,
   outlineNodes: [],

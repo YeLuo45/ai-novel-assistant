@@ -4,8 +4,9 @@ import { useStore } from '../store'
 import BackupPanel from '../components/BackupPanel'
 import MilestonePanel from '../components/MilestonePanel'
 import { reminderService } from '../services/ReminderService'
+import { ThemeToggle } from '../components/ThemeToggle'
 
-type SettingsTab = 'api' | 'backup' | 'milestones' | 'reminders'
+type SettingsTab = 'api' | 'backup' | 'milestones' | 'reminders' | 'appearance'
 
 export default function Settings() {
   const { currentProject } = useStore()
@@ -23,6 +24,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [showBackup, setShowBackup] = useState(false)
   const [showMilestone, setShowMilestone] = useState(false)
+  const { theme } = useStore()
   
   // Reminder settings state
   const [reminderEnabled, setReminderEnabled] = useState(true)
@@ -122,10 +124,20 @@ export default function Settings() {
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-2 px-2">
+        <button
+          onClick={() => setActiveTab('appearance')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'appearance'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          🎨 外观
+        </button>
         <button
           onClick={() => setActiveTab('api')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeTab === 'api'
               ? 'bg-indigo-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -135,7 +147,7 @@ export default function Settings() {
         </button>
         <button
           onClick={() => { setActiveTab('backup'); setShowBackup(true) }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeTab === 'backup'
               ? 'bg-indigo-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -145,7 +157,7 @@ export default function Settings() {
         </button>
         <button
           onClick={() => { setActiveTab('milestones'); setShowMilestone(true) }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeTab === 'milestones'
               ? 'bg-indigo-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -155,7 +167,7 @@ export default function Settings() {
         </button>
         <button
           onClick={() => setActiveTab('reminders')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeTab === 'reminders'
               ? 'bg-indigo-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -164,6 +176,70 @@ export default function Settings() {
           ⏰ 写作提醒
         </button>
       </div>
+
+      {activeTab === 'appearance' && (
+        <div className="bg-white dark:bg-dark-bg-secondary rounded-xl shadow-sm border border-gray-200 dark:border-dark-border p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-dark-text mb-6">🎨 外观设置</h2>
+          
+          <div className="space-y-6">
+            {/* Theme Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+                主题模式
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => useStore.getState().setTheme('light')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    theme === 'light'
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">☀️</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">浅色</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">适合明亮环境</div>
+                </button>
+                <button
+                  onClick={() => useStore.getState().setTheme('dark')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    theme === 'dark'
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">🌙</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">深色</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">适合夜间写作</div>
+                </button>
+                <button
+                  onClick={() => useStore.getState().setTheme('system')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    theme === 'system'
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">💻</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">跟随系统</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">自动适配</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Current Theme Preview */}
+            <div className="p-4 bg-gray-50 dark:bg-dark-bg-tertiary rounded-xl">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">当前效果预览</div>
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-8 rounded-lg bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-dark-border" />
+                <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-dark-bg" />
+                <div className="w-8 h-8 rounded-lg bg-indigo-500" />
+                <span className="text-sm text-gray-600 dark:text-gray-300">配色方案</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'api' && (
         <>
