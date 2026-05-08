@@ -3,8 +3,8 @@
  * Phase 1: 核心类型定义
  */
 
-// Agent ID（3个）
-export type AgentId = 'PlotExpert' | 'DialogueMaster' | 'StyleGuard'
+// Agent ID（4个）V13 新增 CriticAgent
+export type AgentId = 'PlotExpert' | 'DialogueMaster' | 'StyleGuard' | 'CriticAgent'
 
 // 任务类型
 export type TaskType = 'plot_design' | 'dialogue_generation' | 'style_check'
@@ -88,4 +88,102 @@ export interface CollaborationSession {
   status: 'decomposing' | 'executing' | 'aggregating' | 'done' | 'failed'
   createdAt: number
   updatedAt: number
+}
+
+// ============ PlotExpert 增强类型 ============
+
+export interface PlotNode {
+  id: string
+  type: 'setup' | 'development' | 'climax' | 'resolution' | 'foreshadow' | 'callback'
+  description: string
+  emotionalTone: 'calm' | 'tense' | 'excited' | 'sad' | 'joyful'
+  foreshadowingTags?: string[]
+  characterArcChanges?: Record<string, 'growth' | 'decline' | 'shift' | 'unchanged'>
+}
+
+export interface WorldBuildingNote {
+  category: 'location' | 'faction' | 'rule' | 'history'
+  content: string
+}
+
+export interface CharacterArc {
+  characterId: string
+  beforeState: string
+  afterState: string
+  changeType: 'growth' | 'decline' | 'shift' | 'unchanged'
+}
+
+export interface ForeshadowingRecord {
+  planted: Array<{ tag: string, description: string, plotNodeId: string }>
+  resolved: Array<{ tag: string, resolvedIn: string }>
+}
+
+export interface PlotExpertOutput {
+  structure: PlotNode[]
+  worldBuilding?: WorldBuildingNote[]
+  characterArcs: CharacterArc[]
+  foreshadowing: ForeshadowingRecord
+  emotionCurve: number[]
+}
+
+// ============ DialogueMaster 增强类型 ============
+
+export type EmotionTag = 'neutral' | 'angry' | 'sad' | 'happy' | 'fearful' | 'sarcastic' | 'surprised' | 'disgusted'
+
+export interface DialogueTurn {
+  characterId: string
+  content: string
+  subtext?: string
+  emotionTag: EmotionTag
+  action?: string
+}
+
+export interface DialogueScene {
+  setting: string
+  turns: DialogueTurn[]
+  atmosphere: string
+}
+
+export interface DialogueMasterOutput {
+  scenes: DialogueScene[]
+  characterEmotionCurves: Record<string, number[]>
+}
+
+// ============ StyleGuard 增强类型 ============
+
+export type StyleIssueType = 'sentence_length' | 'vocabulary' | 'consistency' | 'readability' | 'sensitive' | 'genre_mismatch'
+
+export interface StyleIssue {
+  paragraphIndex: number
+  lineNumber?: number
+  type: StyleIssueType
+  severity: 'minor' | 'moderate' | 'major'
+  description: string
+  suggestion?: string
+}
+
+export interface StyleReport {
+  overallScore: number
+  readabilityIndex: number
+  dialogueRatio: number
+  issues: StyleIssue[]
+  genreAlignment: 'match' | 'partial' | 'mismatch'
+}
+
+// ============ CriticAgent 类型（新增）============
+
+export type QualityDimension = 'plot' | 'character' | 'writing' | 'logic'
+
+export interface CriticScore {
+  dimension: QualityDimension
+  score: number
+  findings: string[]
+}
+
+export interface CriticReport {
+  overallScore: number
+  scores: CriticScore[]
+  improvements: string[]
+  risks: string[]
+  consistencyIssues: string[]
 }

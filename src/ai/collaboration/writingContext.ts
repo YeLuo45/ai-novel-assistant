@@ -78,3 +78,9 @@ export function updateStyleProfile(
     ...profile
   }
 }
+
+// V13 增强导出
+export { foresightManager } from './foresightManager'
+export type { ForeshadowingRecord } from './types'
+export { enhanceDialogue } from './dialogueEnhancer'
+export { filterSensitiveWords, type FilterResult } from './sensitiveWordFilter'

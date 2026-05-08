@@ -17,7 +17,8 @@ import { detectSensitiveWords } from '../utils/sensitiveDetector'
 import { CollaborationOrchestrator, type CollaborationOptions } from '@/ai/collaboration'
 import { CollaborationVisualizer } from './CollaborationVisualizer'
 import { ExpertDetailPanel } from './ExpertDetailPanel'
-import type { Subtask, AgentOutput, AgentId } from '@/ai/collaboration/types'
+import { CriticReportPanel } from './CriticReportPanel'
+import type { Subtask, AgentOutput, AgentId, CriticReport } from '@/ai/collaboration/types'
 import type { CollaborationSession } from '@/ai/collaboration/types'
 
 interface Props {
@@ -54,6 +55,8 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [collaborationSubtasks, setCollaborationSubtasks] = useState<Subtask[]>([])
   const [collaborationOutputs, setCollaborationOutputs] = useState<Map<AgentId, AgentOutput>>(new Map())
   const [currentPhase, setCurrentPhase] = useState<CollaborationSession['status']>('decomposing')
+  const [criticReport, setCriticReport] = useState<CriticReport | null>(null)
+  const [isCriticLoading, setIsCriticLoading] = useState(false)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -484,7 +487,15 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
               subtasks={collaborationSubtasks}
               outputs={collaborationOutputs}
               currentPhase={currentPhase}
+              criticReport={criticReport}
             />
+
+            {/* CriticAgent 评审结果 */}
+            {collaborationMode && (criticReport || isCriticLoading) && (
+              <div className="mt-4">
+                <CriticReportPanel report={criticReport} isLoading={isCriticLoading} />
+              </div>
+            )}
 
             {/* 执行按钮 */}
             {!isCollaborating && !collaborationResult && (
@@ -519,10 +530,11 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             )}
 
             {/* Expert Detail Panel */}
-            <div className="expert-panels mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="expert-panels mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
               <ExpertDetailPanel agentId="PlotExpert" output={collaborationOutputs.get('PlotExpert')} />
               <ExpertDetailPanel agentId="DialogueMaster" output={collaborationOutputs.get('DialogueMaster')} />
               <ExpertDetailPanel agentId="StyleGuard" output={collaborationOutputs.get('StyleGuard')} />
+              <ExpertDetailPanel agentId="CriticAgent" output={collaborationOutputs.get('CriticAgent')} />
             </div>
           </div>
         )}

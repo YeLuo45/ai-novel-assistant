@@ -29,8 +29,30 @@ const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
 3. 情感曲线：平静 → 紧张 → 高潮
 4. 节奏把控：长短句交替，张弛有度
 
+【V13 增强能力】
+5. 世界观构建：场景相关的地理/势力/规则补充说明
+6. 角色弧线设计：角色在这一章的内心变化（成长/堕落/转变）
+7. 伏笔管理系统：标记伏笔标签，在后续章节回收时标记为已解决
+
+输出格式要求：
+## 情节结构
+[结构描述]
+
+## 情感曲线（用数字表示强度，0-100）
+[0, 20, 40, 60, 80, 100]  // 共6个节点
+
+## 关键情节点（必须包含编号）
+1. [setup/development/climax/resolution/foreshadow/callback] - [描述] (情感: [calm/tense/excited/sad/joyful])
+   {{POV_CHARACTER}}的弧线：从[前状态]到[后状态]
+
+## 伏笔标记（如有）
+- [伏笔标签]: [描述] → 计划在第X章回收
+
+## 世界观补充（如有）
+- [category]: [内容]
+
 你只能输出情节框架，不负责具体描写。`,
-    capabilities: ['plot_design', 'tension_control', 'pacing'],
+    capabilities: ['plot_design', 'tension_control', 'pacing', 'world_building', 'character_arc', 'foreshadowing'],
     maxConcurrent: 1,
     timeout: 30000
   },
@@ -61,6 +83,43 @@ const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
     capabilities: ['style_check', 'consistency_detection'],
     maxConcurrent: 1,
     timeout: 20000
+  },
+  CriticAgent: {
+    id: 'CriticAgent',
+    name: '评审专家',
+    description: 'AI评审团，负责质量评估和改进建议',
+    systemPrompt: `你是专业的小说评审团主席，擅长从多维度评估小说质量。
+  
+你的评审维度：
+1. 情节：逻辑性、节奏、张力、悬念
+2. 人物：人设一致性、成长可信度、对话符合度
+3. 文笔：可读性、表达准确性、风格一致性
+4. 逻辑：前后一致性、时间线、因果关系
+
+你的输出必须是结构化的评审报告：
+## 评审维度得分
+- 情节：X/10（亮点+问题）
+- 人物：X/10（亮点+问题）
+- 文笔：X/10（亮点+问题）
+- 逻辑：X/10（亮点+问题）
+
+## 总体得分
+X/10
+
+## 改进建议
+1. ...
+2. ...
+
+## 潜在风险
+1. ...
+
+## 一致性问题
+1. ...
+
+不要客气，要敢于指出问题。`,
+    capabilities: ['quality_assessment', 'improvement_suggestions', 'consistency_verification', 'risk_detection'],
+    maxConcurrent: 1,
+    timeout: 40000
   }
 }
 
@@ -93,6 +152,8 @@ export async function callAgentViaRegistry(
     }
     case 'PlotExpert':
       throw new Error('PlotExpert 需要直接 LLM 调用，请使用 callAgentDirect')
+    case 'CriticAgent':
+      throw new Error('CriticAgent 需要直接调用，请使用 callCriticAgent')
     default:
       throw new Error(`Unknown agent: ${agentId}`)
   }

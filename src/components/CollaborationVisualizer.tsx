@@ -3,20 +3,22 @@
  * Phase 4: UI集成 - 展示3个Agent的执行状态
  */
 
-import type { Subtask, AgentOutput, AgentId } from '@/ai/collaboration/types'
+import type { Subtask, AgentOutput, AgentId, CriticReport } from '@/ai/collaboration/types'
 
 interface Props {
   subtasks: Subtask[]
   outputs: Map<AgentId, AgentOutput>
   currentPhase: 'decomposing' | 'executing' | 'aggregating' | 'done' | 'failed'
+  criticReport?: CriticReport | null
 }
 
-export function CollaborationVisualizer({ subtasks, outputs, currentPhase }: Props) {
+export function CollaborationVisualizer({ subtasks, outputs, currentPhase, criticReport }: Props) {
   const getAgentIcon = (id: AgentId) => {
     switch (id) {
       case 'PlotExpert': return '🎭'
       case 'DialogueMaster': return '💬'
       case 'StyleGuard': return '🛡️'
+      case 'CriticAgent': return '🎯'
     }
   }
 
@@ -25,6 +27,7 @@ export function CollaborationVisualizer({ subtasks, outputs, currentPhase }: Pro
       case 'PlotExpert': return '情节专家'
       case 'DialogueMaster': return '对白专家'
       case 'StyleGuard': return '文风卫士'
+      case 'CriticAgent': return '评审专家'
     }
   }
 
@@ -108,6 +111,22 @@ export function CollaborationVisualizer({ subtasks, outputs, currentPhase }: Pro
                 </details>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* CriticAgent 阶段 */}
+      {criticReport !== null && (
+        <div className="flex items-center mt-3">
+          <div className="mx-2 text-gray-400">→</div>
+          <div className={`agent-card p-3 border rounded-lg min-w-[120px] border-purple-400 bg-purple-50`}>
+            <div className="flex items-center gap-2 mb-1">
+              <span>🎯</span>
+              <span className="font-medium text-sm">评审专家</span>
+            </div>
+            <div className="text-xs text-green-500">
+              ✅ 完成
+            </div>
           </div>
         </div>
       )}

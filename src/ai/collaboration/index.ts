@@ -9,3 +9,4 @@ export { decomposeTask, getReadyTasks, allTasksCompleted } from './taskDecompose
 export { detectConflicts, resolveConflicts } from './conflictResolver'
 export { CollaborationOrchestrator, type CollaborationOptions } from './orchestrator'
 export { aggregate } from './resultAggregator'
+export { callCriticAgent } from './criticAgent'
