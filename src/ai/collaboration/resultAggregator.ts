@@ -5,6 +5,7 @@
 
 import { callLLM } from '../llm'
 import type { WritingContext, Subtask, CriticReport } from './types'
+import type { ConsistencyIssue } from '../memory/types'
 
 /**
  * 聚合多 Agent 输出，生成最终章节
@@ -12,7 +13,10 @@ import type { WritingContext, Subtask, CriticReport } from './types'
 export async function aggregate(
   context: WritingContext,
   subtasks: Subtask[],
-  criticReport?: CriticReport  // V13 新增
+  criticReport?: CriticReport,  // V13 新增
+  options?: {
+    consistencyIssues?: ConsistencyIssue[]
+  }
 ): Promise<string> {
   const plotOutput = subtasks.find(t => t.id === 't1')?.output || ''
   const dialogueOutput = subtasks.find(t => t.id === 't2')?.output || ''
@@ -38,6 +42,15 @@ ${criticReport.improvements.length > 0 ? '改进建议：\n' + criticReport.impr
 ${criticReport.risks.length > 0 ? '潜在风险：\n' + criticReport.risks.map((r, i) => `${i + 1}. ${r}`).join('\n') : ''}
 ` : ''
 
+  // V14: 添加一致性警告
+  const warningSection = options?.consistencyIssues?.length 
+    ? `
+
+【一致性警告】V14 新增
+检测到以下潜在问题，请注意：
+${options.consistencyIssues.map((i, idx) => `${idx + 1}. [${i.severity}] ${i.description}`).join('\n')}
+` : ''
+
   const userPrompt = `请基于以下专家团队的意见，生成章节「${context.chapterTitle}」。
 
 【PlotExpert 情节设计】
@@ -56,6 +69,7 @@ ${context.contextBefore || '（无前文）'}
 - 叙事视角：${context.viewpoint}
 - 目标字数：约${context.targetWordCount}字
 - 类型：${context.genre}
+${warningSection}
 
 请整合以上内容，生成完整、连贯、高质量的章节内容。`
 

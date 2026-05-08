@@ -226,6 +226,10 @@ class NovelDatabase extends Dexie {
   chapterVersions!: Table<ChapterVersion>
   aiChatMessages!: Table<AIChatMessage>
   aiConversations!: Table<AIConversation>
+  // V14: 跨章节记忆系统
+  projectMemory!: Table<any>
+  plotThreads!: Table<any>
+  chapterSummaries!: Table<any>
 
   constructor() {
     super('NovelDB')
@@ -378,6 +382,32 @@ class NovelDatabase extends Dexie {
       chapterVersions: '++id, chapterId, projectId, createdAt',
       aiChatMessages: '++id, projectId, conversationId, timestamp',
       aiConversations: '++id, projectId, createdAt'
+    })
+    // V14: 跨章节记忆系统
+    this.version(12).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId',
+      chapterVersions: '++id, chapterId, projectId, createdAt',
+      aiChatMessages: '++id, projectId, conversationId, timestamp',
+      aiConversations: '++id, projectId, createdAt',
+      // V14 新增表
+      projectMemory: 'projectId, updatedAt',
+      plotThreads: '++id, projectId, tag, status, plantedInChapter, resolvedInChapter',
+      chapterSummaries: '++id, projectId, chapterId, createdAt'
     })
   }
 }

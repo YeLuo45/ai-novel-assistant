@@ -12,6 +12,10 @@ import { resolveConflicts } from './conflictResolver'
 import { aggregate } from './resultAggregator'
 import { callCriticAgent } from './criticAgent'
 import { foresightManager } from './foresightManager'
+import { memoryManager } from '../memory/memoryManager'
+import { checkConsistency } from '../memory/consistencyChecker'
+import { generateChapterSummary } from '../memory/chapterSummaryGenerator'
+import type { ConsistencyIssue } from '../memory/types'
 
 export interface CollaborationOptions {
   projectId: number
@@ -38,13 +42,19 @@ export class CollaborationOrchestrator {
    * 开始协作写作
    */
   async start(): Promise<string> {
-    // 1. 分解任务
+    // V14: 1. 加载记忆上下文
+    const memoryContext = await this.loadMemoryContext()
+    
+    // V14: 2. 合并到 context
+    this.context = { ...this.context, ...memoryContext }
+
+    // 3. 分解任务
     this.subtasks = decomposeTask(this.context)
 
-    // 2. 拓扑排序执行
+    // 4. 拓扑排序执行
     await this.executeTasks()
 
-    // 3. 冲突处理
+    // 5. 冲突处理
     resolveConflicts(this.subtasks, this.context)
 
     // V13: CriticAgent 评审
@@ -59,10 +69,115 @@ export class CollaborationOrchestrator {
       }
     )
 
-    // 4. 聚合结果
-    const result = await aggregate(this.context, this.subtasks, criticReport)
+    // V14: 6. 一致性检查
+    const consistencyIssues = await checkConsistency(
+      this.context.projectId,
+      interimContent,
+      'all'
+    )
+    
+    if (consistencyIssues.length > 0) {
+      console.warn('[Orchestrator] 一致性警告:', consistencyIssues)
+    }
+
+    // 7. 聚合结果
+    const result = await aggregate(this.context, this.subtasks, criticReport, { consistencyIssues })
+
+    // V14: 8. 保存到记忆
+    await this.saveToMemory(result)
 
     return result
+  }
+
+  /**
+   * V14: 加载记忆上下文
+   */
+  private async loadMemoryContext(): Promise<Partial<WritingContext>> {
+    // 获取前3章摘要
+    const recentChapters = await memoryManager.getRecentChapterSummaries(this.context.projectId, 3)
+    const previousSummary = recentChapters.map(c => `第${c.chapterId}章 ${c.title}: ${c.summary}`).join('\n\n')
+    
+    // 获取角色状态
+    const characterStates = await memoryManager.getAllCharacterStates(this.context.projectId)
+    const characterStatesText = Object.entries(characterStates)
+      .map(([name, state]) => `${name}: ${state}`)
+      .join('\n')
+    
+    // 获取活跃伏笔
+    const activeThreads = await memoryManager.getActivePlotThreads(this.context.projectId)
+    const foreshadowingText = activeThreads
+      .map(t => `[${t.tag}] ${t.description}`)
+      .join('\n')
+    
+    // 获取世界观规则
+    const worldRules = await memoryManager.getWorldRules(this.context.projectId)
+    const worldRulesText = worldRules.map(r => r.content).join('\n')
+
+    return {
+      contextBefore: previousSummary || this.context.contextBefore,
+      // 扩展 context 添加记忆相关字段
+      memoryContext: {
+        characterStates: characterStatesText,
+        activeForeshadowing: foreshadowingText,
+        worldRules: worldRulesText
+      }
+    } as Partial<WritingContext>
+  }
+
+  /**
+   * V14: 保存结果到记忆
+   */
+  private async saveToMemory(result: string): Promise<void> {
+    const projectId = this.context.projectId
+    const chapterId = this.context.chapterTitle ? 
+      parseInt(this.context.chapterTitle.replace(/[^0-9]/g, '')) || 1 : 1
+    
+    // 生成摘要
+    const { summary, keyEvents, characterStates } = await generateChapterSummary(
+      this.context.chapterTitle,
+      result,
+      this.context.contextBefore
+    )
+    
+    // 保存章节摘要
+    await memoryManager.addChapterSummary(
+      projectId,
+      chapterId,
+      this.context.chapterTitle,
+      summary,
+      keyEvents,
+      characterStates,
+      result.length
+    )
+    
+    // 处理伏笔回收
+    // 从 PlotExpertOutput 中提取伏笔
+    const plotOutput = this.subtasks.find(t => t.type === 'plot_design')?.output
+    if (plotOutput) {
+      // 解析伏笔标记并保存
+      const threadMatches = Array.from(plotOutput.matchAll(/伏笔[：:]\s*\[([^\]]+)\]/g))
+      for (const match of threadMatches) {
+        const tag = match[1]
+        await memoryManager.plantPlotThread(
+          projectId,
+          tag,
+          `自动标记: ${tag}`,
+          chapterId,
+          []
+        )
+      }
+    }
+    
+    // 更新角色状态
+    for (const [charName, state] of Object.entries(characterStates)) {
+      await memoryManager.updateCharacterState(
+        projectId,
+        charName,
+        state,
+        `第${chapterId}章结束`,
+        chapterId
+      )
+    }
   }
 
   /**

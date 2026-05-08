@@ -18,6 +18,9 @@ import { CollaborationOrchestrator, type CollaborationOptions } from '@/ai/colla
 import { CollaborationVisualizer } from './CollaborationVisualizer'
 import { ExpertDetailPanel } from './ExpertDetailPanel'
 import { CriticReportPanel } from './CriticReportPanel'
+import { ForeshadowingPanel } from './ForeshadowingPanel'
+import { CharacterStatePanel } from './CharacterStatePanel'
+import { MemoryDashboard } from './MemoryDashboard'
 import type { Subtask, AgentOutput, AgentId, CriticReport } from '@/ai/collaboration/types'
 import type { CollaborationSession } from '@/ai/collaboration/types'
 
@@ -57,6 +60,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [currentPhase, setCurrentPhase] = useState<CollaborationSession['status']>('decomposing')
   const [criticReport, setCriticReport] = useState<CriticReport | null>(null)
   const [isCriticLoading, setIsCriticLoading] = useState(false)
+  const [showMemoryPanel, setShowMemoryPanel] = useState(false)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -82,6 +86,13 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
 
   // Calculate word count
   const wordCount = content.replace(/\s/g, '').length
+
+  // Get current chapter ID from node title or id
+  const getCurrentChapterId = () => {
+    if (!node) return 1
+    const titleMatch = node.title?.match(/[0-9]+/)
+    return titleMatch ? parseInt(titleMatch[0], 10) : node.id || 1
+  }
 
   // Track initial word count when node loads
   useEffect(() => {
@@ -494,6 +505,27 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             {collaborationMode && (criticReport || isCriticLoading) && (
               <div className="mt-4">
                 <CriticReportPanel report={criticReport} isLoading={isCriticLoading} />
+              </div>
+            )}
+
+            {/* 记忆面板切换 */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setShowMemoryPanel(!showMemoryPanel)}
+                className={`px-3 py-1 rounded text-sm ${showMemoryPanel ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-700'}`}
+              >
+                🔮 记忆面板
+              </button>
+            </div>
+
+            {/* 记忆面板内容 */}
+            {showMemoryPanel && currentProject && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CharacterStatePanel projectId={currentProject.id || 0} />
+                <ForeshadowingPanel 
+                  projectId={currentProject.id || 0} 
+                  currentChapterId={getCurrentChapterId()} 
+                />
               </div>
             )}
 
