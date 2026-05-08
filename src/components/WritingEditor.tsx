@@ -14,6 +14,11 @@ import VersionHistoryPanel from './VersionHistoryPanel'
 import SensitiveWordPanel from './SensitiveWordPanel'
 import { applyPolishingResult } from '../ai/batchPolishing'
 import { detectSensitiveWords } from '../utils/sensitiveDetector'
+import { CollaborationOrchestrator, type CollaborationOptions } from '@/ai/collaboration'
+import { CollaborationVisualizer } from './CollaborationVisualizer'
+import { ExpertDetailPanel } from './ExpertDetailPanel'
+import type { Subtask, AgentOutput, AgentId } from '@/ai/collaboration/types'
+import type { CollaborationSession } from '@/ai/collaboration/types'
 
 interface Props {
   nodeId: number
@@ -41,6 +46,14 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showSensitivePanel, setShowSensitivePanel] = useState(false)
   const [sensitiveWordCount, setSensitiveWordCount] = useState(0)
+
+  // 多Agent协作状态
+  const [collaborationMode, setCollaborationMode] = useState(false)
+  const [isCollaborating, setIsCollaborating] = useState(false)
+  const [collaborationResult, setCollaborationResult] = useState<string>('')
+  const [collaborationSubtasks, setCollaborationSubtasks] = useState<Subtask[]>([])
+  const [collaborationOutputs, setCollaborationOutputs] = useState<Map<AgentId, AgentOutput>>(new Map())
+  const [currentPhase, setCurrentPhase] = useState<CollaborationSession['status']>('decomposing')
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -206,6 +219,37 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     }
   }
 
+  // 多Agent协作处理函数
+  const handleCollaboration = async () => {
+    setIsCollaborating(true)
+    setCurrentPhase('decomposing')
+
+    const options: CollaborationOptions = {
+      projectId: currentProject?.id || 0,
+      userRequest: '',  // 实际使用时从表单或输入框获取
+      viewpoint: 'third_person_limited',
+      povCharacter: '主角',
+      genre: currentProject?.genre || '玄幻',
+      contextBefore: '',  // 实际使用时从前一章获取
+      contextAfter: '',
+      chapterTitle: title || '新章节',
+      chapterOutline: '',
+      targetWordCount: 3000
+    }
+
+    try {
+      const orchestrator = new CollaborationOrchestrator(options)
+      const result = await orchestrator.start()
+      setCollaborationResult(result)
+      setCurrentPhase('done')
+    } catch (error) {
+      console.error('协作失败:', error)
+      setCurrentPhase('failed')
+    } finally {
+      setIsCollaborating(false)
+    }
+  }
+
   // Calculate project total word count and completion progress
   const totalWordCount = outlineNodes.reduce((sum, n) => {
     return sum + (n.content?.replace(/\s/g, '').length || 0)
@@ -270,6 +314,30 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             {previewMode ? '编辑' : '预览'}
           </button>
+
+          {/* Mode Switcher */}
+          <div className="flex gap-1 border rounded-lg p-1 bg-gray-100">
+            <button
+              onClick={() => setCollaborationMode(false)}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                !collaborationMode 
+                  ? 'bg-white shadow text-indigo-700 font-medium' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📝 单Agent模式
+            </button>
+            <button
+              onClick={() => setCollaborationMode(true)}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                collaborationMode 
+                  ? 'bg-white shadow text-indigo-700 font-medium' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🤝 多Agent协作模式
+            </button>
+          </div>
 
           {/* Viewpoint Switcher */}
           {currentProject && (
@@ -407,6 +475,57 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             本章字数：{wordCount.toLocaleString()}
           </div>
         </div>
+
+        {/* Collaboration Mode UI */}
+        {collaborationMode && (
+          <div className="collaboration-ui mt-6">
+            {/* 协作可视化 */}
+            <CollaborationVisualizer
+              subtasks={collaborationSubtasks}
+              outputs={collaborationOutputs}
+              currentPhase={currentPhase}
+            />
+
+            {/* 执行按钮 */}
+            {!isCollaborating && !collaborationResult && (
+              <button 
+                onClick={handleCollaboration} 
+                className="btn-primary mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                🤝 开始多Agent协作
+              </button>
+            )}
+
+            {/* 加载中 */}
+            {isCollaborating && (
+              <div className="loading-state mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                <div className="flex items-center gap-2">
+                  <span className="animate-spin">⚙️</span>
+                  <span>AI 专家团队正在协作创作，请稍候...</span>
+                </div>
+              </div>
+            )}
+
+            {/* 最终结果 */}
+            {collaborationResult && (
+              <div className="result-section mt-4">
+                <h4 className="font-bold mb-2">✨ 协作完成</h4>
+                <textarea
+                  value={collaborationResult}
+                  onChange={(e) => setCollaborationResult(e.target.value)}
+                  className="w-full h-64 p-2 border rounded"
+                />
+              </div>
+            )}
+
+            {/* Expert Detail Panel */}
+            <div className="expert-panels mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <ExpertDetailPanel agentId="PlotExpert" output={collaborationOutputs.get('PlotExpert')} />
+              <ExpertDetailPanel agentId="DialogueMaster" output={collaborationOutputs.get('DialogueMaster')} />
+              <ExpertDetailPanel agentId="StyleGuard" output={collaborationOutputs.get('StyleGuard')} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Word Count Bar */}
