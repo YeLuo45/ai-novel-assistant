@@ -4,3 +4,6 @@ export { InterventionReviewPanel } from './InterventionReviewPanel'
 
 // V18: Material Library components
 export { MaterialLibraryPanel } from './MaterialLibraryPanel'
+
+// V19: Optimization components
+export { OptimizationPanel } from './OptimizationPanel'

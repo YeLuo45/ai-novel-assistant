@@ -36,6 +36,7 @@ import { InterventionReviewPanel } from './InterventionReviewPanel'
 import { useInterventionHotkeys } from '@/hooks/useInterventionHotkeys'
 import type { ExecutionStatus, UserAction, InterventionPoint } from '@/ai/intervention/types'
 import { MaterialLibraryPanel } from './MaterialLibraryPanel'
+import { OptimizationPanel } from './OptimizationPanel'
 
 interface Props {
   nodeId: number
@@ -93,6 +94,11 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   // V18: 素材库状态
   const [showMaterialLibrary, setShowMaterialLibrary] = useState(false)
   const [materialContext, setMaterialContext] = useState('')
+
+  // V19: 优化功能状态
+  const [cacheEnabled, setCacheEnabled] = useState(true)
+  const [parallelEnabled, setParallelEnabled] = useState(true)
+  const [draftEnabled, setDraftEnabled] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -639,6 +645,18 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
                     />
                     <span className="text-sm">启用实时干预</span>
                   </label>
+                </div>
+
+                {/* V19: 优化面板 */}
+                <div className="mb-4">
+                  <OptimizationPanel
+                    cacheEnabled={cacheEnabled}
+                    onCacheToggle={setCacheEnabled}
+                    parallelEnabled={parallelEnabled}
+                    onParallelToggle={setParallelEnabled}
+                    draftEnabled={draftEnabled}
+                    onDraftToggle={setDraftEnabled}
+                  />
                 </div>
 
                 {/* 协作可视化 */}
