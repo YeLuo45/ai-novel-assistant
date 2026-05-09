@@ -21,8 +21,11 @@ import { CriticReportPanel } from './CriticReportPanel'
 import { ForeshadowingPanel } from './ForeshadowingPanel'
 import { CharacterStatePanel } from './CharacterStatePanel'
 import { MemoryDashboard } from './MemoryDashboard'
+import { GenreSelector } from './GenreSelector'
+import { GenreMetricsPanel } from './GenreMetricsPanel'
 import type { Subtask, AgentOutput, AgentId, CriticReport } from '@/ai/collaboration/types'
 import type { CollaborationSession } from '@/ai/collaboration/types'
+import type { GenreId, GenreDetectionResult } from '@/ai/genres/types'
 
 interface Props {
   nodeId: number
@@ -61,6 +64,10 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [criticReport, setCriticReport] = useState<CriticReport | null>(null)
   const [isCriticLoading, setIsCriticLoading] = useState(false)
   const [showMemoryPanel, setShowMemoryPanel] = useState(false)
+  
+  // V15: 类型系统状态
+  const [projectGenre, setProjectGenre] = useState<GenreId | undefined>(undefined)
+  const [genreDetectionResult, setGenreDetectionResult] = useState<GenreDetectionResult | null>(null)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -104,6 +111,13 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
       setInitialWordCount(node.content?.replace(/\s/g, '').length || 0)
     }
   }, [node])
+
+  // V15: Load project genre when currentProject changes
+  useEffect(() => {
+    if (currentProject?.genre) {
+      setProjectGenre(currentProject.genre as GenreId)
+    }
+  }, [currentProject])
 
   // Listen for text selection
   useEffect(() => {
@@ -518,6 +532,14 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
               </button>
             </div>
 
+            {/* V15: 类型选择 */}
+            <div className="mb-4">
+              <GenreSelector 
+                value={projectGenre} 
+                onChange={setProjectGenre} 
+              />
+            </div>
+
             {/* 记忆面板内容 */}
             {showMemoryPanel && currentProject && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -557,6 +579,16 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
                   value={collaborationResult}
                   onChange={(e) => setCollaborationResult(e.target.value)}
                   className="w-full h-64 p-2 border rounded"
+                />
+              </div>
+            )}
+
+            {/* V15: 类型检测结果面板 */}
+            {collaborationMode && projectGenre && (
+              <div className="mt-4">
+                <GenreMetricsPanel 
+                  genreId={projectGenre} 
+                  result={genreDetectionResult}
                 />
               </div>
             )}

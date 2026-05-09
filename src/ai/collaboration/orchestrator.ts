@@ -16,6 +16,10 @@ import { memoryManager } from '../memory/memoryManager'
 import { checkConsistency } from '../memory/consistencyChecker'
 import { generateChapterSummary } from '../memory/chapterSummaryGenerator'
 import type { ConsistencyIssue } from '../memory/types'
+// V15: 类型系统集成
+import { getGenreConfig } from '../genres/genreConfig'
+import { getGenreEnhancedPrompt, detectByGenre } from '../genres/genreDetector'
+import type { GenreId } from '../genres/types'
 
 export interface CollaborationOptions {
   projectId: number
@@ -23,6 +27,7 @@ export interface CollaborationOptions {
   viewpoint: WritingContext['viewpoint']
   povCharacter: string
   genre: string
+  genreId?: GenreId  // V15 新增：类型ID
   contextBefore: string
   contextAfter: string
   chapterTitle: string
@@ -33,8 +38,10 @@ export interface CollaborationOptions {
 export class CollaborationOrchestrator {
   private context: WritingContext
   private subtasks: Subtask[] = []
+  private options: CollaborationOptions  // V15: 存储选项
 
   constructor(options: CollaborationOptions) {
+    this.options = options
     this.context = createWritingContext(options)
   }
 
@@ -48,13 +55,16 @@ export class CollaborationOrchestrator {
     // V14: 2. 合并到 context
     this.context = { ...this.context, ...memoryContext }
 
-    // 3. 分解任务
+    // V15: 3. 加载类型配置
+    const genreConfig = this.options.genreId ? getGenreConfig(this.options.genreId) : null
+
+    // 4. 分解任务
     this.subtasks = decomposeTask(this.context)
 
-    // 4. 拓扑排序执行
-    await this.executeTasks()
+    // 5. 拓扑排序执行（使用类型增强的提示词）
+    await this.executeTasks(genreConfig)
 
-    // 5. 冲突处理
+    // 6. 冲突处理
     resolveConflicts(this.subtasks, this.context)
 
     // V13: CriticAgent 评审
@@ -69,7 +79,7 @@ export class CollaborationOrchestrator {
       }
     )
 
-    // V14: 6. 一致性检查
+    // V14: 7. 一致性检查
     const consistencyIssues = await checkConsistency(
       this.context.projectId,
       interimContent,
@@ -80,10 +90,21 @@ export class CollaborationOrchestrator {
       console.warn('[Orchestrator] 一致性警告:', consistencyIssues)
     }
 
-    // 7. 聚合结果
-    const result = await aggregate(this.context, this.subtasks, criticReport, { consistencyIssues })
+    // V15: 8. 类型检测
+    let genreDetectionResult = null
+    if (genreConfig && this.options.genreId) {
+      genreDetectionResult = detectByGenre(interimContent, this.options.genreId)
+      if (genreDetectionResult.issues.length > 0) {
+        console.warn('[Orchestrator] 类型检测问题:', genreDetectionResult.issues)
+      }
+    }
 
-    // V14: 8. 保存到记忆
+    // 9. 聚合结果（V15: 暂不传递genreDetectionResult，保持向后兼容）
+    const result = await aggregate(this.context, this.subtasks, criticReport, { 
+      consistencyIssues
+    })
+
+    // V14: 10. 保存到记忆
     await this.saveToMemory(result)
 
     return result
@@ -182,8 +203,9 @@ export class CollaborationOrchestrator {
 
   /**
    * 执行所有 subtask（拓扑排序 + 并行）
+   * @param genreConfig V15: 类型配置，用于增强提示词
    */
-  private async executeTasks(): Promise<void> {
+  private async executeTasks(genreConfig: any): Promise<void> {
     while (!allTasksCompleted(this.subtasks)) {
       const readyTasks = getReadyTasks(this.subtasks)
 
@@ -194,14 +216,15 @@ export class CollaborationOrchestrator {
       }
 
       // 并行执行所有就绪任务
-      await Promise.all(readyTasks.map(t => this.executeSubtask(t)))
+      await Promise.all(readyTasks.map(t => this.executeSubtask(t, genreConfig)))
     }
   }
 
   /**
    * 执行单个 subtask
+   * @param genreConfig V15: 类型配置
    */
-  private async executeSubtask(subtask: Subtask): Promise<void> {
+  private async executeSubtask(subtask: Subtask, genreConfig: any): Promise<void> {
     const config = getAgentConfig(subtask.responsible)
     subtask.status = 'running'
 
@@ -210,10 +233,10 @@ export class CollaborationOrchestrator {
 
       if (subtask.responsible === 'PlotExpert') {
         // PlotExpert 直接 LLM 调用
-        output = await this.callPlotExpert(subtask)
+        output = await this.callPlotExpert(subtask, genreConfig)
       } else {
         // DialogueMaster / StyleGuard 通过 registry 代理
-        output = await callAgentViaRegistry(subtask.responsible, this.buildParams(subtask))
+        output = await callAgentViaRegistry(subtask.responsible, this.buildParams(subtask, genreConfig))
       }
 
       subtask.output = output
@@ -237,12 +260,18 @@ export class CollaborationOrchestrator {
 
   /**
    * PlotExpert 直接 LLM 调用
+   * @param genreConfig V15: 类型配置
    */
-  private async callPlotExpert(_subtask: Subtask): Promise<string> {
+  private async callPlotExpert(_subtask: Subtask, genreConfig: any): Promise<string> {
     const config = getAgentConfig('PlotExpert')
     
     // 替换 placeholder 为实际的 POV 角色
-    const systemPrompt = config.systemPrompt.replace(/\{\{POV_CHARACTER\}\}/g, this.context.povCharacter || '角色')
+    let systemPrompt = config.systemPrompt.replace(/\{\{POV_CHARACTER\}\}/g, this.context.povCharacter || '角色')
+
+    // V15: 类型增强提示词
+    if (genreConfig && this.options.genreId) {
+      systemPrompt = getGenreEnhancedPrompt(systemPrompt, 'plotExpert', this.options.genreId)
+    }
 
     const userPrompt = `请为以下章节设计情节结构：
 
@@ -396,14 +425,34 @@ export class CollaborationOrchestrator {
 
   /**
    * 构建 agent 参数
+   * @param genreConfig V15: 类型配置
    */
-  private buildParams(subtask: Subtask): Record<string, unknown> {
+  private buildParams(subtask: Subtask, genreConfig: any): Record<string, unknown> {
     const plotOutput = this.subtasks.find(t => t.id === 't1')?.output || ''
+
+    const baseParams: Record<string, unknown> = {
+      genreConfig,  // V15: 传递类型配置
+      genreId: this.options.genreId  // V15: 传递类型ID
+    }
 
     switch (subtask.responsible) {
       case 'DialogueMaster':
+        // V15: 对话大师使用类型增强
+        let sceneDescription = `基于情节：${plotOutput}`
+        if (genreConfig && this.options.genreId) {
+          const enhancedPrompt = getGenreEnhancedPrompt(sceneDescription, 'dialogueMaster', this.options.genreId)
+          return {
+            ...baseParams,
+            scene: enhancedPrompt,
+            characters: [],  // TODO: 从项目素材库获取
+            mood: 'conflicting',
+            length: 'medium' as const,
+            model: 'gpt-4o-mini'
+          }
+        }
         return {
-          scene: `基于情节：${plotOutput}`,
+          ...baseParams,
+          scene: sceneDescription,
           characters: [],  // TODO: 从项目素材库获取
           mood: 'conflicting',
           length: 'medium' as const,
@@ -411,11 +460,25 @@ export class CollaborationOrchestrator {
         }
       case 'StyleGuard':
         return {
+          ...baseParams,
           projectId: this.context.projectId,
           chapterId: 0  // TODO: 需要实际章节 ID
         }
       default:
-        return {}
+        return baseParams
+    }
+  }
+
+  /**
+   * V15: 获取 Agent 类型字符串
+   */
+  private getAgentType(agentId: string): 'plotExpert' | 'dialogueMaster' | 'styleGuard' | 'criticAgent' {
+    switch (agentId) {
+      case 'PlotExpert': return 'plotExpert'
+      case 'DialogueMaster': return 'dialogueMaster'
+      case 'StyleGuard': return 'styleGuard'
+      case 'CriticAgent': return 'criticAgent'
+      default: return 'plotExpert'
     }
   }
 }
