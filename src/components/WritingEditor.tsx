@@ -31,6 +31,10 @@ import type { WritingVersion, VersionComparison, VersionOptions } from '@/ai/ver
 import type { Subtask, AgentOutput, AgentId, CriticReport } from '@/ai/collaboration/types'
 import type { CollaborationSession } from '@/ai/collaboration/types'
 import type { GenreId, GenreDetectionResult } from '@/ai/genres/types'
+import { InterventionStatusBar } from './InterventionStatusBar'
+import { InterventionReviewPanel } from './InterventionReviewPanel'
+import { useInterventionHotkeys } from '@/hooks/useInterventionHotkeys'
+import type { ExecutionStatus, UserAction, InterventionPoint } from '@/ai/intervention/types'
 
 interface Props {
   nodeId: number
@@ -79,9 +83,36 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [comparison, setComparison] = useState<VersionComparison | null>(null)
   const [showVersionCompare, setShowVersionCompare] = useState(false)
   const [isGeneratingVersions, setIsGeneratingVersions] = useState(false)
-  
+
+  // V17: 干预功能状态
+  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle')
+  const [currentIntervention, setCurrentIntervention] = useState<InterventionPoint | null>(null)
+  const [interventionEnabled, setInterventionEnabled] = useState(false)
+
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
+
+  // V17: 干预处理函数
+  const handleInterventionAction = (action: UserAction) => {
+    // 调用 orchestrator.handleUserIntervention
+    // 这里简化处理，直接调用干预管理器的处理
+    console.log('Intervention action:', action)
+    if (action.type === 'approve' || action.type === 'modify' || action.type === 'skip') {
+      setCurrentIntervention(null)
+      setExecutionStatus('running')
+    } else if (action.type === 'reject') {
+      setCurrentIntervention(null)
+      setExecutionStatus('running')
+    } else if (action.type === 'pause') {
+      setExecutionStatus('paused')
+    } else if (action.type === 'rerun') {
+      setCurrentIntervention(null)
+      setExecutionStatus('running')
+    }
+  }
+
+  // V17: 注册快捷键
+  useInterventionHotkeys(handleInterventionAction, executionStatus === 'waiting_approval')
 
   // Calculate breadcrumb path
   const getBreadcrumb = useCallback((): string => {
@@ -543,9 +574,33 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           </div>
         </div>
 
+        {/* V17: 干预状态栏 */}
+        {interventionEnabled && (
+          <div className="mb-4">
+            <InterventionStatusBar
+              status={executionStatus}
+              currentPoint={currentIntervention}
+              onAction={handleInterventionAction}
+            />
+          </div>
+        )}
+
         {/* Collaboration Mode UI */}
         {collaborationMode && (
           <div className="collaboration-ui mt-6">
+            {/* 干预控制 */}
+            <div className="flex items-center gap-2 p-2 bg-gray-50 rounded mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={interventionEnabled}
+                  onChange={(e) => setInterventionEnabled(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">启用实时干预</span>
+              </label>
+            </div>
+
             {/* 协作可视化 */}
             <CollaborationVisualizer
               subtasks={collaborationSubtasks}
@@ -752,6 +807,15 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           setContent(newContent)
         }}
       />
+
+      {/* V17: 干预审核面板 */}
+      {currentIntervention && executionStatus === 'waiting_approval' && (
+        <InterventionReviewPanel
+          point={currentIntervention}
+          onAction={handleInterventionAction}
+          onCancel={() => setCurrentIntervention(null)}
+        />
+      )}
     </div>
   )
 }

@@ -20,6 +20,10 @@ import type { ConsistencyIssue } from '../memory/types'
 import { getGenreConfig } from '../genres/genreConfig'
 import { getGenreEnhancedPrompt, detectByGenre } from '../genres/genreDetector'
 import type { GenreId } from '../genres/types'
+// V17: 干预机制集成
+import { InterventionManager } from '../intervention/InterventionManager'
+import { DEFAULT_PAUSE_CONDITIONS } from '../intervention/interventionConfig'
+import type { UserAction, ExecutionStatus } from '../intervention/types'
 
 export interface CollaborationOptions {
   projectId: number
@@ -39,6 +43,11 @@ export class CollaborationOrchestrator {
   private context: WritingContext
   private subtasks: Subtask[] = []
   private options: CollaborationOptions  // V15: 存储选项
+  // V17: 干预机制
+  private interventionManager?: InterventionManager
+  private userModifiedContent: Map<string, string> = new Map()
+  private executionStatus: ExecutionStatus = 'idle'
+  private currentSubtaskIndex: number = 0
 
   constructor(options: CollaborationOptions) {
     this.options = options
@@ -47,67 +56,102 @@ export class CollaborationOrchestrator {
 
   /**
    * 开始协作写作
+   * V17: 集成干预机制
    */
   async start(): Promise<string> {
-    // V14: 1. 加载记忆上下文
-    const memoryContext = await this.loadMemoryContext()
-    
-    // V14: 2. 合并到 context
-    this.context = { ...this.context, ...memoryContext }
+    // V17: 初始化干预管理器
+    this.interventionManager = new InterventionManager(DEFAULT_PAUSE_CONDITIONS, false, 30)
 
-    // V15: 3. 加载类型配置
-    const genreConfig = this.options.genreId ? getGenreConfig(this.options.genreId) : null
-
-    // 4. 分解任务
-    this.subtasks = decomposeTask(this.context)
-
-    // 5. 拓扑排序执行（使用类型增强的提示词）
-    await this.executeTasks(genreConfig)
-
-    // 6. 冲突处理
-    resolveConflicts(this.subtasks, this.context)
-
-    // V13: CriticAgent 评审
-    const interimContent = this.subtasks.map(t => t.output).filter(Boolean).join('\n\n')
-    const criticReport = await callCriticAgent(
-      interimContent,
-      {
-        chapterTitle: this.context.chapterTitle,
-        genre: this.context.genre,
-        viewpoint: this.context.viewpoint,
-        contextBefore: this.context.contextBefore
-      }
-    )
-
-    // V14: 7. 一致性检查
-    const consistencyIssues = await checkConsistency(
-      this.context.projectId,
-      interimContent,
-      'all'
-    )
-    
-    if (consistencyIssues.length > 0) {
-      console.warn('[Orchestrator] 一致性警告:', consistencyIssues)
+    this.interventionManager.onStatusChange = (status) => {
+      this.executionStatus = status
     }
 
-    // V15: 8. 类型检测
-    let genreDetectionResult = null
-    if (genreConfig && this.options.genreId) {
-      genreDetectionResult = detectByGenre(interimContent, this.options.genreId)
-      if (genreDetectionResult.issues.length > 0) {
-        console.warn('[Orchestrator] 类型检测问题:', genreDetectionResult.issues)
-      }
+    this.interventionManager.onInterventionPoint = (point) => {
+      // 触发UI更新 - 由调用者处理
+      console.log('[Orchestrator] Intervention point created:', point.id)
     }
 
-    // 9. 聚合结果（V15: 暂不传递genreDetectionResult，保持向后兼容）
-    const result = await aggregate(this.context, this.subtasks, criticReport, { 
-      consistencyIssues
-    })
+    this.interventionManager.onResume = () => {
+      // 继续执行 - 由调用者处理
+      console.log('[Orchestrator] Execution resuming')
+    }
 
-    // V14: 10. 保存到记忆
-    await this.saveToMemory(result)
+    // V17: 开始执行
+    this.interventionManager.startExecution()
+    
+    try {
+      // V14: 1. 加载记忆上下文
+      const memoryContext = await this.loadMemoryContext()
+      
+      // V14: 2. 合并到 context
+      this.context = { ...this.context, ...memoryContext }
 
-    return result
+      // V15: 3. 加载类型配置
+      const genreConfig = this.options.genreId ? getGenreConfig(this.options.genreId) : null
+
+      // 4. 分解任务
+      this.subtasks = decomposeTask(this.context)
+
+      // 5. 拓扑排序执行（使用类型增强的提示词）
+      const executionComplete = await this.executeTasks(genreConfig)
+      
+      if (!executionComplete) {
+        // V17: 触发干预点，等待用户干预
+        return 'WAITING_INTERVENTION'
+      }
+
+      // 6. 冲突处理
+      resolveConflicts(this.subtasks, this.context)
+
+      // V13: CriticAgent 评审
+      const interimContent = this.subtasks.map(t => t.output).filter(Boolean).join('\n\n')
+      const criticReport = await callCriticAgent(
+        interimContent,
+        {
+          chapterTitle: this.context.chapterTitle,
+          genre: this.context.genre,
+          viewpoint: this.context.viewpoint,
+          contextBefore: this.context.contextBefore
+        }
+      )
+
+      // V14: 7. 一致性检查
+      const consistencyIssues = await checkConsistency(
+        this.context.projectId,
+        interimContent,
+        'all'
+      )
+      
+      if (consistencyIssues.length > 0) {
+        console.warn('[Orchestrator] 一致性警告:', consistencyIssues)
+      }
+
+      // V15: 8. 类型检测
+      let genreDetectionResult = null
+      if (genreConfig && this.options.genreId) {
+        genreDetectionResult = detectByGenre(interimContent, this.options.genreId)
+        if (genreDetectionResult.issues.length > 0) {
+          console.warn('[Orchestrator] 类型检测问题:', genreDetectionResult.issues)
+        }
+      }
+
+      // 9. 聚合结果（V15: 暂不传递genreDetectionResult，保持向后兼容）
+      const result = await aggregate(this.context, this.subtasks, criticReport, { 
+        consistencyIssues
+      })
+
+      // V14: 10. 保存到记忆
+      await this.saveToMemory(result)
+
+      // V17: 完成执行
+      this.interventionManager?.completeExecution()
+
+      return result
+      
+    } catch (error) {
+      this.interventionManager?.reset()
+      throw error
+    }
   }
 
   /**
@@ -203,9 +247,11 @@ export class CollaborationOrchestrator {
 
   /**
    * 执行所有 subtask（拓扑排序 + 并行）
+   * V17: 集成干预机制
    * @param genreConfig V15: 类型配置，用于增强提示词
+   * @returns true 如果执行完成，false 如果触发干预点
    */
-  private async executeTasks(genreConfig: any): Promise<void> {
+  private async executeTasks(genreConfig: any): Promise<boolean> {
     while (!allTasksCompleted(this.subtasks)) {
       const readyTasks = getReadyTasks(this.subtasks)
 
@@ -215,13 +261,72 @@ export class CollaborationOrchestrator {
         break
       }
 
-      // 并行执行所有就绪任务
-      await Promise.all(readyTasks.map(t => this.executeSubtask(t, genreConfig)))
+      // 顺序执行就绪任务（干预机制需要顺序检查）
+      for (const task of readyTasks) {
+        const needsIntervention = await this.executeSubtaskWithIntervention(task, genreConfig)
+        if (needsIntervention) {
+          return false  // 等待干预
+        }
+      }
+    }
+    return true  // 所有任务完成
+  }
+
+  /**
+   * V17: 执行单个 subtask 并检查干预点
+   * @returns true 如果触发干预点需要暂停，false 继续执行
+   */
+  private async executeSubtaskWithIntervention(subtask: Subtask, genreConfig: any): Promise<boolean> {
+    const config = getAgentConfig(subtask.responsible)
+    subtask.status = 'running'
+
+    try {
+      let output: string
+
+      if (subtask.responsible === 'PlotExpert') {
+        // PlotExpert 直接 LLM 调用
+        output = await this.callPlotExpert(subtask, genreConfig)
+      } else {
+        // DialogueMaster / StyleGuard 通过 registry 代理
+        output = await callAgentViaRegistry(subtask.responsible, this.buildParams(subtask, genreConfig))
+      }
+
+      subtask.output = output
+      subtask.status = 'completed'
+
+      // 写入 context
+      const agentOutput: AgentOutput = {
+        agentId: subtask.responsible,
+        content: output,
+        confidence: 0.8,
+        warnings: []
+      }
+      setAgentOutput(this.context, subtask.responsible, agentOutput)
+
+      // V17: 检查是否需要干预
+      const interventionPoint = this.interventionManager?.checkPauseConditions(
+        subtask.responsible,
+        output
+      )
+
+      if (interventionPoint) {
+        // 保存当前状态，等待用户干预
+        this.currentSubtaskIndex = this.subtasks.indexOf(subtask)
+        return true  // 暂停执行，等待干预
+      }
+
+      return false  // 继续执行
+
+    } catch (error) {
+      subtask.status = 'failed'
+      subtask.error = error instanceof Error ? error.message : String(error)
+      console.error(`[Orchestrator] Subtask ${subtask.id} failed:`, error)
+      return false
     }
   }
 
   /**
-   * 执行单个 subtask
+   * 执行单个 subtask（保留原方法以兼容）
    * @param genreConfig V15: 类型配置
    */
   private async executeSubtask(subtask: Subtask, genreConfig: any): Promise<void> {
@@ -479,6 +584,160 @@ export class CollaborationOrchestrator {
       case 'StyleGuard': return 'styleGuard'
       case 'CriticAgent': return 'criticAgent'
       default: return 'plotExpert'
+    }
+  }
+
+  // ========== V17: 干预机制方法 ==========
+
+  /**
+   * V17: 处理用户干预操作
+   */
+  async handleUserIntervention(action: UserAction): Promise<string> {
+    if (!this.interventionManager) {
+      return this.start()
+    }
+    
+    const currentPoint = this.interventionManager.getCurrentPoint()
+    const result = await this.interventionManager.handleUserAction(action)
+    
+    if (result.modifiedContent && currentPoint?.agentId) {
+      const agentId = currentPoint.agentId
+      this.userModifiedContent.set(agentId, result.modifiedContent)
+      
+      // 更新subtask输出
+      if (currentPoint.agentId) {
+        const subtask = this.subtasks.find(t => t.responsible === currentPoint.agentId)
+        if (subtask) {
+          subtask.output = result.modifiedContent
+        }
+      }
+    }
+    
+    if (!result.resume) {
+      // 需要重跑
+      const pointForRerun = this.interventionManager.getCurrentPoint()
+      if (pointForRerun?.agentId) {
+        const subtask = this.subtasks.find(t => t.responsible === pointForRerun.agentId)
+        if (subtask) {
+          // 使用新的prompt重新执行（如果没有新prompt则使用原来的）
+          const newOutput = await this.executeAgent(
+            pointForRerun.agentId,
+            action.newPrompt || ''
+          )
+          subtask.output = newOutput
+        }
+      }
+    }
+    
+    // 继续执行剩余任务
+    return this.continueExecution()
+  }
+
+  /**
+   * V17: 继续执行
+   */
+  private async continueExecution(): Promise<string> {
+    const genreConfig = this.options.genreId ? getGenreConfig(this.options.genreId) : null
+    
+    // 继续执行剩余的subtasks
+    const executionComplete = await this.executeTasks(genreConfig)
+    
+    if (!executionComplete) {
+      return 'WAITING_INTERVENTION'
+    }
+    
+    // 冲突处理
+    resolveConflicts(this.subtasks, this.context)
+
+    // CriticAgent 评审
+    const interimContent = this.subtasks.map(t => t.output).filter(Boolean).join('\n\n')
+    const criticReport = await callCriticAgent(
+      interimContent,
+      {
+        chapterTitle: this.context.chapterTitle,
+        genre: this.context.genre,
+        viewpoint: this.context.viewpoint,
+        contextBefore: this.context.contextBefore
+      }
+    )
+
+    // 一致性检查
+    const consistencyIssues = await checkConsistency(
+      this.context.projectId,
+      interimContent,
+      'all'
+    )
+    
+    if (consistencyIssues.length > 0) {
+      console.warn('[Orchestrator] 一致性警告:', consistencyIssues)
+    }
+
+    // 聚合结果
+    const result = await aggregate(this.context, this.subtasks, criticReport, { 
+      consistencyIssues
+    })
+
+    // 保存到记忆
+    await this.saveToMemory(result)
+
+    this.interventionManager?.completeExecution()
+    return result
+  }
+
+  /**
+   * V17: 手动触发干预点
+   */
+  triggerManualIntervention(agentId: string, content: string): void {
+    this.interventionManager?.createInterventionPoint(
+      'manual_trigger',
+      agentId,
+      content
+    )
+  }
+
+  /**
+   * V17: 获取执行状态
+   */
+  getExecutionStatus(): ExecutionStatus {
+    return this.interventionManager?.getStatus() || 'idle'
+  }
+
+  /**
+   * V17: 获取干预管理器（供UI使用）
+   */
+  getInterventionManager(): InterventionManager | undefined {
+    return this.interventionManager
+  }
+
+  /**
+   * V17: 执行单个Agent（供干预后重跑使用）
+   */
+  private async executeAgent(agentId: string, _prompt: string): Promise<string> {
+    // 注意：这里的 prompt 参数未使用，因为 callPlotExpert 和 callAgentViaRegistry
+    // 都依赖 this.context 而非 subtask.prompt
+    if (agentId === 'PlotExpert') {
+      const subtask: Subtask = {
+        id: 't1',
+        type: 'plot_design',
+        description: 'Plot expert task',
+        responsible: 'PlotExpert',
+        dependencies: [],
+        priority: 1,
+        status: 'pending'
+      }
+      return this.callPlotExpert(subtask, null)
+    } else {
+      const taskType = agentId === 'DialogueMaster' ? 'dialogue_generation' : 'style_check'
+      const subtask: Subtask = {
+        id: `intervention_rerun_${Date.now()}`,
+        type: taskType,
+        description: `${agentId} task`,
+        responsible: agentId as 'DialogueMaster' | 'StyleGuard',
+        dependencies: [],
+        priority: 1,
+        status: 'pending'
+      }
+      return callAgentViaRegistry(agentId as 'DialogueMaster' | 'StyleGuard', this.buildParams(subtask, null))
     }
   }
 }
