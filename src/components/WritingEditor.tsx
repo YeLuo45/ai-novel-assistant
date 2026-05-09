@@ -37,6 +37,7 @@ import { useInterventionHotkeys } from '@/hooks/useInterventionHotkeys'
 import type { ExecutionStatus, UserAction, InterventionPoint } from '@/ai/intervention/types'
 import { MaterialLibraryPanel } from './MaterialLibraryPanel'
 import { OptimizationPanel } from './OptimizationPanel'
+import { CustomizationPanel } from './CustomizationPanel'
 
 interface Props {
   nodeId: number
@@ -93,6 +94,9 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
 
   // V18: 素材库状态
   const [showMaterialLibrary, setShowMaterialLibrary] = useState(false)
+
+  // V20: 定制面板状态
+  const [showCustomizationPanel, setShowCustomizationPanel] = useState(false)
   const [materialContext, setMaterialContext] = useState('')
 
   // V19: 优化功能状态
@@ -604,27 +608,35 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         {/* Collaboration Mode UI */}
         {collaborationMode && (
           <div className="collaboration-ui mt-6">
-            {/* 素材库切换按钮 */}
+            {/* 素材库/定制面板切换按钮 */}
             <div className="flex border-b mb-4">
               <button
-                onClick={() => setShowMaterialLibrary(false)}
+                onClick={() => { setShowMaterialLibrary(false); setShowCustomizationPanel(false); }}
                 className={`flex-1 px-4 py-2 text-sm ${
-                  !showMaterialLibrary ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-600'
+                  !showMaterialLibrary && !showCustomizationPanel ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-600'
                 }`}
               >
                 协作写作
               </button>
               <button
-                onClick={() => setShowMaterialLibrary(true)}
+                onClick={() => { setShowMaterialLibrary(true); setShowCustomizationPanel(false); }}
                 className={`flex-1 px-4 py-2 text-sm ${
                   showMaterialLibrary ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-600'
                 }`}
               >
                 📚 素材库
               </button>
+              <button
+                onClick={() => { setShowMaterialLibrary(false); setShowCustomizationPanel(true); }}
+                className={`flex-1 px-4 py-2 text-sm ${
+                  showCustomizationPanel ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-600'
+                }`}
+              >
+                ⚙️ 定制
+              </button>
             </div>
 
-            {/* 素材库面板 */}
+            {/* 素材库/定制面板 */}
             {showMaterialLibrary ? (
               <MaterialLibraryPanel
                 onApplyContext={(context) => {
@@ -632,6 +644,8 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
                   setShowMaterialLibrary(false)
                 }}
               />
+            ) : showCustomizationPanel ? (
+              <CustomizationPanel />
             ) : (
               <>
                 {/* 干预控制 */}

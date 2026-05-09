@@ -7,3 +7,6 @@ export { MaterialLibraryPanel } from './MaterialLibraryPanel'
 
 // V19: Optimization components
 export { OptimizationPanel } from './OptimizationPanel'
+
+// V20: Customization components
+export { CustomizationPanel } from './CustomizationPanel'
