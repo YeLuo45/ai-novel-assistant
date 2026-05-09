@@ -23,6 +23,11 @@ import { CharacterStatePanel } from './CharacterStatePanel'
 import { MemoryDashboard } from './MemoryDashboard'
 import { GenreSelector } from './GenreSelector'
 import { GenreMetricsPanel } from './GenreMetricsPanel'
+import { VersionGeneratorPanel } from './VersionGeneratorPanel'
+import { VersionCompareModal } from './VersionCompareModal'
+import { multiVersionGenerator } from '@/ai/versioning/MultiVersionGenerator'
+import { versionComparator } from '@/ai/versioning/VersionComparator'
+import type { WritingVersion, VersionComparison, VersionOptions } from '@/ai/versioning/types'
 import type { Subtask, AgentOutput, AgentId, CriticReport } from '@/ai/collaboration/types'
 import type { CollaborationSession } from '@/ai/collaboration/types'
 import type { GenreId, GenreDetectionResult } from '@/ai/genres/types'
@@ -68,6 +73,12 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   // V15: 类型系统状态
   const [projectGenre, setProjectGenre] = useState<GenreId | undefined>(undefined)
   const [genreDetectionResult, setGenreDetectionResult] = useState<GenreDetectionResult | null>(null)
+  
+  // V16: 多版本生成状态
+  const [versions, setVersions] = useState<WritingVersion[]>([])
+  const [comparison, setComparison] = useState<VersionComparison | null>(null)
+  const [showVersionCompare, setShowVersionCompare] = useState(false)
+  const [isGeneratingVersions, setIsGeneratingVersions] = useState(false)
   
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -276,6 +287,34 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     } finally {
       setIsCollaborating(false)
     }
+  }
+
+  // V16: 多版本生成处理函数
+  const handleGenerateMultiVersion = async (options: VersionOptions) => {
+    setIsGeneratingVersions(true)
+    try {
+      const generatedVersions = await multiVersionGenerator.generateVersions(
+        content,
+        options
+      )
+      setVersions(generatedVersions)
+      
+      const comparisonResult = versionComparator.compare(generatedVersions)
+      setComparison(comparisonResult)
+      setShowVersionCompare(true)
+    } finally {
+      setIsGeneratingVersions(false)
+    }
+  }
+
+  const handleVersionSelect = (versionId: string) => {
+    // 可以保存用户选择
+    console.log('Selected version:', versionId)
+  }
+
+  const handleVersionMerge = (selections: { [versionId: string]: number[] }) => {
+    // 处理合并
+    console.log('Merge selections:', selections)
   }
 
   // Calculate project total word count and completion progress
@@ -601,6 +640,25 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
               <ExpertDetailPanel agentId="CriticAgent" output={collaborationOutputs.get('CriticAgent')} />
             </div>
           </div>
+        )}
+
+        {/* V16: 多版本生成 */}
+        <div className="mt-4 p-4 border-t">
+          <VersionGeneratorPanel 
+            onGenerate={handleGenerateMultiVersion}
+            isLoading={isGeneratingVersions}
+          />
+        </div>
+
+        {/* V16: 版本对比弹窗 */}
+        {showVersionCompare && versions.length > 0 && comparison && (
+          <VersionCompareModal
+            versions={versions}
+            comparison={comparison}
+            onSelect={handleVersionSelect}
+            onMerge={handleVersionMerge}
+            onClose={() => setShowVersionCompare(false)}
+          />
         )}
       </div>
 
