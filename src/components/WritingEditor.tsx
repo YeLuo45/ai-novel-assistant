@@ -35,6 +35,7 @@ import { InterventionStatusBar } from './InterventionStatusBar'
 import { InterventionReviewPanel } from './InterventionReviewPanel'
 import { useInterventionHotkeys } from '@/hooks/useInterventionHotkeys'
 import type { ExecutionStatus, UserAction, InterventionPoint } from '@/ai/intervention/types'
+import { MaterialLibraryPanel } from './MaterialLibraryPanel'
 
 interface Props {
   nodeId: number
@@ -88,6 +89,10 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle')
   const [currentIntervention, setCurrentIntervention] = useState<InterventionPoint | null>(null)
   const [interventionEnabled, setInterventionEnabled] = useState(false)
+
+  // V18: 素材库状态
+  const [showMaterialLibrary, setShowMaterialLibrary] = useState(false)
+  const [materialContext, setMaterialContext] = useState('')
 
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -294,13 +299,18 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
     setIsCollaborating(true)
     setCurrentPhase('decomposing')
 
+    // V18: 将素材上下文传递给协作引擎
+    const enhancedContextBefore = materialContext
+      ? `${materialContext}\n\n${content || ''}`
+      : content || ''
+
     const options: CollaborationOptions = {
       projectId: currentProject?.id || 0,
       userRequest: '',  // 实际使用时从表单或输入框获取
       viewpoint: 'third_person_limited',
       povCharacter: '主角',
       genre: currentProject?.genre || '玄幻',
-      contextBefore: '',  // 实际使用时从前一章获取
+      contextBefore: enhancedContextBefore,
       contextAfter: '',
       chapterTitle: title || '新章节',
       chapterOutline: '',
@@ -588,26 +598,56 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         {/* Collaboration Mode UI */}
         {collaborationMode && (
           <div className="collaboration-ui mt-6">
-            {/* 干预控制 */}
-            <div className="flex items-center gap-2 p-2 bg-gray-50 rounded mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={interventionEnabled}
-                  onChange={(e) => setInterventionEnabled(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm">启用实时干预</span>
-              </label>
+            {/* 素材库切换按钮 */}
+            <div className="flex border-b mb-4">
+              <button
+                onClick={() => setShowMaterialLibrary(false)}
+                className={`flex-1 px-4 py-2 text-sm ${
+                  !showMaterialLibrary ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-600'
+                }`}
+              >
+                协作写作
+              </button>
+              <button
+                onClick={() => setShowMaterialLibrary(true)}
+                className={`flex-1 px-4 py-2 text-sm ${
+                  showMaterialLibrary ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-600'
+                }`}
+              >
+                📚 素材库
+              </button>
             </div>
 
-            {/* 协作可视化 */}
-            <CollaborationVisualizer
-              subtasks={collaborationSubtasks}
-              outputs={collaborationOutputs}
-              currentPhase={currentPhase}
-              criticReport={criticReport}
-            />
+            {/* 素材库面板 */}
+            {showMaterialLibrary ? (
+              <MaterialLibraryPanel
+                onApplyContext={(context) => {
+                  setMaterialContext(context)
+                  setShowMaterialLibrary(false)
+                }}
+              />
+            ) : (
+              <>
+                {/* 干预控制 */}
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={interventionEnabled}
+                      onChange={(e) => setInterventionEnabled(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">启用实时干预</span>
+                  </label>
+                </div>
+
+                {/* 协作可视化 */}
+                <CollaborationVisualizer
+                  subtasks={collaborationSubtasks}
+                  outputs={collaborationOutputs}
+                  currentPhase={currentPhase}
+                  criticReport={criticReport}
+                />
 
             {/* CriticAgent 评审结果 */}
             {collaborationMode && (criticReport || isCriticLoading) && (
@@ -694,6 +734,8 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
               <ExpertDetailPanel agentId="StyleGuard" output={collaborationOutputs.get('StyleGuard')} />
               <ExpertDetailPanel agentId="CriticAgent" output={collaborationOutputs.get('CriticAgent')} />
             </div>
+              </>
+            )}
           </div>
         )}
 
