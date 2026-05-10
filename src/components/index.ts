@@ -10,3 +10,6 @@ export { OptimizationPanel } from './OptimizationPanel'
 
 // V20: Customization components
 export { CustomizationPanel } from './CustomizationPanel'
+
+// V22: Memory components
+export { MemoryPanel } from './MemoryPanel'

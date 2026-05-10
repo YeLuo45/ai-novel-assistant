@@ -40,6 +40,7 @@ import { OptimizationPanel } from './OptimizationPanel'
 import { CustomizationPanel } from './CustomizationPanel'
 import { ExportPanel } from './ExportPanel'
 import { SharePanel } from './SharePanel'
+import { MemoryPanel } from './MemoryPanel'
 
 interface Props {
   nodeId: number
@@ -551,6 +552,15 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             🔗 分享
           </button>
+
+          {/* V22: Memory Panel Button */}
+          <button
+            onClick={() => setShowMemoryPanel(true)}
+            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm rounded-lg hover:from-purple-600 hover:to-indigo-600"
+            title="记忆面板"
+          >
+            🧠 记忆
+          </button>
           
           {/* Close */}
           <button
@@ -947,6 +957,14 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           </div>
         </div>
       )}
+
+      {/* V22 Phase 3: 记忆面板 */}
+      <MemoryPanel
+        isOpen={showMemoryPanel}
+        onClose={() => setShowMemoryPanel(false)}
+        projectId={currentProject?.id || 0}
+        currentChapter={node?.id || 1}
+      />
 
       {/* V17: 干预审核面板 */}
       {currentIntervention && executionStatus === 'waiting_approval' && (
