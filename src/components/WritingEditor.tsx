@@ -38,6 +38,8 @@ import type { ExecutionStatus, UserAction, InterventionPoint } from '@/ai/interv
 import { MaterialLibraryPanel } from './MaterialLibraryPanel'
 import { OptimizationPanel } from './OptimizationPanel'
 import { CustomizationPanel } from './CustomizationPanel'
+import { ExportPanel } from './ExportPanel'
+import { SharePanel } from './SharePanel'
 
 interface Props {
   nodeId: number
@@ -98,6 +100,12 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   // V20: 定制面板状态
   const [showCustomizationPanel, setShowCustomizationPanel] = useState(false)
   const [materialContext, setMaterialContext] = useState('')
+
+  // V21: 导出面板状态
+  const [showExportPanel, setShowExportPanel] = useState(false)
+
+  // V21 Phase 3: 分享面板状态
+  const [showSharePanel, setShowSharePanel] = useState(false)
 
   // V19: 优化功能状态
   const [cacheEnabled, setCacheEnabled] = useState(true)
@@ -525,6 +533,24 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             保存
           </button>
+
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportPanel(true)}
+            className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600"
+            title="导出作品"
+          >
+            📤 导出
+          </button>
+
+          {/* Share Button */}
+          <button
+            onClick={() => setShowSharePanel(true)}
+            className="px-4 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600"
+            title="分享作品"
+          >
+            🔗 分享
+          </button>
           
           {/* Close */}
           <button
@@ -881,6 +907,46 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           setContent(newContent)
         }}
       />
+
+      {/* V21: 导出面板 */}
+      {showExportPanel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="relative">
+            <button
+              onClick={() => setShowExportPanel(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
+            <ExportPanel
+              content={content}
+              metadata={{
+                title: title || '无标题',
+                author: currentProject?.title || '未知作者',
+                createdAt: currentProject?.createdAt?.getTime() || Date.now(),
+                wordCount: content.replace(/\s/g, '').length
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* V21 Phase 3: 分享面板 */}
+      {showSharePanel && currentProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="relative">
+            <button
+              onClick={() => setShowSharePanel(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
+            <SharePanel
+              projectId={currentProject.id?.toString() || ''}
+            />
+          </div>
+        </div>
+      )}
 
       {/* V17: 干预审核面板 */}
       {currentIntervention && executionStatus === 'waiting_approval' && (
