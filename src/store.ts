@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink, CharacterRelationship, ProjectViewpoint, ViewpointType, Milestone, ReminderSettings } from './db'
+import { db, Project, OutlineNode, AgentConfig, MaterialCard, WritingStats, Storyline, ChapterStorylineLink, CharacterRelationship, ProjectViewpoint, ViewpointType, Milestone, ReminderSettings, ProjectVersion, Character, ChapterPlan } from './db'
 
 interface AppState {
   // Theme
@@ -14,6 +14,12 @@ interface AppState {
   updateProject: (id: number, updates: Partial<Project>) => Promise<void>
   deleteProject: (id: number) => Promise<void>
   setCurrentProject: (project: Project | null) => void
+
+  // 项目版本 (V23)
+  projectVersions: ProjectVersion[]
+  loadProjectVersions: (projectId: number) => Promise<void>
+  selectProjectVersion: (versionId: number, projectId: number) => Promise<void>
+  fillProjectFromVersion: (version: ProjectVersion) => Promise<void>
 
   // 备份时间追踪
   lastBackupTime: number | null
@@ -127,6 +133,71 @@ export const useStore = create<AppState>((set, get) => ({
   currentPOVCharacterId: null,
   milestones: [],
   reminderSettings: null,
+  projectVersions: [],
+
+  // 项目版本管理 (V23)
+  loadProjectVersions: async (projectId: number) => {
+    const versions = await db.projectVersions.where('projectId').equals(projectId).toArray()
+    set({ projectVersions: versions })
+  },
+
+  selectProjectVersion: async (versionId: number, projectId: number) => {
+    // Mark all as not selected
+    await db.projectVersions.where('projectId').equals(projectId).modify({ isSelected: false })
+    // Mark target as selected
+    await db.projectVersions.update(versionId, { isSelected: true })
+    // Reload
+    get().loadProjectVersions(projectId)
+  },
+
+  fillProjectFromVersion: async (version: ProjectVersion) => {
+    const { currentProject, createOutlineNode, createMaterialCard } = get()
+    if (!currentProject?.id) return
+
+    // 1. Create outline from chapter plan (create a volume + chapters)
+    const volume = await createOutlineNode({
+      projectId: currentProject.id,
+      parentId: null,
+      type: 'volume',
+      title: '第一卷',
+      summary: version.outline.slice(0, 200),
+      content: version.outline,
+      status: 'planning',
+      order: 0
+    })
+
+    // Create chapters
+    for (const chapter of version.chapters) {
+      await createOutlineNode({
+        projectId: currentProject.id,
+        parentId: volume.id!,
+        type: 'chapter',
+        title: chapter.title,
+        summary: chapter.summary,
+        content: '',
+        status: 'planning',
+        order: chapter.index - 1
+      })
+    }
+
+    // 2. Create characters as material cards
+    for (const char of version.characters) {
+      await createMaterialCard({
+        projectId: currentProject.id,
+        type: 'character',
+        name: char.name,
+        fields: {
+          role: char.role,
+          personality: char.personalityTraits.join('、'),
+          goal: char.goal,
+          relationships: char.relationships.join('；')
+        }
+      })
+    }
+
+    // Reload outline
+    get().loadOutline(currentProject.id)
+  },
 
   // 备份时间追踪
   updateLastBackupTime: () => {
@@ -180,6 +251,7 @@ export const useStore = create<AppState>((set, get) => ({
     await db.materialCards.where('projectId').equals(id).delete()
     await db.writingStats.where('projectId').equals(id).delete()
     await db.storylines.where('projectId').equals(id).delete()
+    await db.projectVersions.where('projectId').equals(id).delete()
     set(state => ({
       projects: state.projects.filter(p => p.id !== id),
       currentProject: state.currentProject?.id === id ? null : state.currentProject

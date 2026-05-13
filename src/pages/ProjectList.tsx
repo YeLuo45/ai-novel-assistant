@@ -1,25 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { Link } from 'react-router-dom'
+import CreateProjectModal from '../components/CreateProjectModal'
 
 export default function ProjectList() {
-  const { projects, loadProjects, createProject, deleteProject, setCurrentProject } = useStore()
+  const { projects, loadProjects, deleteProject } = useStore()
   const [showModal, setShowModal] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newGenre, setNewGenre] = useState('')
 
   useEffect(() => {
     loadProjects()
   }, [])
-
-  const handleCreate = async () => {
-    if (!newTitle.trim()) return
-    const project = await createProject(newTitle.trim(), newGenre.trim())
-    setShowModal(false)
-    setNewTitle('')
-    setNewGenre('')
-    setCurrentProject(project)
-  }
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.preventDefault()
@@ -75,51 +65,11 @@ export default function ProjectList() {
         </div>
       )}
 
-      {/* 新建项目弹窗 */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">新建项目</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">项目名称</label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="例如：我的科幻小说"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">题材类型</label>
-                <input
-                  type="text"
-                  value={newGenre}
-                  onChange={e => setNewGenre(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="例如：科幻、玄幻、都市"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleCreate}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
-                创建
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 新建项目弹窗 - 使用扩展版本 */}
+      <CreateProjectModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)} 
+      />
     </div>
   )
 }

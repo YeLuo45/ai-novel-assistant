@@ -407,7 +407,9 @@ class NovelDatabase extends Dexie {
       // V14 新增表
       projectMemory: 'projectId, updatedAt',
       plotThreads: '++id, projectId, tag, status, plantedInChapter, resolvedInChapter',
-      chapterSummaries: '++id, projectId, chapterId, createdAt'
+      chapterSummaries: '++id, projectId, chapterId, createdAt',
+      // V23 新增
+      projectVersions: '++id, projectId, versionIndex, isSelected'
     })
   }
 }
