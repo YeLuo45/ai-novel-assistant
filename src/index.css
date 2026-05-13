@@ -121,3 +121,13 @@ button,
 .mobile-bottom-nav {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
+
+/* Form element color - use theme text colors for better contrast */
+button,
+input,
+optgroup,
+select,
+textarea {
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
