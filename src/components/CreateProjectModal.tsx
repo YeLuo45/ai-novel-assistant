@@ -37,7 +37,8 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
       
       // Update project with extended fields
       if (project.id !== undefined) {
-        await fetch(`/api/projects/${project.id}`, {
+        const projectId = project.id
+        await fetch(`/api/projects/${projectId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -48,7 +49,7 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
           })
         }).catch(() => {
           // If API fails, use store directly
-          useStore.getState().updateProject(project.id, {
+          useStore.getState().updateProject(projectId, {
             protagonistName: formData.protagonistName.trim() || undefined,
             background: formData.background.trim() || undefined,
             coreSellingPoint: formData.coreSellingPoint.trim() || undefined,

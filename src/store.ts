@@ -44,7 +44,7 @@ interface AppState {
   // 素材库
   materialCards: MaterialCard[]
   loadMaterialCards: (projectId: number) => Promise<void>
-  createMaterialCard: (card: Omit<MaterialCard, 'id'>) => Promise<MaterialCard>
+  createMaterialCard: (card: Omit<MaterialCard, 'id' | 'createdAt' | 'updatedAt'>) => Promise<MaterialCard>
   updateMaterialCard: (id: number, updates: Partial<MaterialCard>) => Promise<void>
   deleteMaterialCard: (id: number) => Promise<void>
 
