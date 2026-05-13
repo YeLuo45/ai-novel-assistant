@@ -246,9 +246,37 @@ async function callOpenAICompatible(
     throw new Error('Provider or model not found')
   }
 
-  // MiniMax 特殊路径
+  // MiniMax 特殊路径 - 使用 OpenAI 兼容格式
   if (provider.name === 'MiniMax') {
-    return callMiniMax(params, provider, model)
+    const url = provider.baseUrl + '/chat/completions'
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${provider.apiKey || ''}`
+    }
+
+    const body = {
+      model: params.model,
+      messages: params.messages.map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : m.role,
+        content: m.content
+      })),
+      temperature: params.temperature ?? 0.7,
+      max_tokens: params.maxTokens || 4096
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
+      throw new Error(error.error?.message || `API request failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.choices?.[0]?.message?.content || ''
   }
 
   // Google Gemini 特殊路径
@@ -520,9 +548,74 @@ async function streamOpenAICompatible(
 ): Promise<void> {
   if (!provider || !model) return
 
-  // MiniMax 特殊处理
+  // MiniMax 特殊处理 - 使用 OpenAI 兼容流式格式
   if (provider.name === 'MiniMax') {
-    throw new Error('MiniMax streaming not implemented yet')
+    const url = provider.baseUrl + '/chat/completions'
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${provider.apiKey || ''}`
+    }
+
+    const systemMessages = params.messages.filter(m => m.role === 'system')
+    const nonSystemMessages = params.messages.filter(m => m.role !== 'system')
+
+    const body: Record<string, unknown> = {
+      model: params.model,
+      stream: true,
+      messages: [
+        ...systemMessages.map(m => ({ role: 'system', content: m.content })),
+        ...nonSystemMessages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : m.role, content: m.content }))
+      ],
+      temperature: params.temperature ?? 0.7
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
+      throw new Error(error.error?.message || `API request failed: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('Response body is not readable')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+          if (data === '[DONE]') {
+            observable.emit({ type: 'done' })
+            return
+          }
+          try {
+            const parsed = JSON.parse(data)
+            const text = parsed.choices?.[0]?.delta?.content
+            if (text) {
+              observable.emit({ type: 'text', content: text })
+            }
+          } catch (e) {
+            // Skip malformed JSON
+          }
+        }
+      }
+    }
+
+    observable.emit({ type: 'done' })
+    return
   }
 
   // Google Gemini 特殊处理

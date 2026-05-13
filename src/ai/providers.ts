@@ -27,8 +27,8 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
   minimax: {
     name: 'MiniMax',
     baseUrl: 'https://api.minimax.chat/v1',
-    type: 'anthropic-compatible',
-    defaultModel: 'abab5.5-chat',
+    type: 'openai-compatible',
+    defaultModel: 'MiniMax-M2.7',
     models: []
   },
 
@@ -159,6 +159,15 @@ export const MODELS: Record<string, ModelConfig> = {
   },
 
   // MiniMax
+  'MiniMax-M2.7': {
+    id: 'MiniMax-M2.7',
+    provider: 'minimax',
+    name: 'MiniMax M2.7',
+    capabilities: TEXT_CAPABILITIES,
+    contextWindow: 1000000,
+    maxOutputTokens: 8192,
+    supportsStreaming: true
+  },
   'abab5.5-chat': {
     id: 'abab5.5-chat',
     provider: 'minimax',
