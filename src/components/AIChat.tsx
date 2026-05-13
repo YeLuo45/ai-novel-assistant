@@ -222,9 +222,18 @@ export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props
           onChange={e => setSelectedModel(e.target.value)}
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          {getProviderModels(selectedProvider).map(model => (
-            <option key={model.id} value={model.id}>{model.name}</option>
-          ))}
+          {/* Show custom model if user has configured it for this provider */}
+          {selectedProvider === localStorage.getItem('ai-novel-default-provider') &&
+           localStorage.getItem('ai-novel-use-custom-model') === 'true' &&
+           localStorage.getItem('ai-novel-custom-model') ? (
+            <option value={localStorage.getItem('ai-novel-custom-model')!}>
+              {localStorage.getItem('ai-novel-custom-model')}
+            </option>
+          ) : (
+            getProviderModels(selectedProvider).map(model => (
+              <option key={model.id} value={model.id}>{model.name}</option>
+            ))
+          )}
         </select>
         {projectId && messages.length > 0 && (
           <button
