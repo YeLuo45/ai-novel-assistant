@@ -26,14 +26,31 @@ export async function callLLM(
   _source: string,
   retry?: LLMRetryOptions
 ): Promise<string> {
-  const model = getModel(params.model)
+  let model = getModel(params.model)
+  let provider = model ? getProvider(model.provider) : undefined
+
+  // Handle custom model names not in MODELS registry
   if (!model) {
-    throw new Error(`Unknown model: ${params.model}`)
+    const savedProviderId = localStorage.getItem('ai-novel-default-provider')
+    if (savedProviderId) {
+      provider = getProvider(savedProviderId)
+    }
+    // Create a fallback model config for custom models
+    if (provider) {
+      model = {
+        id: params.model,
+        provider: provider.name.toLowerCase(),
+        name: params.model,
+        capabilities: { text: true },
+        contextWindow: 128000,
+        maxOutputTokens: 4096,
+        supportsStreaming: false
+      }
+    }
   }
 
-  const provider = getProvider(model.provider)
-  if (!provider) {
-    throw new Error(`Unknown provider: ${model.provider}`)
+  if (!model || !provider) {
+    throw new Error(`Unknown model: ${params.model}`)
   }
 
   const normalizedThinking = normalizeThinkingConfigForModel(params.model, params.thinkingConfig)
@@ -58,17 +75,31 @@ export function streamLLM(
   _source: string
 ): Observable<LLMEvent> {
   const observable = new ObservableClass<LLMEvent>()
-  const model = getModel(params.model)
+  let model = getModel(params.model)
+  let provider = model ? getProvider(model.provider) : undefined
 
+  // Handle custom model names not in MODELS registry
   if (!model) {
-    observable.emit({ type: 'error', content: `Unknown model: ${params.model}` })
-    observable.unsubscribe()
-    return observable
+    const savedProviderId = localStorage.getItem('ai-novel-default-provider')
+    if (savedProviderId) {
+      provider = getProvider(savedProviderId)
+    }
+    // Create a fallback model config for custom models
+    if (provider) {
+      model = {
+        id: params.model,
+        provider: provider.name.toLowerCase(),
+        name: params.model,
+        capabilities: { text: true },
+        contextWindow: 128000,
+        maxOutputTokens: 4096,
+        supportsStreaming: false
+      }
+    }
   }
 
-  const provider = getProvider(model.provider)
-  if (!provider) {
-    observable.emit({ type: 'error', content: `Unknown provider: ${model.provider}` })
+  if (!model || !provider) {
+    observable.emit({ type: 'error', content: `Unknown model: ${params.model}` })
     observable.unsubscribe()
     return observable
   }

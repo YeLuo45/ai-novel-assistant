@@ -70,8 +70,11 @@ export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props
   const loadProviderSettings = () => {
     const savedProvider = localStorage.getItem('ai-novel-default-provider') || 'openai'
     const savedModel = localStorage.getItem('ai-novel-default-model') || 'gpt-4o-mini'
+    const savedUseCustom = localStorage.getItem('ai-novel-use-custom-model') === 'true'
+    const savedCustomModel = localStorage.getItem('ai-novel-custom-model') || ''
     setSelectedProvider(savedProvider)
-    setSelectedModel(savedModel)
+    // Use custom model if enabled, otherwise use predefined model
+    setSelectedModel(savedUseCustom && savedCustomModel ? savedCustomModel : savedModel)
   }
 
   const getApiKey = (provider: string): string | undefined => {

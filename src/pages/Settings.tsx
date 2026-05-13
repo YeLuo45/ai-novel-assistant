@@ -40,6 +40,12 @@ export default function Settings() {
   const [autoRemindMilestones, setAutoRemindMilestones] = useState(true)
   const [minWordCount, setMinWordCount] = useState(500)
 
+  // Custom model input state
+  const [customModel, setCustomModel] = useState('')
+  const [useCustomModel, setUseCustomModel] = useState(false)
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [testMessage, setTestMessage] = useState('')
+
   useEffect(() => {
     loadKeys()
     loadReminderSettings()
@@ -73,20 +79,24 @@ export default function Settings() {
       minimax: keyMap.minimax || '',
       google: keyMap.google || ''
     })
-    
+
     // Load provider settings from localStorage
     const savedProvider = localStorage.getItem('ai-novel-default-provider')
     const savedModel = localStorage.getItem('ai-novel-default-model')
+    const savedCustomModel = localStorage.getItem('ai-novel-custom-model')
+    const savedUseCustom = localStorage.getItem('ai-novel-use-custom-model')
     if (savedProvider) setSelectedProvider(savedProvider)
     if (savedModel) setDefaultModel(savedModel)
-    
+    if (savedCustomModel) setCustomModel(savedCustomModel)
+    if (savedUseCustom === 'true') setUseCustomModel(true)
+
     setLoading(false)
   }
 
   const handleSave = async () => {
     // 删除旧的
     await db.apiKeys.clear()
-    
+
     // 添加新的
     const providers = ['openai', 'anthropic', 'minimax', 'google'] as const
     for (const provider of providers) {
@@ -97,13 +107,68 @@ export default function Settings() {
         })
       }
     }
-    
+
     // Save provider settings
     localStorage.setItem('ai-novel-default-provider', selectedProvider)
     localStorage.setItem('ai-novel-default-model', defaultModel)
-    
+    localStorage.setItem('ai-novel-custom-model', customModel)
+    localStorage.setItem('ai-novel-use-custom-model', String(useCustomModel))
+
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  // Test API connection
+  const testConnection = async () => {
+    const apiKey = apiKeys[selectedProvider as keyof typeof apiKeys]
+    if (!apiKey?.trim()) {
+      setTestStatus('error')
+      setTestMessage('请先填写 API Key')
+      return
+    }
+
+    const modelToTest = useCustomModel && customModel.trim()
+      ? customModel.trim()
+      : defaultModel
+
+    if (!modelToTest) {
+      setTestStatus('error')
+      setTestMessage('请选择或输入模型名称')
+      return
+    }
+
+    setTestStatus('testing')
+    setTestMessage('测试中...')
+
+    try {
+      const provider = PROVIDERS[selectedProvider]
+      if (!provider) throw new Error('Provider not found')
+
+      const testMessages = [{ role: 'user' as const, content: 'Hi' }]
+      const response = await fetch(provider.baseUrl + '/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: modelToTest,
+          messages: testMessages,
+          max_tokens: 10
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
+        throw new Error(error.error?.message || `HTTP ${response.status}`)
+      }
+
+      setTestStatus('success')
+      setTestMessage('连接成功！')
+    } catch (error: any) {
+      setTestStatus('error')
+      setTestMessage(error.message || '连接失败')
+    }
   }
 
   const handleSaveReminderSettings = async () => {
@@ -591,40 +656,103 @@ export default function Settings() {
           {selectedProvider && (
             <div className="mb-8">
               <h3 className="font-medium text-gray-800 mb-4">默认模型</h3>
-              <div className="space-y-2">
-                {getProviderModels(selectedProvider).map(model => (
-                  <label
-                    key={model.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                      defaultModel === model.id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:bg-gray-50'
+
+              {/* Custom Model Toggle */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-xl">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useCustomModel}
+                    onChange={(e) => {
+                      setUseCustomModel(e.target.checked)
+                      if (!e.target.checked) {
+                        const models = getProviderModels(selectedProvider)
+                        setDefaultModel(models[0]?.id || '')
+                      }
+                    }}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span className="font-medium text-gray-700">使用自定义模型名称</span>
+                </label>
+                {useCustomModel && (
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      value={customModel}
+                      onChange={(e) => setCustomModel(e.target.value)}
+                      placeholder="例如: MiniMax-ABAB-6 Chat (参考 platform.minimaxi.com/guides/models-intro)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      请输入您在 MiniMax 控制台看到的实际模型名称
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Predefined Models List */}
+              {!useCustomModel && (
+                <div className="space-y-2">
+                  {getProviderModels(selectedProvider).map(model => (
+                    <label
+                      key={model.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        defaultModel === model.id
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="defaultModel"
+                        checked={defaultModel === model.id}
+                        onChange={() => setDefaultModel(model.id)}
+                        className="w-4 h-4 text-indigo-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-800">{model.name}</div>
+                        <div className="text-xs text-gray-500">
+                          上下文窗口: {model.contextWindow?.toLocaleString() || 'N/A'} tokens
+                          | 最大输出: {model.maxOutputTokens?.toLocaleString() || 'N/A'} tokens
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        {model.capabilities.vision && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">视觉</span>
+                        )}
+                        {model.thinking?.supported && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">思考</span>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Test Connection */}
+              <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                <h4 className="font-medium text-gray-800 mb-3">连接测试</h4>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={testConnection}
+                    disabled={testStatus === 'testing'}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      testStatus === 'testing'
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="defaultModel"
-                      checked={defaultModel === model.id}
-                      onChange={() => setDefaultModel(model.id)}
-                      className="w-4 h-4 text-indigo-600"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-800">{model.name}</div>
-                      <div className="text-xs text-gray-500">
-                        上下文窗口: {model.contextWindow?.toLocaleString() || 'N/A'} tokens
-                        | 最大输出: {model.maxOutputTokens?.toLocaleString() || 'N/A'} tokens
-                      </div>
+                    {testStatus === 'testing' ? '测试中...' : '测试连接'}
+                  </button>
+                  {testStatus !== 'idle' && (
+                    <div className={`flex items-center gap-2 ${
+                      testStatus === 'success' ? 'text-green-600' : 'text-red-500'
+                    }`}>
+                      {testStatus === 'success' ? '✓' : '✗'}
+                      <span className="text-sm">{testMessage}</span>
                     </div>
-                    <div className="flex gap-1">
-                      {model.capabilities.vision && (
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">视觉</span>
-                      )}
-                      {model.thinking?.supported && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">思考</span>
-                      )}
-                    </div>
-                  </label>
-                ))}
+                  )}
+                </div>
               </div>
             </div>
           )}
