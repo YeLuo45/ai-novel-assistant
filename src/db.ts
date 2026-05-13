@@ -265,6 +265,8 @@ class NovelDatabase extends Dexie {
   chapterSummaries!: Table<any>
   // V23: 三版本规划
   projectVersions!: Table<ProjectVersion>
+  // V24: 时间线事件
+  timelineEvents!: Table<any>
 
   constructor() {
     super('NovelDB')
@@ -445,6 +447,34 @@ class NovelDatabase extends Dexie {
       chapterSummaries: '++id, projectId, chapterId, createdAt',
       // V23 新增
       projectVersions: '++id, projectId, versionIndex, isSelected'
+    })
+    // V24: 时间线事件
+    this.version(13).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId',
+      chapterVersions: '++id, chapterId, projectId, createdAt',
+      aiChatMessages: '++id, projectId, conversationId, timestamp',
+      aiConversations: '++id, projectId, createdAt',
+      projectMemory: 'projectId, updatedAt',
+      plotThreads: '++id, projectId, tag, status, plantedInChapter, resolvedInChapter',
+      chapterSummaries: '++id, projectId, chapterId, createdAt',
+      projectVersions: '++id, projectId, versionIndex, isSelected',
+      // V24 新增
+      timelineEvents: '++id, projectId, order'
     })
   }
 }

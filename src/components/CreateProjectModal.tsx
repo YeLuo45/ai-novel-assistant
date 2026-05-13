@@ -69,10 +69,10 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
       })
       
       onClose()
-      
+
       // Navigate to version generator page
       if (project.id) {
-        navigate(`/version-generator?projectId=${project.id}`)
+        navigate(`/projects/${project.id}/version-generator`)
       }
     } finally {
       setIsSubmitting(false)

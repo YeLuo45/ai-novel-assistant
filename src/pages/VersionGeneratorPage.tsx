@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useMemo } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { db, Project, ProjectVersion, Character, ChapterPlan } from '../db'
 import VersionSelector from '../components/VersionSelector'
@@ -21,14 +21,13 @@ interface GeneratedVersion {
 }
 
 export default function VersionGeneratorPage() {
-  const [searchParams] = useSearchParams()
+  const { id: projectIdParam } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { currentProject, setCurrentProject, updateProject } = useStore()
-  
+
   const projectId = useMemo(() => {
-    const id = searchParams.get('projectId')
-    return id ? parseInt(id) : null
-  }, [searchParams])
+    return projectIdParam ? parseInt(projectIdParam) : null
+  }, [projectIdParam])
   
   const [versions, setVersions] = useState<GeneratedVersion[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -140,9 +139,9 @@ export default function VersionGeneratorPage() {
     project: any
   ) => {
     const versionDescriptions = {
-      1: '强情节驱动：主角成长快速，章节起伏明显，节奏紧凑',
-      2: '情感/关系驱动：支线丰富，世界观深入，人物关系错综复杂',
-      3: '悬念/反转驱动：多线叙事，结局出人意料，悬念迭起'
+      1: '快节奏强冲突版：主角成长快速，目标明确，每2-3章设置一个中等冲突，每5章设置一个重大转折/高潮，节奏紧凑，高潮迭起，让读者持续有爽感',
+      2: '慢热细腻版：人物关系渐进建立，前1/3篇幅铺垫世界观和情感基础，情感细腻积累，支线丰富，结局处情感和冲突同步爆发',
+      3: '悬疑反转版：开篇埋设多个悬念钩子，多线叙事交叉推进，频繁设置反转，结局出人意料，让读者不断猜测但始终猜不透'
     }
     
     const systemPrompt = `你是一个专业的小说策划专家，擅长创作引人入胜的故事。
@@ -374,8 +373,8 @@ export default function VersionGeneratorPage() {
     
     await useStore.getState().fillProjectFromVersion(versionData)
     
-    // Navigate to project editor
-    navigate(`/projects/${projectId}`)
+    // Navigate to fill page
+    navigate(`/projects/${projectId}/fill`)
   }
 
   const generateWorldbuilding = async (meta: typeof projectMeta): Promise<string> => {
@@ -466,11 +465,24 @@ export default function VersionGeneratorPage() {
 
         {/* Version Selector or Loading */}
         {allComplete ? (
-          <VersionSelector
-            versions={versions}
-            onSelect={handleSelectVersion}
-            projectTitle={projectMeta?.title || ''}
-          />
+          <>
+            {/* Regenerate Button */}
+            <div className="text-center mb-6">
+              <button
+                onClick={() => startGeneration(projectMeta!)}
+                disabled={isGenerating}
+                className="px-6 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 disabled:opacity-50 transition-all"
+              >
+                {isGenerating ? '🔄 生成中...' : '🔄 换一批（重新生成3个版本）'}
+              </button>
+              <p className="text-xs text-gray-400 mt-1">换一批会消耗AI调用次数</p>
+            </div>
+            <VersionSelector
+              versions={versions}
+              onSelect={handleSelectVersion}
+              projectTitle={projectMeta?.title || ''}
+            />
+          </>
         ) : (
           <div className="flex justify-center items-center py-20">
             <div className="text-center">

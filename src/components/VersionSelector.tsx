@@ -23,9 +23,9 @@ interface Props {
 }
 
 const versionLabels = {
-  1: { title: '情节驱动版', icon: '⚡', color: 'from-blue-500 to-cyan-500', description: '主角成长快速，章节起伏明显' },
-  2: { title: '情感驱动版', icon: '💝', color: 'from-pink-500 to-rose-500', description: '支线丰富，人物关系错综复杂' },
-  3: { title: '悬疑驱动版', icon: '🔮', color: 'from-purple-500 to-indigo-500', description: '多线叙事，结局出人意料' }
+  1: { title: '快节奏强冲突版', icon: '⚡', color: 'from-orange-500 to-red-500', description: '主角成长快速，章节起伏明显，高潮迭起' },
+  2: { title: '慢热细腻版', icon: '💝', color: 'from-pink-500 to-rose-500', description: '人物关系渐进建立，情感细腻积累，结局爆发' },
+  3: { title: '悬疑反转版', icon: '🔮', color: 'from-purple-500 to-indigo-500', description: '多线叙事，埋设伏笔，反转不断，结局意外' }
 }
 
 export default function VersionSelector({ versions, onSelect, projectTitle }: Props) {
