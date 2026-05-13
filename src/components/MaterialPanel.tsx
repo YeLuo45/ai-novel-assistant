@@ -25,14 +25,11 @@ export function MaterialPanel({ isOpen, onToggle }: Props) {
 
   const handleAddMaterial = async () => {
     if (!currentProject?.id || !materialForm.name.trim()) return
-    const now = new Date()
     await createMaterialCard({
       projectId: currentProject.id,
       type: materialForm.type,
       name: materialForm.name.trim(),
-      fields: materialForm.fields,
-      createdAt: now,
-      updatedAt: now
+      fields: materialForm.fields
     })
     setShowAddModal(false)
     resetForm()
