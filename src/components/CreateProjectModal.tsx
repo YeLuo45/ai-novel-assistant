@@ -36,7 +36,7 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
       const project = await createProject(formData.title.trim(), formData.genre.trim())
       
       // Update project with extended fields
-      if (project.id) {
+      if (project.id !== undefined) {
         await fetch(`/api/projects/${project.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

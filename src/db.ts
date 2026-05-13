@@ -7,6 +7,12 @@ export interface Project {
   genre: string
   createdAt: Date
   updatedAt: Date
+  // V23 extended fields
+  protagonistName?: string
+  background?: string
+  coreSellingPoint?: string
+  otherRequirements?: string
+  worldbuilding?: string
 }
 
 export interface OutlineNode {
@@ -205,6 +211,33 @@ export interface AIConversation {
   updatedAt: Date
 }
 
+// V23: 三版本规划类型
+export interface Character {
+  id: string
+  name: string
+  role: 'protagonist' | 'supporting' | 'minor'
+  personalityTraits: string[]
+  goal: string
+  relationships: string[]
+}
+
+export interface ChapterPlan {
+  index: number
+  title: string
+  summary: string
+}
+
+export interface ProjectVersion {
+  id?: number
+  projectId: number
+  versionIndex: 1 | 2 | 3
+  outline: string
+  characters: Character[]
+  chapters: ChapterPlan[]
+  generatedAt: number
+  isSelected: boolean
+}
+
 class NovelDatabase extends Dexie {
   projects!: Table<Project>
   outlineNodes!: Table<OutlineNode>
@@ -230,6 +263,8 @@ class NovelDatabase extends Dexie {
   projectMemory!: Table<any>
   plotThreads!: Table<any>
   chapterSummaries!: Table<any>
+  // V23: 三版本规划
+  projectVersions!: Table<ProjectVersion>
 
   constructor() {
     super('NovelDB')

@@ -36,15 +36,15 @@ export default function RelationshipGraph({ characters, compact = false }: Props
   // Extract relationships from character data
   const relationships = useMemo(() => {
     const rels: { from: string; to: string; type: string; description: string }[] = []
-    
+
     characters.forEach(char => {
-      char.relationships.forEach(rel => {
+      char.relationships.forEach((rel: string) => {
         // Parse relationship string like "与XX是XX关系"
         const match = rel.match(/与(.+?)是(.+?)关系/)
         if (match) {
           const [, targetName, relType] = match
           // Avoid duplicate relationships
-          const existing = rels.find(r => 
+          const existing = rels.find(r =>
             (r.from === targetName && r.to === char.name) ||
             (r.from === char.name && r.to === targetName)
           )
@@ -96,8 +96,8 @@ export default function RelationshipGraph({ characters, compact = false }: Props
   if (compact) {
     return (
       <div className="space-y-2">
-        {characters.slice(0, 4).map(char => {
-          const colors = roleColors[char.role]
+        {characters.slice(0, 4).map((char: Character) => {
+          const colors = roleColors[char.role as keyof typeof roleColors]
           return (
             <div key={char.id} className={`flex items-center gap-2 p-2 rounded-lg ${colors.bg}`}>
               <span className={`w-2 h-2 rounded-full ${colors.border.replace('border', 'bg')}`} />
@@ -122,8 +122,8 @@ export default function RelationshipGraph({ characters, compact = false }: Props
       
       {/* Character Nodes */}
       <div className="flex flex-wrap justify-center gap-4 mb-6">
-        {characters.map(char => {
-          const colors = roleColors[char.role]
+        {characters.map((char: Character) => {
+          const colors = roleColors[char.role as keyof typeof roleColors]
           return (
             <div
               key={char.id}
