@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { db, Project, OutlineNode, MaterialCard, ProjectVersion, Character, ChapterPlan } from '../db'
+import { db, Project, OutlineNode, MaterialCard, ProjectVersion, Character, ChapterPlan } from './db'
 
 // Mock Dexie
 vi.mock('dexie', () => {
