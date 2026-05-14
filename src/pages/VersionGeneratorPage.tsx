@@ -188,7 +188,7 @@ export default function VersionGeneratorPage() {
       setGenerationProgress((versionIndex - 1) * 30 + 10)
       
       const response = await callLLM({
-        model: 'minimax',
+        model: 'MiniMax-M2.7',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -391,7 +391,7 @@ export default function VersionGeneratorPage() {
 
     try {
       const response = await callLLM({
-        model: 'minimax',
+        model: 'MiniMax-M2.7',
         messages: [
           { role: 'system', content: '你是一个专业的小说世界观设定专家，擅长创作独特而引人入胜的世界观设定。' },
           { role: 'user', content: prompt }
