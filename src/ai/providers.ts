@@ -158,35 +158,6 @@ export const MODELS: Record<string, ModelConfig> = {
     supportsStreaming: true
   },
 
-  // MiniMax
-  'MiniMax-M2.7': {
-    id: 'MiniMax-M2.7',
-    provider: 'minimax',
-    name: 'MiniMax M2.7',
-    capabilities: TEXT_CAPABILITIES,
-    contextWindow: 1000000,
-    maxOutputTokens: 8192,
-    supportsStreaming: true
-  },
-  'abab5.5-chat': {
-    id: 'abab5.5-chat',
-    provider: 'minimax',
-    name: 'ABAB 5.5 Chat',
-    capabilities: TEXT_CAPABILITIES,
-    contextWindow: 245000,
-    maxOutputTokens: 8000,
-    supportsStreaming: true
-  },
-  'abab5.5s-chat': {
-    id: 'abab5.5s-chat',
-    provider: 'minimax',
-    name: 'ABAB 5.5S Chat',
-    capabilities: TEXT_CAPABILITIES,
-    contextWindow: 245000,
-    maxOutputTokens: 8000,
-    supportsStreaming: true
-  },
-
   // DeepSeek
   'deepseek-chat': {
     id: 'deepseek-chat',

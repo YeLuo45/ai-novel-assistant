@@ -36,7 +36,7 @@ ${characters.map(c => `【${c.name}】${c.role === 'protagonist' ? '主角' : c.
 
   try {
     const response = await callLLM({
-      model: 'minimax',
+      model: 'MiniMax-M2.7',
       messages: [
         { role: 'system', content: '你是一个专业的小说世界观设定专家，擅长创作独特而引人入胜的世界观设定，文字优美有画面感。' },
         { role: 'user', content: prompt }
@@ -98,7 +98,7 @@ ${storylines.map(s => `【${s.name}】`).join(' ')}
 
   try {
     const response = await callLLM({
-      model: 'minimax',
+      model: 'MiniMax-M2.7',
       messages: [
         { role: 'system', content: '你是一个专业的小说策划专家，擅长提取故事关键事件，构建合理的时间线。' },
         { role: 'user', content: prompt }
@@ -182,7 +182,7 @@ ${writingStyle ? `写作风格要求：${writingStyle}` : ''}
 
   try {
     const response = await callLLM({
-      model: 'minimax',
+      model: 'MiniMax-M2.7',
       messages: [
         { role: 'system', content: '你是一个专业的小说作家，擅长续写故事，文笔流畅，情节生动。' },
         { role: 'user', content: prompt }
