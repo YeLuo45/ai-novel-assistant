@@ -227,6 +227,15 @@ export interface ChapterPlan {
   summary: string
 }
 
+// V27: Chapter Progress for tracking writing progress
+export interface ChapterProgress {
+  id?: number
+  projectId: number
+  chapterId: number
+  targetWordCount: number
+  updatedAt: Date
+}
+
 export interface ProjectVersion {
   id?: number
   projectId: number
@@ -474,7 +483,9 @@ class NovelDatabase extends Dexie {
       chapterSummaries: '++id, projectId, chapterId, createdAt',
       projectVersions: '++id, projectId, versionIndex, isSelected',
       // V24 新增
-      timelineEvents: '++id, projectId, order'
+      timelineEvents: '++id, projectId, order',
+      // V27 新增
+      chapterProgress: '++id, projectId, chapterId'
     })
   }
 }

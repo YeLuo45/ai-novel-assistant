@@ -41,6 +41,9 @@ import { CustomizationPanel } from './CustomizationPanel'
 import { ExportPanel } from './ExportPanel'
 import { SharePanel } from './SharePanel'
 import { MemoryPanel } from './MemoryPanel'
+import ChapterProgressBar from './ChapterProgressBar'
+import WordFrequencyPanel from './WordFrequencyPanel'
+import CharacterAppearancePanel from './CharacterAppearancePanel'
 
 interface Props {
   nodeId: number
@@ -107,6 +110,10 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
 
   // V21 Phase 3: 分享面板状态
   const [showSharePanel, setShowSharePanel] = useState(false)
+
+  // V27: 词频和人物出场面板状态
+  const [showWordFrequencyPanel, setShowWordFrequencyPanel] = useState(false)
+  const [showCharacterAppearancePanel, setShowCharacterAppearancePanel] = useState(false)
 
   // V19: 优化功能状态
   const [cacheEnabled, setCacheEnabled] = useState(true)
@@ -561,7 +568,39 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             🧠 记忆
           </button>
+
+          {/* V27: 词频统计 */}
+          <button
+            onClick={() => setShowWordFrequencyPanel(!showWordFrequencyPanel)}
+            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+              showWordFrequencyPanel
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+            }`}
+          >
+            📊 词频
+          </button>
+
+          {/* V27: 人物出场 */}
+          <button
+            onClick={() => setShowCharacterAppearancePanel(!showCharacterAppearancePanel)}
+            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+              showCharacterAppearancePanel
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+            }`}
+          >
+            👤 出场
+          </button>
           
+          {/* 返回大纲 */}
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center gap-1"
+          >
+            ← 大纲
+          </button>
+
           {/* Close */}
           <button
             onClick={() => {
@@ -965,6 +1004,42 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
         projectId={currentProject?.id || 0}
         currentChapter={node?.id || 1}
       />
+
+      {/* V27: 章节进度条 */}
+      {nodeId && currentProject && (
+        <div className="fixed bottom-20 right-4 w-72 z-40">
+          <ChapterProgressBar
+            projectId={currentProject.id}
+            chapterId={nodeId}
+            currentWordCount={wordCount}
+            defaultTarget={3000}
+          />
+        </div>
+      )}
+
+      {/* V27: 词频统计面板 */}
+      {currentProject && (
+        <div className="fixed bottom-20 left-4 w-72 z-40">
+          <WordFrequencyPanel
+            fullText={outlineNodes.reduce((sum, n) => sum + (n.content || ''), '')}
+            chapterText={content}
+            isOpen={showWordFrequencyPanel}
+            onToggle={() => setShowWordFrequencyPanel(!showWordFrequencyPanel)}
+          />
+        </div>
+      )}
+
+      {/* V27: 人物出场统计 */}
+      {currentProject && (
+        <div className="fixed bottom-20 left-80 w-72 z-40">
+          <CharacterAppearancePanel
+            projectId={currentProject.id}
+            outlineNodes={outlineNodes}
+            isOpen={showCharacterAppearancePanel}
+            onToggle={() => setShowCharacterAppearancePanel(!showCharacterAppearancePanel)}
+          />
+        </div>
+      )}
 
       {/* V17: 干预审核面板 */}
       {currentIntervention && executionStatus === 'waiting_approval' && (
