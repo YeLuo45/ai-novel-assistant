@@ -84,8 +84,6 @@ const MODEL_TO_PROVIDER: Record<string, string> = {
   'claude-opus-4-20250514': 'anthropic',
   'claude-3-5-sonnet-latest': 'anthropic',
   'claude-3-opus': 'anthropic',
-  'abab5.5-chat': 'minimax',
-  'abab5.5s-chat': 'minimax',
   'deepseek-chat': 'deepseek',
   'deepseek-coder': 'deepseek',
   'Qwen/Qwen2.5-7B-Instruct': 'siliconflow',
