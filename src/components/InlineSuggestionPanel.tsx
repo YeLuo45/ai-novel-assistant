@@ -62,7 +62,7 @@ export default function InlineSuggestionPanel({
     let accumulated = ''
 
     try {
-      const unsubscribe = streamWritingAssist({
+      const unsubscribe = await streamWritingAssist({
         type,
         selectedText: originalText,
         contextBefore,

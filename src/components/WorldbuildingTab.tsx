@@ -131,7 +131,7 @@ ${formatOutlineSummary()}
     let accumulated = ''
 
     try {
-      const observable = streamLLM({
+      const observable = await streamLLM({
         model: selectedModel,
         messages: [
           { role: 'system', content: buildSystemPrompt() },

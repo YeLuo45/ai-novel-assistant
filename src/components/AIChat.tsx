@@ -133,7 +133,7 @@ export default function AIChat({ agentConfigs: _agentConfigs, projectId }: Props
       let accumulated = ''
 
       // 使用流式 API
-      const observable = streamLLM({
+      const observable = await streamLLM({
         model: selectedModel,
         messages: contextualMessages,
         temperature: 0.7

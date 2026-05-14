@@ -57,7 +57,7 @@ export default function AIAssistBar({ selectedText, content, onApply }: Props) {
     
     try {
       // 使用流式 API，边收边显示
-      const observable = streamLLM({
+      const observable = await streamLLM({
         model: selectedModel,
         messages: [
           { role: 'system', content: '你是一位专业的小说创作助手，擅长写作润色、语法纠错、情节扩写缩写等工作。' },

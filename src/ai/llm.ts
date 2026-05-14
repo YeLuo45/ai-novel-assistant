@@ -12,9 +12,20 @@ import type {
 } from './types'
 import { Observable as ObservableClass } from './types'
 import { getModel, getProvider } from './providers'
+import type { ProviderConfig } from './types'
 import { withRetry } from './retry'
 import { adaptThinking } from './thinking'
 import { OpenAIStreamParser, AnthropicStreamParser } from './parsers'
+import { db } from '../db'
+
+// 动态加载 provider apiKey（从 Dexie DB）
+async function enrichProviderWithApiKey(provider: ProviderConfig): Promise<ProviderConfig> {
+  const keyRecord = await db.apiKeys.where('provider').equals(provider.name.toLowerCase()).first()
+  if (keyRecord?.key) {
+    return { ...provider, apiKey: keyRecord.key }
+  }
+  return provider
+}
 
 // ============ 统一调用入口 ============
 
@@ -53,6 +64,9 @@ export async function callLLM(
     throw new Error(`Unknown model: ${params.model}`)
   }
 
+  // 从 Dexie DB 加载 API key（修复：Settings 保存的 key 从未被 LLM 调用层使用）
+  provider = await enrichProviderWithApiKey(provider)
+
   const normalizedThinking = normalizeThinkingConfigForModel(params.model, params.thinkingConfig)
 
   return withRetry(async () => {
@@ -70,10 +84,10 @@ export async function callLLM(
  * 调用 LLM（流式）
  * 返回 Observable，可订阅 text/action/error 事件
  */
-export function streamLLM(
+export async function streamLLM(
   params: LLMCallOptions,
   _source: string
-): Observable<LLMEvent> {
+): Promise<Observable<LLMEvent>> {
   const observable = new ObservableClass<LLMEvent>()
   let model = getModel(params.model)
   let provider = model ? getProvider(model.provider) : undefined
@@ -103,6 +117,9 @@ export function streamLLM(
     observable.unsubscribe()
     return observable
   }
+
+  // 从 Dexie DB 加载 API key（修复：Settings 保存的 key 从未被 LLM 调用层使用）
+  provider = await enrichProviderWithApiKey(provider)
 
   const normalizedThinking = normalizeThinkingConfigForModel(params.model, params.thinkingConfig)
 

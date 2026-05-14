@@ -226,14 +226,14 @@ export async function performWritingAssist(
 /**
  * 执行写作建议（流式）
  */
-export function streamWritingAssist(
+export async function streamWritingAssist(
   options: WritingAssistOptions,
   onEvent: (event: LLMEvent) => void
-): () => void {
+): Promise<() => void> {
   const { type, model = 'gpt-4o-mini' } = options
   const prompt = buildPrompt(options)
 
-  const observable = streamLLM({
+  const observable = await streamLLM({
     model,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
