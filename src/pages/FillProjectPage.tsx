@@ -8,6 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { db, Project, TimelineEvent, Storyline, OutlineNode, Character } from '../db'
 import { useStore } from '../store'
 import { generateWorldbuilding } from '../ai/fill'
+import { callLLM } from '../ai/llm'
 import Timeline from '../components/Timeline'
 import RelationshipGraph from '../components/RelationshipGraph'
 
@@ -131,14 +132,64 @@ export default function FillProjectPage() {
 
     setNewStorylineName('')
     loadStorylines(projectId)
-
-    // Auto-advance to relationship after adding storyline
-    setActiveTab('relationship')
   }
 
   // Delete storyline
   const handleDeleteStoryline = async (id: number) => {
     await deleteStoryline(id)
+  }
+
+  // AI generate storyline
+  const [isGeneratingStoryline, setIsGeneratingStoryline] = useState(false)
+  const handleAIGenerateStoryline = async () => {
+    if (!project || !projectId) return
+    setIsGeneratingStoryline(true)
+    try {
+      const outlineSummary = outlineNodes.filter(n => n.type === 'chapter').slice(0, 5).map(n => n.title).join('、')
+      const response = await callLLM({
+        model: 'MiniMax-M2.7',
+        messages: [
+          { role: 'system', content: '你是一个专业的小说策划专家，擅长设计精彩的故事线。' },
+          { role: 'user', content: `为小说《${project.title}》（题材：${project.genre || '未知'}）设计3条精彩支线故事线。
+
+要求：
+- 每条支线有明确的主题和目标
+- 支线与主线有交叉点或相互影响
+- 支线之间尽量不重复
+
+请以JSON格式返回：
+{
+  "storylines": [
+    { "name": "支线名称", "description": "一句话简介" },
+    ...
+  ]
+}` }
+        ],
+        temperature: 0.8,
+        maxTokens: 1000
+      }, 'storyline_generator')
+
+      let parsed: { storylines: { name: string; description: string }[] } = { storylines: [] }
+      try {
+        const match = response.match(/\{[\s\S]*\}/)
+        if (match) parsed = JSON.parse(match[0])
+      } catch { /* ignore */ }
+
+      const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899']
+      for (let i = 0; i < parsed.storylines.length; i++) {
+        const s = parsed.storylines[i]
+        await createStoryline({
+          projectId,
+          name: s.name,
+          color: colors[(storylines.length + i) % colors.length]
+        })
+      }
+      loadStorylines(projectId)
+    } catch (error) {
+      console.error('AI生成支线失败:', error)
+    } finally {
+      setIsGeneratingStoryline(false)
+    }
   }
 
   // Get chapters for storyline
@@ -247,7 +298,8 @@ export default function FillProjectPage() {
 - 社会结构：社会是如何组织的？
 - 世界规则：有什么特殊的规则或设定？
 - 故事氛围：整体是什么风格？"
-                  className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 text-gray-700 leading-relaxed"
+                  className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 leading-relaxed"
+                  style={{ color: 'inherit' }}
                 />
                 <div className="flex justify-between items-center">
                   <p className="text-xs text-gray-400">
@@ -272,6 +324,13 @@ export default function FillProjectPage() {
                     <p className="text-sm text-gray-500">主线和支线故事的规划</p>
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={handleAIGenerateStoryline}
+                      disabled={isGeneratingStoryline}
+                      className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm disabled:opacity-50"
+                    >
+                      {isGeneratingStoryline ? '🤖 生成中...' : '🤖 AI生成支线'}
+                    </button>
                     <input
                       type="text"
                       value={newStorylineName}
@@ -296,7 +355,7 @@ export default function FillProjectPage() {
                     <span className="font-bold text-gray-800">主线剧情</span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    主线故事从版本大纲自动提取，贯穿整个故事的核心冲突与发展
+                    {project?.worldbuilding ? project.worldbuilding.slice(0, 100) + '...' : '从版本大纲提取的核心剧情脉络，展示故事的主要冲突与发展方向'}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {outlineNodes.filter(n => n.type === 'chapter').slice(0, 5).map(node => (
