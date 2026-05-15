@@ -50,6 +50,7 @@ export interface MaterialCard {
   name: string
   avatar?: string  // 角色头像URL (V29)
   fields: Record<string, string>
+  tags: string[]   // V30: 素材标签ID数组
   createdAt: Date
   updatedAt: Date
 }
@@ -562,4 +563,136 @@ export async function exportMaterials(options?: {
     exportedAt: new Date().toISOString(),
     materials
   }
+}
+
+// V30: 导入数据结构
+export interface MaterialImport {
+  version: 1
+  importedAt: string
+  materials: Array<{
+    type: 'character' | 'location' | 'item'
+    name: string
+    avatar?: string
+    fields: Record<string, string>
+    tags: string[]
+  }>
+}
+
+// V30: 导入策略
+export type ImportStrategy = 'full_replace' | 'update_by_id'
+
+// V30: 导入结果
+export interface ImportResult {
+  imported: number
+  skipped: number
+  updated: number
+  errors: string[]
+}
+
+// V30: 导入素材
+export async function importMaterials(
+  data: MaterialImport,
+  projectId: number,
+  strategy: ImportStrategy = 'update_by_id'
+): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, updated: 0, errors: [] }
+
+  if (strategy === 'full_replace') {
+    // 全量覆盖：先删除该项目所有素材，再批量导入
+    await db.materialCards.where('projectId').equals(projectId).delete()
+    for (const mat of data.materials) {
+      const now = new Date()
+      await db.materialCards.add({
+        projectId,
+        type: mat.type,
+        name: mat.name,
+        avatar: mat.avatar,
+        fields: mat.fields,
+        tags: mat.tags || [],
+        createdAt: now,
+        updatedAt: now
+      })
+      result.imported++
+    }
+  } else {
+    // 按ID更新：检查name是否存在，存在则更新，不存在则创建
+    for (const mat of data.materials) {
+      try {
+        const existing = await db.materialCards
+          .where(['projectId', 'name'] as any)
+          .equals([projectId, mat.name])
+          .first()
+
+        if (existing?.id) {
+          // 更新
+          await db.materialCards.update(existing.id, {
+            type: mat.type,
+            avatar: mat.avatar,
+            fields: mat.fields,
+            tags: mat.tags || [],
+            updatedAt: new Date()
+          })
+          result.updated++
+        } else {
+          // 新建
+          const now = new Date()
+          await db.materialCards.add({
+            projectId,
+            type: mat.type,
+            name: mat.name,
+            avatar: mat.avatar,
+            fields: mat.fields,
+            tags: mat.tags || [],
+            createdAt: now,
+            updatedAt: now
+          })
+          result.imported++
+        }
+      } catch (err) {
+        result.errors.push(`导入 "${mat.name}" 失败: ${err}`)
+      }
+    }
+  }
+
+  return result
+}
+
+// V30: 从CSV行解析素材
+export function parseMaterialFromCSV(
+  row: Record<string, string>,
+  columnMapping: Record<string, string>
+): { type: 'character' | 'location' | 'item'; name: string; fields: Record<string, string>; tags: string[] } | null {
+  const typeCol = columnMapping['type']
+  const nameCol = columnMapping['name']
+
+  if (!typeCol || !nameCol || !row[typeCol] || !row[nameCol]) {
+    return null
+  }
+
+  const type = row[typeCol] as 'character' | 'location' | 'item'
+  if (!['character', 'location', 'item'].includes(type)) {
+    return null
+  }
+
+  const name = row[nameCol].trim()
+  if (!name) return null
+
+  // 收集其他列为fields
+  const fields: Record<string, string> = {}
+  const tags: string[] = []
+
+  for (const [csvCol, dbCol] of Object.entries(columnMapping)) {
+    if (csvCol === 'type' || csvCol === 'name' || csvCol === 'tags') continue
+    if (row[csvCol]) {
+      fields[dbCol] = row[csvCol].trim()
+    }
+  }
+
+  // 处理标签列
+  const tagsCol = columnMapping['tags']
+  if (tagsCol && row[tagsCol]) {
+    tags.push(...row[tagsCol].split(/[,;]/).map(t => t.trim()).filter(Boolean))
+  }
+
+  return { type, name, fields, tags }
 }

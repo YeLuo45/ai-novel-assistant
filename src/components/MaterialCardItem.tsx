@@ -1,4 +1,5 @@
-import { MaterialCard } from '../db'
+import { useState, useEffect } from 'react'
+import { MaterialCard, db, MaterialTag } from '../db'
 
 interface MaterialCardItemProps {
   card: MaterialCard
@@ -12,7 +13,30 @@ const typeLabels = {
   item: '物品'
 }
 
+const MAX_VISIBLE_TAGS = 3
+
 export function MaterialCardItem({ card, onEdit, onDelete }: MaterialCardItemProps) {
+  const [tags, setTags] = useState<MaterialTag[]>([])
+
+  useEffect(() => {
+    loadTags()
+  }, [])
+
+  const loadTags = async () => {
+    if (!card.tags || card.tags.length === 0) return
+    const tagIds = card.tags.map(t => parseInt(t)).filter(id => !isNaN(id))
+    if (tagIds.length === 0) return
+    const loadedTags: MaterialTag[] = []
+    for (const id of tagIds) {
+      const tag = await db.materialTags.get(id)
+      if (tag) loadedTags.push(tag)
+    }
+    setTags(loadedTags)
+  }
+
+  const visibleTags = tags.slice(0, MAX_VISIBLE_TAGS)
+  const overflowCount = tags.length - MAX_VISIBLE_TAGS
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
@@ -49,6 +73,25 @@ export function MaterialCardItem({ card, onEdit, onDelete }: MaterialCardItemPro
               </p>
             ))}
           </div>
+          {/* 标签展示 (V30) */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {visibleTags.map(tag => (
+                <span
+                  key={tag.id}
+                  className="px-1.5 py-0.5 rounded text-xs"
+                  style={{ backgroundColor: tag.color + '20', color: tag.color }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {overflowCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">
+                  +{overflowCount}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-1 ml-2">
           <button
