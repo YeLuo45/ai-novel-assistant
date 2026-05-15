@@ -12,7 +12,7 @@ function App() {
     <BrowserRouter basename="/ai-novel-assistant">
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/projects" replace />} />
+          <Route index element={<Navigate to="projects" replace />} />
           <Route path="projects" element={<ProjectList />} />
           <Route path="projects/:id" element={<ProjectEditor />} />
           <Route path="projects/:id/stats" element={<StatsPage />} />
