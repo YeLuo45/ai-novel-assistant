@@ -19,7 +19,7 @@ export default function FillProjectPage() {
   const navigate = useNavigate()
   const projectId = useMemo(() => id ? parseInt(id) : null, [id])
 
-  const { currentProject, updateProject, storylines, loadStorylines, createStoryline, deleteStoryline, outlineNodes } = useStore()
+  const { currentProject, updateProject, storylines, loadStorylines, createStoryline, updateStoryline, deleteStoryline, outlineNodes } = useStore()
 
   const [activeTab, setActiveTab] = useState<TabType>('worldbuilding')
   const [project, setProject] = useState<Project | null>(null)
@@ -31,6 +31,8 @@ export default function FillProjectPage() {
 
   // Storyline editing state
   const [editingStoryline, setEditingStoryline] = useState<number | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [editingDesc, setEditingDesc] = useState('')
   const [newStorylineName, setNewStorylineName] = useState('')
 
   // Relationship characters state (loaded from materialCards)
@@ -137,6 +139,29 @@ export default function FillProjectPage() {
   // Delete storyline
   const handleDeleteStoryline = async (id: number) => {
     await deleteStoryline(id)
+  }
+
+  // Start editing storyline
+  const handleStartEdit = (storyline: Storyline) => {
+    if (!storyline.id) return
+    setEditingStoryline(storyline.id)
+    setEditingName(storyline.name)
+    setEditingDesc(storyline.description || '')
+  }
+
+  // Save storyline edit
+  const handleSaveEdit = async () => {
+    if (!editingStoryline || !editingName.trim()) return
+    await updateStoryline(editingStoryline, {
+      name: editingName.trim(),
+      description: editingDesc.trim()
+    })
+    setEditingStoryline(null)
+  }
+
+  // Cancel storyline edit
+  const handleCancelEdit = () => {
+    setEditingStoryline(null)
   }
 
   // AI generate storyline
@@ -390,21 +415,68 @@ export default function FillProjectPage() {
                           </span>
                           <span className="font-medium text-gray-800">{storyline.name}</span>
                         </div>
-                        <button
-                          onClick={() => storyline.id && handleDeleteStoryline(storyline.id)}
-                          className="text-gray-400 hover:text-red-500 text-sm"
-                        >
-                          🗑️
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {editingStoryline === storyline.id ? (
+                            <>
+                              <button
+                                onClick={handleSaveEdit}
+                                className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                              >
+                                保存
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
+                              >
+                                取消
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleStartEdit(storyline)}
+                                className="text-gray-400 hover:text-indigo-500 text-sm"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => storyline.id && handleDeleteStoryline(storyline.id)}
+                                className="text-gray-400 hover:text-red-500 text-sm"
+                              >
+                                🗑️
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {storyline.description && (
-                          <p className="text-sm text-gray-500 mt-1">{storyline.description}</p>
-                        )}
-                        {!storyline.description && (
-                          <p className="text-xs text-gray-400 mt-1">点击编辑添加简介</p>
-                        )}
-                      </div>
+                      {editingStoryline === storyline.id ? (
+                        <div className="mt-3 space-y-2">
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            placeholder="支线名称"
+                            autoFocus
+                          />
+                          <textarea
+                            value={editingDesc}
+                            onChange={e => setEditingDesc(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                            placeholder="简介描述（选填）"
+                            rows={2}
+                          />
+                        </div>
+                      ) : (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {storyline.description && (
+                            <p className="text-sm text-gray-500 mt-1">{storyline.description}</p>
+                          )}
+                          {!storyline.description && (
+                            <p className="text-xs text-gray-400 mt-1">点击编辑添加简介</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {storylines.length === 0 && (
