@@ -73,9 +73,9 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
       onClose()
       setShowCopyFrom(false)
 
-      // Navigate to project editor (stay in project, not version generator)
+      // Navigate to version generator page
       if (project.id) {
-        navigate(`/projects/${project.id}`)
+        navigate(`/projects/${project.id}/version-generator`)
       }
     } finally {
       setIsSubmitting(false)
