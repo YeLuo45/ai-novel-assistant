@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store'
 import { db } from '../db'
 import OutlineTree from '../components/OutlineTree'
@@ -13,11 +13,12 @@ import CharacterRelationshipList from '../components/CharacterRelationshipList'
 import TimelineView from '../components/TimelineView'
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd'
 
-type Tab = 'outline' | 'chat' | 'storyline' | 'worldbuilding' | 'relationships' | 'timeline'
+type Tab = 'outline' | 'storyline' | 'worldbuilding' | 'relationships' | 'timeline'
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { 
     currentProject, setCurrentProject, 
     outlineNodes, loadOutline,
@@ -28,7 +29,13 @@ export default function ProjectEditor() {
     chapterStorylineLinks, loadChapterStorylineLinks, addChapterStorylineLink, removeChapterStorylineLink,
     totalWordGoal, dailyGoal, todayWordCount, updateDailyWordCount
   } = useStore()
-  const [activeTab, setActiveTab] = useState<Tab>('outline')
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['storyline', 'worldbuilding', 'relationships', 'timeline'].includes(tab)) {
+      return tab as Tab
+    }
+    return 'outline'
+  })
   const [showNodeModal, setShowNodeModal] = useState(false)
   const [editingNode, setEditingNode] = useState<number | null>(null)
   const [showMaterialPanel, setShowMaterialPanel] = useState(false)
@@ -228,14 +235,12 @@ export default function ProjectEditor() {
   // Mobile tabs - fewer tabs on mobile
   const mobileTabs: { key: Tab; icon: string; label: string }[] = [
     { key: 'outline', icon: '📋', label: '大纲' },
-    { key: 'chat', icon: '💬', label: 'AI' },
     { key: 'worldbuilding', icon: '🌍', label: '世界' },
     { key: 'timeline', icon: '📅', label: '时间' },
   ]
 
   const desktopTabs: { key: Tab; icon: string; label: string }[] = [
     { key: 'outline', icon: '📋', label: '大纲' },
-    { key: 'chat', icon: '💬', label: 'AI对话' },
     { key: 'storyline', icon: '📖', label: '故事线' },
     { key: 'worldbuilding', icon: '🌍', label: '世界观' },
     { key: 'relationships', icon: '👥', label: '关系图' },
@@ -397,12 +402,6 @@ export default function ProjectEditor() {
             >
               + 添加卷
             </button>
-          </div>
-        )}
-
-        {activeTab === 'chat' && (
-          <div className="flex-1 overflow-hidden">
-            <AIChat agentConfigs={agentConfigs} projectId={currentProject.id} />
           </div>
         )}
 

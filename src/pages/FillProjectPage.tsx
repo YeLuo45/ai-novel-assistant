@@ -172,7 +172,7 @@ export default function FillProjectPage() {
               </h1>
             </div>
             <button
-              onClick={() => navigate(`/projects/${projectId}`)}
+              onClick={() => navigate(`/projects/${projectId}?tab=worldbuilding`)}
               className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
             >
               完成填充 →
