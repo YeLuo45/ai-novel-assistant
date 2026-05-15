@@ -127,11 +127,11 @@ export default function FillProjectPage() {
     await createStoryline({
       projectId,
       name: newStorylineName.trim(),
+      description: '',
       color
     })
 
     setNewStorylineName('')
-    loadStorylines(projectId)
   }
 
   // Delete storyline
@@ -160,7 +160,7 @@ export default function FillProjectPage() {
 请以JSON格式返回：
 {
   "storylines": [
-    { "name": "支线名称", "description": "一句话简介" },
+    { "name": "支线名称", "description": "20字左右的一句话简介" },
     ...
   ]
 }` }
@@ -181,6 +181,7 @@ export default function FillProjectPage() {
         await createStoryline({
           projectId,
           name: s.name,
+          description: s.description,
           color: colors[(storylines.length + i) % colors.length]
         })
       }
@@ -337,7 +338,7 @@ export default function FillProjectPage() {
                       onChange={(e) => setNewStorylineName(e.target.value)}
                       placeholder="新支线名称..."
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddStoryline()}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddStoryline() }}
                     />
                     <button
                       onClick={handleAddStoryline}
@@ -397,13 +398,11 @@ export default function FillProjectPage() {
                         </button>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {getChapterTitles(storyline.id!).map((title, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
-                            {title}
-                          </span>
-                        ))}
-                        {getChapterTitles(storyline.id!).length === 0 && (
-                          <span className="text-xs text-gray-400">暂无关联章节</span>
+                        {storyline.description && (
+                          <p className="text-sm text-gray-500 mt-1">{storyline.description}</p>
+                        )}
+                        {!storyline.description && (
+                          <p className="text-xs text-gray-400 mt-1">点击编辑添加简介</p>
                         )}
                       </div>
                     </div>

@@ -84,6 +84,7 @@ export interface Storyline {
   id?: number
   projectId: number
   name: string
+  description?: string
   color: string
 }
 
