@@ -1,6 +1,7 @@
 /**
- * CreateProjectModal - V23 Extended Version
- * 新建项目弹窗，包含扩展字段：书名/题材、主角名、背景/朝代、核心卖点、其他要求
+ * CreateProjectModal - V24 Extended Version
+ * 新建项目弹窗，包含扩展字段：书名/题材、题材类型、主角名、背景/朝代、核心卖点、其他要求
+ * V24: 支持从已有项目复制填写信息
  */
 
 import { useState } from 'react'
@@ -14,7 +15,7 @@ interface Props {
 
 export default function CreateProjectModal({ isOpen, onClose }: Props) {
   const navigate = useNavigate()
-  const { createProject } = useStore()
+  const { createProject, projects } = useStore()
   
   const [formData, setFormData] = useState({
     title: '',           // 书名/题材（必填）
@@ -26,6 +27,7 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
   })
   
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showCopyFrom, setShowCopyFrom] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,10 +71,11 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
       })
       
       onClose()
+      setShowCopyFrom(false)
 
-      // Navigate to version generator page
+      // Navigate to project editor (stay in project, not version generator)
       if (project.id) {
-        navigate(`/projects/${project.id}/version-generator`)
+        navigate(`/projects/${project.id}`)
       }
     } finally {
       setIsSubmitting(false)
@@ -83,12 +86,64 @@ export default function CreateProjectModal({ isOpen, onClose }: Props) {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleCopyFrom = (srcProject: typeof projects[0]) => {
+    setFormData({
+      title: srcProject.title + '（副本）',
+      genre: srcProject.genre || '',
+      protagonistName: srcProject.protagonistName || '',
+      background: srcProject.background || '',
+      coreSellingPoint: srcProject.coreSellingPoint || '',
+      otherRequirements: srcProject.otherRequirements || ''
+    })
+    setShowCopyFrom(false)
+  }
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold mb-4">新建项目</h3>
+        
+        {projects.length > 0 && (
+          <div className="mb-4">
+            {showCopyFrom ? (
+              <div className="border border-indigo-200 rounded-lg p-3 bg-indigo-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-indigo-700 font-medium">从已有项目复制</span>
+                  <button
+                    onClick={() => setShowCopyFrom(false)}
+                    className="text-xs text-indigo-500 hover:text-indigo-700"
+                  >
+                    收起
+                  </button>
+                </div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {projects.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => p.id && handleCopyFrom(p)}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-indigo-100 transition-colors"
+                    >
+                      <span className="font-medium text-gray-800">{p.title}</span>
+                      <span className="ml-2 text-xs text-gray-500">{p.genre || '未分类'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowCopyFrom(true)}
+                className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                从已有项目复制填写信息
+              </button>
+            )}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* 书名/题材（必填） */}
