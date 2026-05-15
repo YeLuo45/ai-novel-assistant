@@ -16,6 +16,21 @@ export function MaterialCardItem({ card, onEdit, onDelete }: MaterialCardItemPro
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
+        {/* 角色头像 (V29) */}
+        {card.type === 'character' && card.avatar && (
+          <img
+            src={card.avatar}
+            alt={card.name}
+            className="w-12 h-12 rounded-full border-2 border-gray-200 object-cover mr-3 flex-shrink-0"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        )}
+        {/* 默认角色头像 */}
+        {card.type === 'character' && !card.avatar && (
+          <div className="w-12 h-12 rounded-full border-2 border-gray-200 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mr-3 flex-shrink-0 text-xl">
+            {card.name.charAt(0)}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
