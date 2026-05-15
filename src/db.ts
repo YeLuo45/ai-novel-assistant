@@ -48,6 +48,7 @@ export interface MaterialCard {
   projectId: number
   type: 'character' | 'location' | 'item'
   name: string
+  avatar?: string  // 角色头像URL (V29)
   fields: Record<string, string>
   createdAt: Date
   updatedAt: Date
