@@ -1,11 +1,11 @@
 /**
- * FillProjectPage.tsx - V24
+ * FillProjectPage.tsx - V25
  * 细化填充页面：世界观 | 故事线 | 关系图 | 时间线
  */
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db, Project, TimelineEvent, Storyline, OutlineNode } from '../db'
+import { db, Project, TimelineEvent, Storyline, OutlineNode, Character } from '../db'
 import { useStore } from '../store'
 import { generateWorldbuilding } from '../ai/fill'
 import Timeline from '../components/Timeline'
@@ -17,20 +17,23 @@ export default function FillProjectPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const projectId = useMemo(() => id ? parseInt(id) : null, [id])
-  
+
   const { currentProject, updateProject, storylines, loadStorylines, createStoryline, deleteStoryline, outlineNodes } = useStore()
-  
+
   const [activeTab, setActiveTab] = useState<TabType>('worldbuilding')
   const [project, setProject] = useState<Project | null>(null)
   const [worldbuilding, setWorldbuilding] = useState('')
   const [isGeneratingWB, setIsGeneratingWB] = useState(false)
-  
+
   // Timeline state
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
-  
+
   // Storyline editing state
   const [editingStoryline, setEditingStoryline] = useState<number | null>(null)
   const [newStorylineName, setNewStorylineName] = useState('')
+
+  // Relationship characters state (loaded from materialCards)
+  const [relationshipCharacters, setRelationshipCharacters] = useState<Character[]>([])
 
   // Load project data
   useEffect(() => {
@@ -38,43 +41,37 @@ export default function FillProjectPage() {
       navigate('/projects')
       return
     }
-    
+
     const loadData = async () => {
       const proj = await db.projects.get(projectId)
       if (!proj) {
         navigate('/projects')
         return
       }
-      
+
       setProject(proj)
       setWorldbuilding(proj.worldbuilding || '')
-      
+
       // Load storylines
       loadStorylines(projectId)
-      
-      // Load outline nodes (chapters)
-      const nodes = await db.outlineNodes.where('projectId').equals(projectId).sortBy('order')
-      // outlineNodes are already loaded via store
+
+      // Load characters for relationship graph
+      const cards = await db.materialCards
+        .where('projectId').equals(projectId)
+        .and((c: any) => c.type === 'character')
+        .toArray()
+      const chars: Character[] = cards.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        role: c.fields.role || 'supporting',
+        personalityTraits: c.fields.personality ? c.fields.personality.split('、') : [],
+        goal: c.fields.goal || '',
+        relationships: c.fields.relationships ? [c.fields.relationships] : []
+      }))
+      setRelationshipCharacters(chars)
     }
-    
+
     loadData()
-  }, [projectId])
-
-  // Get characters from material cards
-  const characters = useMemo(() => {
-    return outlineNodes
-      .filter(n => n.type === 'chapter')
-      .map(() => null) // Placeholder - we need to get characters from material cards
-  }, [])
-
-  // Get selected version characters
-  const versionCharacters = useMemo(async () => {
-    if (!projectId) return []
-    const version = await db.projectVersions
-      .where('projectId').equals(projectId)
-      .and(v => v.isSelected)
-      .first()
-    return version?.characters || []
   }, [projectId])
 
   // Tab configuration
@@ -96,10 +93,15 @@ export default function FillProjectPage() {
   // Handle AI generate worldbuilding
   const handleAIGenerateWorldbuilding = async () => {
     if (!project) return
-    
+
     setIsGeneratingWB(true)
     try {
-      const chars = await versionCharacters
+      // Load version characters
+      const version = await db.projectVersions
+        .where('projectId').equals(projectId!)
+        .and((v: any) => v.isSelected)
+        .first()
+      const chars = version?.characters || []
       const generated = await generateWorldbuilding(project, chars)
       setWorldbuilding(generated)
       if (projectId) {
@@ -109,24 +111,29 @@ export default function FillProjectPage() {
       console.error('AI生成世界观失败:', error)
     } finally {
       setIsGeneratingWB(false)
+      // Auto-advance to storyline after generation
+      setActiveTab('storyline')
     }
   }
 
   // Add storyline
   const handleAddStoryline = async () => {
     if (!projectId || !newStorylineName.trim()) return
-    
+
     const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899']
     const color = colors[storylines.length % colors.length]
-    
+
     await createStoryline({
       projectId,
       name: newStorylineName.trim(),
       color
     })
-    
+
     setNewStorylineName('')
     loadStorylines(projectId)
+
+    // Auto-advance to relationship after adding storyline
+    setActiveTab('relationship')
   }
 
   // Delete storyline
@@ -136,11 +143,20 @@ export default function FillProjectPage() {
 
   // Get chapters for storyline
   const getChapterTitles = (storylineId: number) => {
-    const links = useStore.getState().chapterStorylineLinks.filter(l => l.storylineId === storylineId)
-    return links.map(link => {
+    const links = useStore.getState().chapterStorylineLinks.filter((l: any) => l.storylineId === storylineId)
+    return links.map((link: any) => {
       const node = outlineNodes.find(n => n.id === link.chapterId)
       return node?.title || ''
     }).filter(Boolean)
+  }
+
+  // Go to next tab (for relationship tab "next" button)
+  const goToNextTab = () => {
+    const tabOrder: TabType[] = ['worldbuilding', 'storyline', 'relationship', 'timeline']
+    const currentIndex = tabOrder.indexOf(activeTab)
+    if (currentIndex < tabOrder.length - 1) {
+      setActiveTab(tabOrder[currentIndex + 1])
+    }
   }
 
   if (!project) {
@@ -233,9 +249,17 @@ export default function FillProjectPage() {
 - 故事氛围：整体是什么风格？"
                   className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 text-gray-700 leading-relaxed"
                 />
-                <p className="text-xs text-gray-400 text-right">
-                  自动保存中...（输入后自动保存）
-                </p>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-gray-400">
+                    自动保存中...（输入后自动保存）
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('storyline')}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                  >
+                    下一步 →
+                  </button>
+                </div>
               </div>
             )}
 
@@ -333,6 +357,15 @@ export default function FillProjectPage() {
                     </div>
                   )}
                 </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setActiveTab('relationship')}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                  >
+                    下一步 →
+                  </button>
+                </div>
               </div>
             )}
 
@@ -344,18 +377,26 @@ export default function FillProjectPage() {
                     <h2 className="text-lg font-bold text-gray-800">👥 角色关系图</h2>
                     <p className="text-sm text-gray-500">展示角色之间的关系网络</p>
                   </div>
+                  <button
+                    onClick={goToNextTab}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                  >
+                    下一步 →
+                  </button>
                 </div>
-                
-                {/* Get characters from version */}
-                {(() => {
-                  const chars = versionCharacters
-                  return (
-                    <RelationshipGraph 
-                      characters={chars} 
-                      compact={false}
-                    />
-                  )
-                })()}
+
+                {relationshipCharacters.length > 0 ? (
+                  <RelationshipGraph
+                    characters={relationshipCharacters}
+                    compact={false}
+                  />
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    <div className="text-4xl mb-2">👥</div>
+                    <p>暂无角色数据</p>
+                    <p className="text-sm">请先在版本生成中选择一个版本</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -366,7 +407,7 @@ export default function FillProjectPage() {
                   <h2 className="text-lg font-bold text-gray-800">📅 时间线</h2>
                   <p className="text-sm text-gray-500">故事重大事件的时间顺序，可拖拽排序</p>
                 </div>
-                
+
                 <Timeline
                   projectId={projectId!}
                   events={timelineEvents}

@@ -30,9 +30,16 @@ const versionLabels = {
 
 export default function VersionSelector({ versions, onSelect, projectTitle }: Props) {
   const [expandedVersion, setExpandedVersion] = useState<number | null>(null)
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null)
 
   const handleToggleExpand = (index: number) => {
     setExpandedVersion(expandedVersion === index ? null : index)
+  }
+
+  const handleSelect = (version: GeneratedVersion) => {
+    if (selectedVersion !== null) return
+    setSelectedVersion(version.versionIndex)
+    onSelect(version)
   }
 
   return (
@@ -166,12 +173,13 @@ export default function VersionSelector({ versions, onSelect, projectTitle }: Pr
                     {isExpanded ? '收起详情' : '查看详情'}
                   </button>
                   <button
-                    onClick={() => onSelect(version)}
+                    onClick={() => handleSelect(version)}
+                    disabled={selectedVersion !== null}
                     className={`flex-1 px-4 py-2 rounded-lg font-medium text-white transition-all ${
                       `bg-gradient-to-r ${label.color} hover:opacity-90`
-                    } shadow-md hover:shadow-lg`}
+                    } shadow-md hover:shadow-lg ${selectedVersion !== null ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
-                    使用此版本
+                    {selectedVersion === version.versionIndex ? '跳转中...' : selectedVersion !== null ? '已选择' : '使用此版本'}
                   </button>
                 </div>
               </div>
