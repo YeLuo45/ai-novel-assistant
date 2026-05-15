@@ -1,14 +1,13 @@
 /**
- * FillProjectPage.tsx - V25
+ * FillProjectPage.tsx - V24
  * 细化填充页面：世界观 | 故事线 | 关系图 | 时间线
  */
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db, Project, TimelineEvent, Storyline, OutlineNode, Character } from '../db'
+import { db, Project, TimelineEvent, Storyline, OutlineNode } from '../db'
 import { useStore } from '../store'
 import { generateWorldbuilding } from '../ai/fill'
-import { callLLM } from '../ai/llm'
 import Timeline from '../components/Timeline'
 import RelationshipGraph from '../components/RelationshipGraph'
 
@@ -18,23 +17,20 @@ export default function FillProjectPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const projectId = useMemo(() => id ? parseInt(id) : null, [id])
-
+  
   const { currentProject, updateProject, storylines, loadStorylines, createStoryline, deleteStoryline, outlineNodes } = useStore()
-
+  
   const [activeTab, setActiveTab] = useState<TabType>('worldbuilding')
   const [project, setProject] = useState<Project | null>(null)
   const [worldbuilding, setWorldbuilding] = useState('')
   const [isGeneratingWB, setIsGeneratingWB] = useState(false)
-
+  
   // Timeline state
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
-
+  
   // Storyline editing state
   const [editingStoryline, setEditingStoryline] = useState<number | null>(null)
   const [newStorylineName, setNewStorylineName] = useState('')
-
-  // Relationship characters state (loaded from materialCards)
-  const [relationshipCharacters, setRelationshipCharacters] = useState<Character[]>([])
 
   // Load project data
   useEffect(() => {
@@ -42,37 +38,43 @@ export default function FillProjectPage() {
       navigate('/projects')
       return
     }
-
+    
     const loadData = async () => {
       const proj = await db.projects.get(projectId)
       if (!proj) {
         navigate('/projects')
         return
       }
-
+      
       setProject(proj)
       setWorldbuilding(proj.worldbuilding || '')
-
+      
       // Load storylines
       loadStorylines(projectId)
-
-      // Load characters for relationship graph
-      const cards = await db.materialCards
-        .where('projectId').equals(projectId)
-        .and((c: any) => c.type === 'character')
-        .toArray()
-      const chars: Character[] = cards.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        role: c.fields.role || 'supporting',
-        personalityTraits: c.fields.personality ? c.fields.personality.split('、') : [],
-        goal: c.fields.goal || '',
-        relationships: c.fields.relationships ? [c.fields.relationships] : []
-      }))
-      setRelationshipCharacters(chars)
+      
+      // Load outline nodes (chapters)
+      const nodes = await db.outlineNodes.where('projectId').equals(projectId).sortBy('order')
+      // outlineNodes are already loaded via store
     }
-
+    
     loadData()
+  }, [projectId])
+
+  // Get characters from material cards
+  const characters = useMemo(() => {
+    return outlineNodes
+      .filter(n => n.type === 'chapter')
+      .map(() => null) // Placeholder - we need to get characters from material cards
+  }, [])
+
+  // Get selected version characters
+  const versionCharacters = useMemo(async () => {
+    if (!projectId) return []
+    const version = await db.projectVersions
+      .where('projectId').equals(projectId)
+      .and(v => v.isSelected)
+      .first()
+    return version?.characters || []
   }, [projectId])
 
   // Tab configuration
@@ -94,15 +96,10 @@ export default function FillProjectPage() {
   // Handle AI generate worldbuilding
   const handleAIGenerateWorldbuilding = async () => {
     if (!project) return
-
+    
     setIsGeneratingWB(true)
     try {
-      // Load version characters
-      const version = await db.projectVersions
-        .where('projectId').equals(projectId!)
-        .and((v: any) => v.isSelected)
-        .first()
-      const chars = version?.characters || []
+      const chars = await versionCharacters
       const generated = await generateWorldbuilding(project, chars)
       setWorldbuilding(generated)
       if (projectId) {
@@ -112,26 +109,24 @@ export default function FillProjectPage() {
       console.error('AI生成世界观失败:', error)
     } finally {
       setIsGeneratingWB(false)
-      // Auto-advance to storyline after generation
-      setActiveTab('storyline')
     }
   }
 
   // Add storyline
   const handleAddStoryline = async () => {
     if (!projectId || !newStorylineName.trim()) return
-
+    
     const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899']
     const color = colors[storylines.length % colors.length]
-
+    
     await createStoryline({
       projectId,
       name: newStorylineName.trim(),
-      description: '',
       color
     })
-
+    
     setNewStorylineName('')
+    loadStorylines(projectId)
   }
 
   // Delete storyline
@@ -139,76 +134,13 @@ export default function FillProjectPage() {
     await deleteStoryline(id)
   }
 
-  // AI generate storyline
-  const [isGeneratingStoryline, setIsGeneratingStoryline] = useState(false)
-  const handleAIGenerateStoryline = async () => {
-    if (!project || !projectId) return
-    setIsGeneratingStoryline(true)
-    try {
-      const outlineSummary = outlineNodes.filter(n => n.type === 'chapter').slice(0, 5).map(n => n.title).join('、')
-      const response = await callLLM({
-        model: 'MiniMax-M2.7',
-        messages: [
-          { role: 'system', content: '你是一个专业的小说策划专家，擅长设计精彩的故事线。' },
-          { role: 'user', content: `为小说《${project.title}》（题材：${project.genre || '未知'}）设计3条精彩支线故事线。
-
-要求：
-- 每条支线有明确的主题和目标
-- 支线与主线有交叉点或相互影响
-- 支线之间尽量不重复
-
-请以JSON格式返回：
-{
-  "storylines": [
-    { "name": "支线名称", "description": "20字左右的一句话简介" },
-    ...
-  ]
-}` }
-        ],
-        temperature: 0.8,
-        maxTokens: 1000
-      }, 'storyline_generator')
-
-      let parsed: { storylines: { name: string; description: string }[] } = { storylines: [] }
-      try {
-        const match = response.match(/\{[\s\S]*\}/)
-        if (match) parsed = JSON.parse(match[0])
-      } catch { /* ignore */ }
-
-      const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899']
-      for (let i = 0; i < parsed.storylines.length; i++) {
-        const s = parsed.storylines[i]
-        await createStoryline({
-          projectId,
-          name: s.name,
-          description: s.description,
-          color: colors[(storylines.length + i) % colors.length]
-        })
-      }
-      loadStorylines(projectId)
-    } catch (error) {
-      console.error('AI生成支线失败:', error)
-    } finally {
-      setIsGeneratingStoryline(false)
-    }
-  }
-
   // Get chapters for storyline
   const getChapterTitles = (storylineId: number) => {
-    const links = useStore.getState().chapterStorylineLinks.filter((l: any) => l.storylineId === storylineId)
-    return links.map((link: any) => {
+    const links = useStore.getState().chapterStorylineLinks.filter(l => l.storylineId === storylineId)
+    return links.map(link => {
       const node = outlineNodes.find(n => n.id === link.chapterId)
       return node?.title || ''
     }).filter(Boolean)
-  }
-
-  // Go to next tab (for relationship tab "next" button)
-  const goToNextTab = () => {
-    const tabOrder: TabType[] = ['worldbuilding', 'storyline', 'relationship', 'timeline']
-    const currentIndex = tabOrder.indexOf(activeTab)
-    if (currentIndex < tabOrder.length - 1) {
-      setActiveTab(tabOrder[currentIndex + 1])
-    }
   }
 
   if (!project) {
@@ -240,7 +172,7 @@ export default function FillProjectPage() {
               </h1>
             </div>
             <button
-              onClick={() => navigate(`/projects/${projectId}`)}
+              onClick={() => navigate(`/projects/${projectId}?tab=worldbuilding`)}
               className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
             >
               完成填充 →
@@ -299,20 +231,11 @@ export default function FillProjectPage() {
 - 社会结构：社会是如何组织的？
 - 世界规则：有什么特殊的规则或设定？
 - 故事氛围：整体是什么风格？"
-                  className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 leading-relaxed"
-                  style={{ color: 'inherit' }}
+                  className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 text-gray-700 leading-relaxed"
                 />
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-gray-400">
-                    自动保存中...（输入后自动保存）
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('storyline')}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                  >
-                    下一步 →
-                  </button>
-                </div>
+                <p className="text-xs text-gray-400 text-right">
+                  自动保存中...（输入后自动保存）
+                </p>
               </div>
             )}
 
@@ -325,20 +248,13 @@ export default function FillProjectPage() {
                     <p className="text-sm text-gray-500">主线和支线故事的规划</p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={handleAIGenerateStoryline}
-                      disabled={isGeneratingStoryline}
-                      className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm disabled:opacity-50"
-                    >
-                      {isGeneratingStoryline ? '🤖 生成中...' : '🤖 AI生成支线'}
-                    </button>
                     <input
                       type="text"
                       value={newStorylineName}
                       onChange={(e) => setNewStorylineName(e.target.value)}
                       placeholder="新支线名称..."
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300"
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddStoryline() }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddStoryline()}
                     />
                     <button
                       onClick={handleAddStoryline}
@@ -356,7 +272,7 @@ export default function FillProjectPage() {
                     <span className="font-bold text-gray-800">主线剧情</span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    {project?.worldbuilding ? project.worldbuilding.slice(0, 100) + '...' : '从版本大纲提取的核心剧情脉络，展示故事的主要冲突与发展方向'}
+                    主线故事从版本大纲自动提取，贯穿整个故事的核心冲突与发展
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {outlineNodes.filter(n => n.type === 'chapter').slice(0, 5).map(node => (
@@ -398,11 +314,13 @@ export default function FillProjectPage() {
                         </button>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {storyline.description && (
-                          <p className="text-sm text-gray-500 mt-1">{storyline.description}</p>
-                        )}
-                        {!storyline.description && (
-                          <p className="text-xs text-gray-400 mt-1">点击编辑添加简介</p>
+                        {getChapterTitles(storyline.id!).map((title, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
+                            {title}
+                          </span>
+                        ))}
+                        {getChapterTitles(storyline.id!).length === 0 && (
+                          <span className="text-xs text-gray-400">暂无关联章节</span>
                         )}
                       </div>
                     </div>
@@ -415,15 +333,6 @@ export default function FillProjectPage() {
                     </div>
                   )}
                 </div>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setActiveTab('relationship')}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                  >
-                    下一步 →
-                  </button>
-                </div>
               </div>
             )}
 
@@ -435,26 +344,18 @@ export default function FillProjectPage() {
                     <h2 className="text-lg font-bold text-gray-800">👥 角色关系图</h2>
                     <p className="text-sm text-gray-500">展示角色之间的关系网络</p>
                   </div>
-                  <button
-                    onClick={goToNextTab}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                  >
-                    下一步 →
-                  </button>
                 </div>
-
-                {relationshipCharacters.length > 0 ? (
-                  <RelationshipGraph
-                    characters={relationshipCharacters}
-                    compact={false}
-                  />
-                ) : (
-                  <div className="text-center py-12 text-gray-400">
-                    <div className="text-4xl mb-2">👥</div>
-                    <p>暂无角色数据</p>
-                    <p className="text-sm">请先在版本生成中选择一个版本</p>
-                  </div>
-                )}
+                
+                {/* Get characters from version */}
+                {(() => {
+                  const chars = versionCharacters
+                  return (
+                    <RelationshipGraph 
+                      characters={chars} 
+                      compact={false}
+                    />
+                  )
+                })()}
               </div>
             )}
 
@@ -465,7 +366,7 @@ export default function FillProjectPage() {
                   <h2 className="text-lg font-bold text-gray-800">📅 时间线</h2>
                   <p className="text-sm text-gray-500">故事重大事件的时间顺序，可拖拽排序</p>
                 </div>
-
+                
                 <Timeline
                   projectId={projectId!}
                   events={timelineEvents}
