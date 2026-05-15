@@ -54,6 +54,14 @@ export interface MaterialCard {
   updatedAt: Date
 }
 
+// V30: 素材标签表
+export interface MaterialTag {
+  id?: number
+  name: string        // e.g., "主角"
+  color: string       // e.g., "#FF6B6B"
+  projectId: number
+}
+
 export type MaterialCardType = 'character' | 'location' | 'item'
 
 export interface CharacterRelationship {
@@ -254,6 +262,7 @@ class NovelDatabase extends Dexie {
   agentConfigs!: Table<AgentConfig>
   apiKeys!: Table<ApiKey>
   materialCards!: Table<MaterialCard>
+  materialTags!: Table<MaterialTag>
   writingStats!: Table<WritingStats>
   storylines!: Table<Storyline>
   chapterStorylineLinks!: Table<ChapterStorylineLink>
@@ -488,7 +497,69 @@ class NovelDatabase extends Dexie {
       // V27 新增
       chapterProgress: '++id, projectId, chapterId'
     })
+    // V30: 素材标签表
+    this.version(14).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      materialTags: '++id, projectId, name',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId',
+      chapterVersions: '++id, chapterId, projectId, createdAt',
+      aiChatMessages: '++id, projectId, conversationId, timestamp',
+      aiConversations: '++id, projectId, createdAt',
+      projectMemory: 'projectId, updatedAt',
+      plotThreads: '++id, projectId, tag, status, plantedInChapter, resolvedInChapter',
+      chapterSummaries: '++id, projectId, chapterId, createdAt',
+      projectVersions: '++id, projectId, versionIndex, isSelected',
+      timelineEvents: '++id, projectId, order',
+      chapterProgress: '++id, projectId, chapterId'
+    })
   }
 }
 
 export const db = new NovelDatabase()
+
+// V30: 批量导出接口
+export interface MaterialExport {
+  version: 1
+  exportedAt: string
+  materials: MaterialCard[]
+}
+
+// V30: 批量导出函数
+export async function exportMaterials(options?: {
+  projectId?: number
+  type?: 'character' | 'location' | 'item'
+}): Promise<MaterialExport> {
+  let query = db.materialCards.toCollection()
+
+  if (options?.projectId !== undefined) {
+    query = db.materialCards.where('projectId').equals(options.projectId)
+  }
+
+  const cards = await query.toArray()
+
+  // 按类型筛选
+  let materials = cards
+  if (options?.type) {
+    materials = materials.filter(m => m.type === options.type)
+  }
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    materials
+  }
+}
