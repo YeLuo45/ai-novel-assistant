@@ -103,6 +103,11 @@ interface AppState {
   reminderSettings: ReminderSettings | null
   loadReminderSettings: (projectId: number) => Promise<void>
   updateReminderSettings: (projectId: number, updates: Partial<ReminderSettings>) => Promise<void>
+
+  // 版本历史 (V31)
+  saveChapterVersion: (chapterId: number, content: string, title: string) => Promise<void>
+  loadChapterVersions: (chapterId: number) => Promise<import('./db').ChapterVersion[]>
+  deleteChapterVersions: (ids: number[]) => Promise<void>
 }
 
 const DEFAULT_DAILY_GOAL = 3000
@@ -684,5 +689,33 @@ export const useStore = create<AppState>((set, get) => ({
       const id = await db.reminderSettings.add(newSettings)
       set({ reminderSettings: { ...newSettings, id: id as number } })
     }
+  },
+
+  // 版本历史 (V31)
+  saveChapterVersion: async (chapterId, content, title) => {
+    const { currentProject } = get()
+    if (!currentProject?.id) return
+    
+    const wordCount = content.replace(/\s/g, '').length
+    await db.chapterVersions.add({
+      chapterId,
+      projectId: currentProject.id,
+      content,
+      title,
+      wordCount,
+      createdAt: new Date()
+    })
+  },
+
+  loadChapterVersions: async (chapterId) => {
+    return await db.chapterVersions
+      .where('chapterId')
+      .equals(chapterId)
+      .reverse()
+      .sortBy('createdAt')
+  },
+
+  deleteChapterVersions: async (ids) => {
+    await db.chapterVersions.bulkDelete(ids)
   },
 }))

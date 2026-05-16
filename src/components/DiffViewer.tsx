@@ -1,9 +1,11 @@
 /**
  * Diff对比组件
  * 以行为单位计算diff，绿色显示新增行，红色显示删除行
+ * V31: 使用 diff npm 包进行对比
  */
 
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import { diffLines } from 'diff'
 
 interface DiffLine {
   type: 'added' | 'removed' | 'unchanged'
@@ -28,61 +30,9 @@ export default function DiffViewer({
   newVersionLabel = '新版本',
   versions
 }: Props) {
-  const [selectedOldIndex, setSelectedOldIndex] = useState(0)
-  const [selectedNewIndex, setSelectedNewIndex] = useState(1)
-
-  // Compute diff
-  const diffLines = useMemo(() => {
-    const oldLines = oldContent.split('\n')
-    const newLines = newContent.split('\n')
-    
-    const result: DiffLine[] = []
-    
-    // Simple line-by-line diff algorithm (LCS-based)
-    const lcs = computeLCS(oldLines, newLines)
-    let oldIndex = 0
-    let newIndex = 0
-    let lcsIndex = 0
-    
-    let oldLineNum = 1
-    let newLineNum = 1
-    
-    while (oldIndex < oldLines.length || newIndex < newLines.length) {
-      if (lcsIndex < lcs.length && oldIndex < oldLines.length && newIndex < newLines.length &&
-          oldLines[oldIndex] === lcs[lcsIndex] && newLines[newIndex] === lcs[lcsIndex]) {
-        // Unchanged line
-        result.push({
-          type: 'unchanged',
-          content: oldLines[oldIndex],
-          lineNumber: oldLineNum
-        })
-        oldIndex++
-        newIndex++
-        lcsIndex++
-        oldLineNum++
-        newLineNum++
-      } else if (newIndex < newLines.length && (lcsIndex >= lcs.length || newLines[newIndex] !== lcs[lcsIndex])) {
-        // Added line
-        result.push({
-          type: 'added',
-          content: newLines[newIndex],
-          lineNumber: newLineNum
-        })
-        newIndex++
-        newLineNum++
-      } else if (oldIndex < oldLines.length && (lcsIndex >= lcs.length || oldLines[oldIndex] !== lcs[lcsIndex])) {
-        // Removed line
-        result.push({
-          type: 'removed',
-          content: oldLines[oldIndex],
-          lineNumber: oldLineNum
-        })
-        oldIndex++
-        oldLineNum++
-      }
-    }
-    
-    return result
+  // Compute diff using diff package
+  const diffResult = useMemo(() => {
+    return diffLines(oldContent, newContent)
   }, [oldContent, newContent])
 
   // Statistics
@@ -91,14 +41,44 @@ export default function DiffViewer({
     let removed = 0
     let unchanged = 0
     
-    diffLines.forEach(line => {
-      if (line.type === 'added') added++
-      else if (line.type === 'removed') removed++
-      else unchanged++
+    diffResult.forEach(part => {
+      if (part.added) {
+        added += part.count || 1
+      } else if (part.removed) {
+        removed += part.count || 1
+      } else {
+        unchanged += part.count || 1
+      }
     })
     
     return { added, removed, unchanged }
-  }, [diffLines])
+  }, [diffResult])
+
+  // Convert to display lines
+  const diffLines = useMemo(() => {
+    const lines: DiffLine[] = []
+    let lineNum = 1
+    
+    diffResult.forEach(part => {
+      const partLines = part.value.split('\n')
+      // Remove last empty entry if the part ends with newline
+      if (partLines[partLines.length - 1] === '') {
+        partLines.pop()
+      }
+      
+      partLines.forEach(line => {
+        if (part.added) {
+          lines.push({ type: 'added', content: line, lineNumber: lineNum++ })
+        } else if (part.removed) {
+          lines.push({ type: 'removed', content: line })
+        } else {
+          lines.push({ type: 'unchanged', content: line, lineNumber: lineNum++ })
+        }
+      })
+    })
+    
+    return lines
+  }, [diffResult])
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200">
@@ -109,30 +89,6 @@ export default function DiffViewer({
           <span className="text-red-600">-{stats.removed} 删除</span>
           <span className="text-gray-500">{stats.unchanged} 未变</span>
         </div>
-        
-        {versions && versions.length >= 2 && (
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedOldIndex}
-              onChange={e => setSelectedOldIndex(Number(e.target.value))}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {versions.map((v, i) => (
-                <option key={i} value={i}>{v.label}</option>
-              ))}
-            </select>
-            <span className="text-gray-400">vs</span>
-            <select
-              value={selectedNewIndex}
-              onChange={e => setSelectedNewIndex(Number(e.target.value))}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {versions.map((v, i) => (
-                <option key={i} value={i}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
       
       {/* Version labels */}
@@ -157,7 +113,7 @@ export default function DiffViewer({
             }`}
           >
             <div className="w-12 px-2 py-0.5 text-right text-gray-400 border-r border-gray-200 select-none">
-              {line.lineNumber}
+              {line.lineNumber || ''}
             </div>
             <div className="w-6 px-1 py-0.5 text-center select-none">
               {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ''}
@@ -170,44 +126,4 @@ export default function DiffViewer({
       </div>
     </div>
   )
-}
-
-/**
- * Compute Longest Common Subsequence
- */
-function computeLCS(oldLines: string[], newLines: string[]): string[] {
-  const m = oldLines.length
-  const n = newLines.length
-  
-  // Build DP table
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
-  
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (oldLines[i - 1] === newLines[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
-      }
-    }
-  }
-  
-  // Backtrack to find LCS
-  const lcs: string[] = []
-  let i = m
-  let j = n
-  
-  while (i > 0 && j > 0) {
-    if (oldLines[i - 1] === newLines[j - 1]) {
-      lcs.unshift(oldLines[i - 1])
-      i--
-      j--
-    } else if (dp[i - 1][j] > dp[i][j - 1]) {
-      i--
-    } else {
-      j--
-    }
-  }
-  
-  return lcs
 }

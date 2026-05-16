@@ -194,6 +194,7 @@ export interface ChapterVersion {
   projectId: number
   content: string
   title: string
+  wordCount: number  // V31: word count field
   createdAt: Date
 }
 
@@ -500,6 +501,35 @@ class NovelDatabase extends Dexie {
     })
     // V30: 素材标签表
     this.version(14).stores({
+      projects: '++id, title, genre, createdAt, updatedAt',
+      outlineNodes: '++id, projectId, parentId, type, status, order',
+      agentConfigs: '++id, projectId, name, model',
+      apiKeys: '++id, provider',
+      materialCards: '++id, projectId, type, name, createdAt, updatedAt',
+      materialTags: '++id, projectId, name',
+      writingStats: '++id, projectId, date',
+      storylines: '++id, projectId, name',
+      chapterStorylineLinks: '++id, chapterId, storylineId',
+      chatMessages: '++id, projectId, timestamp',
+      bookMeta: '++id, projectId',
+      bookCovers: '++id, projectId',
+      characterRelationships: '++id, projectId, fromCharacterId, toCharacterId',
+      projectViewpoint: '++id, projectId',
+      milestones: '++id, projectId, targetDate, status',
+      reminderSettings: '++id, projectId',
+      chapterStyleProfiles: '++id, projectId, chapterId',
+      chapterVersions: '++id, chapterId, projectId, createdAt',
+      aiChatMessages: '++id, projectId, conversationId, timestamp',
+      aiConversations: '++id, projectId, createdAt',
+      projectMemory: 'projectId, updatedAt',
+      plotThreads: '++id, projectId, tag, status, plantedInChapter, resolvedInChapter',
+      chapterSummaries: '++id, projectId, chapterId, createdAt',
+      projectVersions: '++id, projectId, versionIndex, isSelected',
+      timelineEvents: '++id, projectId, order',
+      chapterProgress: '++id, projectId, chapterId'
+    })
+    // V31: 版本历史扩展 - wordCount字段
+    this.version(15).stores({
       projects: '++id, title, genre, createdAt, updatedAt',
       outlineNodes: '++id, projectId, parentId, type, status, order',
       agentConfigs: '++id, projectId, name, model',

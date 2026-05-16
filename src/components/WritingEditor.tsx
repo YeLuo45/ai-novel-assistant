@@ -44,6 +44,8 @@ import { MemoryPanel } from './MemoryPanel'
 import ChapterProgressBar from './ChapterProgressBar'
 import WordFrequencyPanel from './WordFrequencyPanel'
 import CharacterAppearancePanel from './CharacterAppearancePanel'
+import { useAutoSave } from '../hooks/useAutoSave'
+import ChapterVersionHistory from './ChapterVersionHistory'
 
 interface Props {
   nodeId: number
@@ -69,6 +71,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [showDialogueGenerator, setShowDialogueGenerator] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showChapterHistory, setShowChapterHistory] = useState(false)  // V31: 版本历史侧边栏
   const [showSensitivePanel, setShowSensitivePanel] = useState(false)
   const [sensitiveWordCount, setSensitiveWordCount] = useState(0)
 
@@ -122,6 +125,25 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
 
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
+
+  // V31: 自动存档 Hook
+  const { hasUnsavedChanges: autoSaveHasChanges, forceSave: forceAutoSave } = useAutoSave({
+    content,
+    title,
+    chapterId: nodeId,
+    projectId: currentProject?.id || 0,
+    onSave: async (newContent, newTitle) => {
+      if (!nodeId) return
+      await updateOutlineNode(nodeId, { title: newTitle, content: newContent })
+      setLastSavedContent(newContent)
+    },
+    onCreateVersion: async (newContent, newTitle) => {
+      if (!currentProject?.id) return
+      const { saveChapterVersion } = useStore.getState()
+      await saveChapterVersion(nodeId, newContent, newTitle)
+    },
+    delay: 30000  // 30秒无操作触发存档
+  })
 
   // V17: 干预处理函数
   const handleInterventionAction = (action: UserAction) => {
@@ -592,6 +614,18 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             👤 出场
           </button>
+
+          {/* V31: 版本历史侧边栏 */}
+          <button
+            onClick={() => setShowChapterHistory(!showChapterHistory)}
+            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+              showChapterHistory
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+            }`}
+          >
+            📜 历史
+          </button>
           
           {/* 返回大纲 */}
           <button
@@ -1037,6 +1071,23 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
             outlineNodes={outlineNodes}
             isOpen={showCharacterAppearancePanel}
             onToggle={() => setShowCharacterAppearancePanel(!showCharacterAppearancePanel)}
+          />
+        </div>
+      )}
+
+      {/* V31: 版本历史侧边栏 */}
+      {currentProject && showChapterHistory && (
+        <div className="fixed top-16 right-0 bottom-0 w-96 z-40 shadow-lg">
+          <ChapterVersionHistory
+            chapterId={nodeId}
+            projectId={currentProject.id}
+            currentContent={content}
+            currentTitle={title}
+            onRestore={(restoredContent, restoredTitle) => {
+              setContent(restoredContent)
+              setTitle(restoredTitle)
+            }}
+            onClose={() => setShowChapterHistory(false)}
           />
         </div>
       )}

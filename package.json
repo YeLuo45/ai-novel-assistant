@@ -17,6 +17,7 @@
     "@uiw/react-md-editor": "^4.1.0",
     "dexie": "^3.2.4",
     "dexie-react-hooks": "^1.1.7",
+    "diff": "^9.0.0",
     "html2pdf.js": "^0.14.0",
     "jszip": "^3.10.1",
     "marked": "^9.1.6",
