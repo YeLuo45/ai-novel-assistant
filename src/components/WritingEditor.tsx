@@ -35,6 +35,7 @@ import { InterventionStatusBar } from './InterventionStatusBar'
 import { InterventionReviewPanel } from './InterventionReviewPanel'
 import { useInterventionHotkeys } from '@/hooks/useInterventionHotkeys'
 import type { ExecutionStatus, UserAction, InterventionPoint } from '@/ai/intervention/types'
+import { ToolPanel } from './ToolPanel'
 import { MaterialLibraryPanel } from './MaterialLibraryPanel'
 import { OptimizationPanel } from './OptimizationPanel'
 import { CustomizationPanel } from './CustomizationPanel'
@@ -46,6 +47,7 @@ import WordFrequencyPanel from './WordFrequencyPanel'
 import CharacterAppearancePanel from './CharacterAppearancePanel'
 import { useAutoSave } from '../hooks/useAutoSave'
 import ChapterVersionHistory from './ChapterVersionHistory'
+import { toolRegistry } from '@/ai/tools'
 
 interface Props {
   nodeId: number
@@ -72,6 +74,7 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
   const [showDialogueGenerator, setShowDialogueGenerator] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showChapterHistory, setShowChapterHistory] = useState(false)  // V31: 版本历史侧边栏
+  const [showToolsPanel, setShowToolsPanel] = useState(false)  // V32: 写作工具面板
   const [showSensitivePanel, setShowSensitivePanel] = useState(false)
   const [sensitiveWordCount, setSensitiveWordCount] = useState(0)
 
@@ -626,6 +629,18 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
           >
             📜 历史
           </button>
+
+          {/* V32: 写作工具面板 */}
+          <button
+            onClick={() => setShowToolsPanel(!showToolsPanel)}
+            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+              showToolsPanel
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+            }`}
+          >
+            🛠️ 工具
+          </button>
           
           {/* 返回大纲 */}
           <button
@@ -1088,6 +1103,16 @@ export default function WritingEditor({ nodeId, onClose }: Props) {
               setTitle(restoredTitle)
             }}
             onClose={() => setShowChapterHistory(false)}
+          />
+        </div>
+      )}
+
+      {/* V32: 写作工具面板 */}
+      {currentProject && showToolsPanel && (
+        <div className="fixed top-16 right-0 bottom-0 w-96 z-40 shadow-lg">
+          <ToolPanel
+            projectId={currentProject.id}
+            chapterId={nodeId}
           />
         </div>
       )}
