@@ -1,5 +1,5 @@
 export { toolRegistry, registerBuiltInTools } from './registry'
-import { toolRegistry, registerBuiltInTools } from './registry'
-
-// Initialize built-in tools
-registerBuiltInTools(toolRegistry)
+export type { WritingTool, ToolCategory } from './registry'
+export { executeInSandbox, getExecutionHistory, getToolUsageStats, clearExecutionHistory } from './sandbox'
+export { mcpClient } from './mcp/client'
+export { MCPServerPanel } from './mcp/MCPServerPanel'

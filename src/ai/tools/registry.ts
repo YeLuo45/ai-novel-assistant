@@ -1,9 +1,11 @@
+export type ToolCategory = 'text' | 'search' | 'calc' | 'media' | 'mcp'
+
 export interface WritingTool {
   id: string
   name: string
   description: string
   icon: string
-  category: 'text' | 'search' | 'calc' | 'media'
+  category: ToolCategory
   execute: (input: string, context: { projectId: number, chapterId: number }) => Promise<{
     success: boolean
     output: string
