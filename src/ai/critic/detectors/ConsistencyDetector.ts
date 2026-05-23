@@ -169,7 +169,7 @@ export class ConsistencyDetector implements Detector {
                     start: 0,
                     end: occurrence.context.length
                   },
-                  message: `角色"${character}"在第${otherOccurrence.chapterIndex + 1}章表现出"${otherOccjectory.keyword}"，与第${occurrence.chapterIndex + 1}章的"${keyword}"不一致`,
+                  message: `角色"${character}"在第${otherOccurrence.chapterIndex + 1}章表现出"${otherOccurrence.keyword}"，与第${occurrence.chapterIndex + 1}章的"${keyword}"不一致`,
                   suggestion: `建议保持角色行为的连贯性，或通过合理的成长/变化解释这种改变`,
                   priority: 'medium'
                 })

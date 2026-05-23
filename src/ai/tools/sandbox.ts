@@ -1,6 +1,6 @@
 /**
- * Tool Sandbox Execution Environment
- * Provides isolated execution for writing tools using Web Workers
+ * Tool Sandbox Execution Environment V2
+ * Provides isolated execution with Web Safety and LLM filtering
  */
 
 import type { WritingTool } from './registry'
@@ -8,6 +8,9 @@ import type { WritingTool } from './registry'
 export interface SandboxConfig {
   timeout: number  // ms
   enableIsolation: boolean
+  allowedDomains?: string[]
+  blockedPatterns?: string[]
+  maxTokens?: number
 }
 
 export interface ToolResult {
@@ -25,21 +28,107 @@ export interface ToolExecutionRecord {
   timestamp: number
 }
 
-// Default config
-const DEFAULT_CONFIG: SandboxConfig = {
-  timeout: 5000,
-  enableIsolation: true
+// Security Policy Configuration
+export interface SecurityPolicy {
+  allowedDomains: string[]
+  blockedPatterns: string[]
+  maxTokens: number
+  timeout: number
+  contentFilter?: (content: string) => string
+}
+
+// Default security policy
+const DEFAULT_POLICY: SecurityPolicy = {
+  allowedDomains: [
+    'api.github.com',
+    'api.openalex.org',
+    'api.datamuse.com',
+    'api.promptlint.com'
+  ],
+  blockedPatterns: [
+    'file://',
+    'node://',
+    'eval(',
+    'Function(',
+    '__proto__',
+    'constructor'
+  ],
+  maxTokens: 4000,
+  timeout: 30000
 }
 
 // Tool execution history (in-memory for session)
 const executionHistory: ToolExecutionRecord[] = []
 const MAX_HISTORY = 50
 
+let securityPolicy: SecurityPolicy = { ...DEFAULT_POLICY }
+
 /**
- * Execute a tool with sandbox isolation
- * - Wraps execution in try-catch for error isolation
- * - Enforces timeout
- * - Records execution history
+ * Configure security policy
+ */
+export function configureSecurityPolicy(policy: Partial<SecurityPolicy>): void {
+  securityPolicy = { ...securityPolicy, ...policy }
+}
+
+/**
+ * Get current security policy
+ */
+export function getSecurityPolicy(): SecurityPolicy {
+  return { ...securityPolicy }
+}
+
+/**
+ * Validate URL against allowed domains
+ */
+export function validateWebAccess(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const hostname = parsed.hostname.toLowerCase()
+    
+    // Check if domain is in allowed list
+    const isAllowed = securityPolicy.allowedDomains.some(domain => {
+      return hostname === domain.toLowerCase() || hostname.endsWith(`.${domain.toLowerCase()}`)
+    })
+    
+    if (!isAllowed) {
+      return false
+    }
+    
+    // Check blocked patterns
+    for (const pattern of securityPolicy.blockedPatterns) {
+      if (url.toLowerCase().includes(pattern.toLowerCase())) {
+        return false
+      }
+    }
+    
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Filter potentially dangerous content from LLM output
+ */
+export function filterLlmOutput(content: string): string {
+  let filtered = content
+  
+  // Remove blocked patterns
+  for (const pattern of securityPolicy.blockedPatterns) {
+    filtered = filtered.split(pattern).join('[FILTERED]')
+  }
+  
+  // Truncate if exceeds max tokens (rough estimate: 4 chars per token)
+  const maxChars = securityPolicy.maxTokens * 4
+  if (filtered.length > maxChars) {
+    filtered = filtered.slice(0, maxChars) + '... [TRUNCATED]'
+  }
+  
+  return filtered
+}
+
+/**
+ * Execute a tool with sandbox isolation and security checks
  */
 export async function executeInSandbox(
   tool: WritingTool,
@@ -47,7 +136,11 @@ export async function executeInSandbox(
   context: { projectId: number; chapterId: number },
   config: Partial<SandboxConfig> = {}
 ): Promise<ToolResult> {
-  const finalConfig = { ...DEFAULT_CONFIG, ...config }
+  const finalConfig = { 
+    timeout: securityPolicy.timeout,
+    enableIsolation: true,
+    ...config 
+  }
   const startTime = Date.now()
 
   try {
@@ -61,6 +154,12 @@ export async function executeInSandbox(
 
     const executionTime = Date.now() - startTime
 
+    // Filter LLM output if present
+    let filteredOutput = result.output
+    if (result.metadata?.llmOutput) {
+      filteredOutput = filterLlmOutput(result.output)
+    }
+
     // Record execution
     recordExecution({
       toolId: tool.id,
@@ -68,6 +167,7 @@ export async function executeInSandbox(
       input,
       result: {
         ...result,
+        output: filteredOutput,
         executionTime
       },
       timestamp: Date.now()
@@ -75,6 +175,7 @@ export async function executeInSandbox(
 
     return {
       ...result,
+      output: filteredOutput,
       executionTime
     }
   } catch (error) {
@@ -99,6 +200,31 @@ export async function executeInSandbox(
       executionTime
     }
   }
+}
+
+/**
+ * Execute tool with web safety validation
+ */
+export async function executeWithWebSafety(
+  tool: WritingTool,
+  input: string,
+  context: { projectId: number; chapterId: number }
+): Promise<ToolResult> {
+  // Check for URL patterns in input
+  const urlPattern = /https?:\/\/[^\s]+/gi
+  const urls = input.match(urlPattern) || []
+  
+  for (const url of urls) {
+    if (!validateWebAccess(url)) {
+      return {
+        success: false,
+        output: `Web Safety: 域名未授权 - ${new URL(url).hostname}`,
+        executionTime: 0
+      }
+    }
+  }
+  
+  return executeInSandbox(tool, input, context)
 }
 
 /**
@@ -159,7 +285,7 @@ export function createSandboxedTool(tool: WritingTool, config?: Partial<SandboxC
   return {
     ...tool,
     execute: async (input, context) => {
-      return executeInSandbox(tool, input, context, config)
+      return executeWithWebSafety(tool, input, context)
     }
   }
 }
