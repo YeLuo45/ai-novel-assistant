@@ -13,3 +13,8 @@ export { CustomizationPanel } from './CustomizationPanel'
 
 // V22: Memory components
 export { MemoryPanel } from './MemoryPanel'
+
+// V36: Collaboration components
+export { CollaborationPanel } from './CollaborationPanel'
+export { ActivityFeed } from './ActivityFeed'
+export { ConflictIndicator } from './ConflictIndicator'
