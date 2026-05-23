@@ -1,17 +1,4 @@
-/**
- * AI Module 导出
- */
-
-// Types
-export * from './types'
-
-// Providers
-export * from './providers'
-
-// Core LLM
-export { callLLM, streamLLM } from './llm'
-
-// Utilities
-export * from './retry'
-export * from './thinking'
-export * from './parsers'
+export { selfEvolutionEngine, SelfEvolutionEngine } from './evolution/SelfEvolutionEngine'
+export type { PromptVersion, EvolutionInsight } from './evolution/SelfEvolutionEngine'
+export { multiAgentReview } from './review/MultiAgentReview'
+export type { Chapter, ReviewResult, AggregatedReview } from './review/types'
