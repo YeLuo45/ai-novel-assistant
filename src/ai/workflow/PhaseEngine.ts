@@ -239,6 +239,188 @@ class PhaseEngine {
   }
 }
 
+// V44: Workflow Graph types and execution
+export interface WorkflowGraphNode {
+  id: string;
+  type: 'phase' | 'condition' | 'loop' | 'human';
+  subtype?: string;
+  config: {
+    promptTemplate?: string;
+    retryStrategy?: string;
+    condition?: string;
+    maxIterations?: number;
+    exitCondition?: string;
+    reviewNote?: string;
+    [key: string]: unknown;
+  };
+}
+
+export interface WorkflowGraphEdge {
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface WorkflowGraph {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+}
+
+export interface WorkflowGraphResult {
+  completedPhases: string[];
+  results: Map<string, unknown>;
+  status: 'completed' | 'partial' | 'failed';
+  errors: Array<{ nodeId: string; error: string }>;
+}
+
+/**
+ * Execute a workflow graph
+ * Supports phase nodes, condition nodes, loop nodes, and human intervention nodes
+ */
+export async function executeWorkflowGraph(
+  graph: WorkflowGraph,
+  initialData: Record<string, unknown>
+): Promise<WorkflowGraphResult> {
+  const completedPhases: string[] = [];
+  const results = new Map<string, unknown>();
+  const errors: Array<{ nodeId: string; error: string }> = [];
+  
+  // Find start nodes (nodes with no incoming edges)
+  const targetNodes = new Set(graph.edges.map(e => e.target));
+  const startNodeIds = graph.nodes
+    .filter(n => !targetNodes.has(n.id))
+    .map(n => n.id);
+  
+  // If no start nodes found, use first node
+  if (startNodeIds.length === 0 && graph.nodes.length > 0) {
+    startNodeIds.push(graph.nodes[0].id);
+  }
+  
+  // Build adjacency map
+  const adjacency = new Map<string, string[]>();
+  for (const node of graph.nodes) {
+    adjacency.set(node.id, []);
+  }
+  for (const edge of graph.edges) {
+    const existing = adjacency.get(edge.source) || [];
+    existing.push(edge.target);
+    adjacency.set(edge.source, existing);
+  }
+  
+  // Execute nodes using BFS
+  const pendingQueue = [...startNodeIds];
+  const visited = new Set<string>();
+  const loopCounters = new Map<string, number>();
+  
+  while (pendingQueue.length > 0) {
+    const nodeId = pendingQueue.shift()!;
+    
+    if (visited.has(nodeId)) continue;
+    
+    const node = graph.nodes.find(n => n.id === nodeId);
+    if (!node) continue;
+    
+    // Handle different node types
+    if (node.type === 'condition') {
+      const condition = node.config.condition as string || 'true';
+      const canEvaluate = evaluateGraphCondition(condition, results, initialData);
+      if (!canEvaluate) {
+        visited.add(nodeId);
+        continue;
+      }
+    }
+    
+    if (node.type === 'loop') {
+      const maxIterations = (node.config.maxIterations as number) || 5;
+      const currentCount = loopCounters.get(nodeId) || 0;
+      if (currentCount >= maxIterations) {
+        visited.add(nodeId);
+        continue;
+      }
+      loopCounters.set(nodeId, currentCount + 1);
+      // Re-add to queue for next iteration
+      pendingQueue.unshift(nodeId);
+    }
+    
+    if (node.type === 'human') {
+      // Human intervention - in a real implementation, this would pause and wait for human input
+      // For now, we just mark it as completed with a placeholder
+      results.set(nodeId, { status: 'pending_human_review', note: node.config.reviewNote });
+      completedPhases.push(nodeId);
+    }
+    
+    if (node.type === 'phase') {
+      try {
+        // Simulate phase execution - in real impl, would call actual phase logic
+        const phaseOutput = await simulatePhaseExecution(node, results, initialData);
+        results.set(nodeId, phaseOutput);
+        completedPhases.push(nodeId);
+      } catch (err) {
+        errors.push({ nodeId, error: String(err) });
+      }
+    }
+    
+    visited.add(nodeId);
+    
+    // Add next nodes to queue
+    const outgoingEdges = graph.edges.filter(e => e.source === nodeId);
+    for (const edge of outgoingEdges) {
+      if (!pendingQueue.includes(edge.target)) {
+        pendingQueue.push(edge.target);
+      }
+    }
+  }
+  
+  return {
+    completedPhases,
+    results,
+    status: errors.length === 0 ? 'completed' : errors.length < graph.nodes.length ? 'partial' : 'failed',
+    errors,
+  };
+}
+
+function evaluateGraphCondition(
+  condition: string,
+  results: Map<string, unknown>,
+  initialData: Record<string, unknown>
+): boolean {
+  try {
+    // Simple condition evaluation
+    // In real implementation, this would be more sophisticated
+    const context: Record<string, unknown> = { ...initialData };
+    for (const [key, value] of results.entries()) {
+      context[`node_${key}`] = value;
+    }
+    
+    // Basic eval with safe variable names
+    const safeCondition = condition
+      .replace(/[^a-zA-Z0-9_<>!=.&&||() ]/g, '')
+      .replace(/&&/g, '&&')
+      .replace(/\|\|/g, '||');
+    
+    // Simple approach - check if condition contains truthy values
+    return eval(safeCondition);
+  } catch {
+    return false;
+  }
+}
+
+async function simulatePhaseExecution(
+  node: WorkflowGraphNode,
+  results: Map<string, unknown>,
+  initialData: Record<string, unknown>
+): Promise<unknown> {
+  // This is a placeholder - in real implementation, would execute actual phase
+  await new Promise(resolve => setTimeout(resolve, 100));
+  return {
+    nodeId: node.id,
+    subtype: node.subtype,
+    config: node.config,
+    status: 'success',
+    timestamp: Date.now(),
+  };
+}
+
 let engineInstance: PhaseEngine | null = null
 
 export function createPhaseEngine(): PhaseEngine {
