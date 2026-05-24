@@ -1,6 +1,6 @@
 /**
- * V22 记忆存储系统 - 入口
- * Phase 1: 记忆存储架构
+ * V49 Memory System - 入口
+ * 五层记忆系统（L0-L4）完整实现
  */
 
 // 导出类型
@@ -21,3 +21,25 @@ export { checkConsistency, checkCharacterConsistency, checkPlotConsistency } fro
 // Phase 2: 一致性检查器 & 风格学习器
 export { consistencyChecker, ConsistencyChecker } from './consistencyChecker.V22'
 export { styleLearner, StyleLearner } from './StyleLearner'
+
+// V49: 五层记忆系统
+export { sensoryMemory, SensoryMemory } from './SensoryMemory'
+export type { SensoryEntry, DecayConfig } from './SensoryMemory'
+
+export { workingMemory, WorkingMemory } from './WorkingMemory'
+export type { WorkingEntry, WorkingMemoryConfig } from './WorkingMemory'
+
+export { episodicMemory, EpisodicMemory } from './EpisodicMemory'
+export type { Episode, EpisodeQuery } from './EpisodicMemory'
+
+export { forgettingEngine, ForgettingEngine } from './ForgettingEngine'
+export type { ForgettingPolicy, ForgettingPolicyType, ForgettingLog } from './ForgettingEngine'
+
+export { semanticMemory, SemanticMemory } from './SemanticMemory'
+export type { KnowledgeNode, KnowledgeNodeType, KnowledgeEdge, GraphQuery, TraverseOptions } from './SemanticMemory'
+
+export { proceduralMemory, ProceduralMemory } from './ProceduralMemory'
+export type { SkillProcedure, ExecutionResult, SkillQuery } from './ProceduralMemory'
+
+export { memoryOrchestrator, MemoryOrchestrator } from './MemoryOrchestrator'
+export type { MemoryOrchestratorStats, CrossLayerQuery, MemoryResult, MemoryTier } from './MemoryOrchestrator'
