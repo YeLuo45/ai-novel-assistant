@@ -186,6 +186,16 @@ export async function multiAgentReview(chapter: Chapter): Promise<AggregatedRevi
   return aggregateReviews(results, chapter.id)
 }
 
+// 延迟导入避免循环依赖
+let _hookManager: import('../hooks/HookManager').HookManager | null = null
+async function getHookManager() {
+  if (!_hookManager) {
+    const mod = await import('../hooks/HookManager')
+    _hookManager = mod.hookManager
+  }
+  return _hookManager
+}
+
 /**
  * 汇总评审结果
  */
@@ -204,7 +214,7 @@ function aggregateReviews(results: ReviewResult[], chapterId: string): Aggregate
   const allSuggestions = results.flatMap(r => r.suggestions)
   const uniqueSuggestions = [...new Set(allSuggestions)]
 
-  return {
+  const aggregatedReview: AggregatedReview = {
     chapterId,
     overallScore,
     reviewerCount: results.length,
@@ -218,6 +228,23 @@ function aggregateReviews(results: ReviewResult[], chapterId: string): Aggregate
         : '章节质量较差，建议重写',
     createdAt: Date.now(),
   }
+
+  // 触发 post-review hook（异步，不阻塞返回）
+  void (async () => {
+    try {
+      const hm = await getHookManager()
+      await hm.trigger('post-review', {
+        taskType: 'review',
+        outcome: aggregatedReview.overallScore >= 0.7 ? 'success' : 'failure',
+        qualityScore: aggregatedReview.overallScore,
+        reviewResult: aggregatedReview,
+      })
+    } catch (e) {
+      console.error('[MultiAgentReview] Hook trigger failed:', e)
+    }
+  })()
+
+  return aggregatedReview
 }
 
 // ============ Helper Functions ============

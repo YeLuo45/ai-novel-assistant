@@ -3,24 +3,8 @@
  */
 
 import { memoryManager, MemoryManager, Skill, Lesson } from '../memory/MemoryManager'
-
-interface PromptVersion {
-  id: string
-  version: number
-  basePrompt: string
-  improvedPrompt: string
-  insight: string
-  performanceScore: number
-  createdAt: number
-  useCount: number
-}
-
-interface EvolutionInsight {
-  pattern: string
-  successRate: number
-  sampleCount: number
-  recommendation: string
-}
+import { db } from '../../db'
+import type { PromptVersion, EvolutionInsight } from './types'
 
 export class SelfEvolutionEngine {
   private memory: MemoryManager
@@ -28,6 +12,19 @@ export class SelfEvolutionEngine {
 
   constructor(memory: MemoryManager) {
     this.memory = memory
+    this.loadVersions()
+  }
+
+  /**
+   * 从 IndexedDB 加载历史版本
+   */
+  private async loadVersions(): Promise<void> {
+    try {
+      const rows = await db.prompt_versions.toArray()
+      this.versionHistory = rows as PromptVersion[]
+    } catch {
+      // 表不存在时忽略
+    }
   }
 
   /**
@@ -83,6 +80,9 @@ export class SelfEvolutionEngine {
     // 生成改进提示词
     const improvedPrompt = this.enhancePrompt(basePrompt, successFactors)
 
+    // 提取任务类型
+    const taskType = this.extractTaskKey(lesson.task)
+
     const version: PromptVersion = {
       id: `pv_${Date.now()}`,
       version: (existingVersion?.version || 0) + 1,
@@ -92,6 +92,7 @@ export class SelfEvolutionEngine {
       performanceScore: 0.9,
       createdAt: Date.now(),
       useCount: 0,
+      taskType,
     }
 
     this.versionHistory.push(version)
@@ -121,6 +122,7 @@ export class SelfEvolutionEngine {
       performanceScore: insight.successRate,
       createdAt: Date.now(),
       useCount: 0,
+      taskType: insight.pattern,
     }
 
     this.versionHistory.push(version)
@@ -204,18 +206,12 @@ export class SelfEvolutionEngine {
   }
 
   private async saveVersion(version: PromptVersion): Promise<void> {
-    const { Dexie } = await import('dexie')
-    class EvolutionDB extends Dexie {
-      prompt_versions!: PromptVersion[]
-      constructor() {
-        super('EvolutionDB')
-        this.version(1).stores({
-          prompt_versions: 'id, version, createdAt',
-        })
-      }
+    try {
+      // @ts-ignore — prompt_versions table may not be declared in db.ts types
+      await db.prompt_versions.add(version)
+    } catch {
+      // 表不存在时静默忽略（首次运行）
     }
-    const db = new EvolutionDB()
-    await db.prompt_versions.add(version)
   }
 }
 
