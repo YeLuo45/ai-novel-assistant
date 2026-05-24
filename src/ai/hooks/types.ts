@@ -12,6 +12,16 @@ export type HookType =
   | 'skill-crystallize'
   | 'quality-threshold'
   | 'prompt-evolved'
+  | 'pre-task'
+  | 'tool-error'
+  | 'agent-spawn'
+  | 'agent-despawn'
+  | 'memory-store'
+  | 'memory-retrieve'
+  | 'security-violation'
+  | 'config-change'
+  | 'swarm-start'
+  | 'swarm-stop'
 
 export interface HookContext {
   taskType: string
@@ -20,6 +30,11 @@ export interface HookContext {
   skill?: Skill
   promptVersion?: PromptVersion
   reviewResult?: AggregatedReview
+  error?: string
+  agentId?: string
+  toolId?: string
+  configKey?: string
+  configValue?: unknown
 }
 
 export type HookHandler = (ctx: HookContext) => Promise<void> | void
