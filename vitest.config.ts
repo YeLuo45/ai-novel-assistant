@@ -8,17 +8,17 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'test/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
       thresholds: {
-        lines: 25,
-        functions: 25,
-        branches: 50,
-        statements: 25
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80
       },
-      include: ['src/db.ts', 'src/store.ts', 'src/utils/**'],
+      include: ['src/ai/tools/ToolRegistry.ts', 'src/ai/tools/types.ts', 'src/ai/tools/builtIn/*.ts'],
       exclude: [
         'node_modules/**',
         'src/test/**',

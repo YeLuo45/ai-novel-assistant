@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ai-novel-assistant",
-  "version": "0.1.0",
-  "identifier": "com.ainovel.assistant",
+  "version": "0.42.0",
+  "identifier": "com.yeluo45.ai-novel-assistant",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -14,10 +14,13 @@
     "windows": [
       {
         "title": "AI小说创作助手",
-        "width": 800,
-        "height": 600,
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
@@ -34,8 +37,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "windows": {
+      "wix": {}
+    }
+  },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:ainovel.db"]
     }
   }
 }
