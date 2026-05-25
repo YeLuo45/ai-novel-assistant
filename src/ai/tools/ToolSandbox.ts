@@ -81,8 +81,10 @@ export class ToolSandbox {
       iframe.style.display = 'none'
       iframe.style.width = '0'
       iframe.style.height = '0'
-      iframe.sandbox.add('allow-scripts')
-      // No allow-same-origin - ensures full isolation
+      // Use setAttribute for sandbox - cross-environment compatible
+      // allow-scripts: needed to run scripts in iframe
+      // no allow-same-origin: ensures full isolation
+      iframe.setAttribute('sandbox', 'allow-scripts')
 
       // Track this sandbox
       let timeoutHandle: ReturnType<typeof setTimeout>
