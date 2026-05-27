@@ -1,218 +1,484 @@
 /**
- * Self-Evolution Engine — 根据历史成功案例自动优化 Agent 提示词
+ * SelfEvolutionEngine - V66
+ * Core engine for self-evolution closed loop:
+ * Tool Success Tracking → Pattern Recognition → Skill Crystallization → Skill Demotion/Deprecation
  */
 
-import { memoryManager, MemoryManager, Skill, Lesson } from '../memory/MemoryManager'
-import { db } from '../../db'
-import type { PromptVersion, EvolutionInsight } from './types'
+import { 
+  type ToolCallRecord,
+  type SuccessPattern,
+  type CrystallizedSkill,
+  type SkillRule,
+  type EvolutionMetrics,
+  type EvolutionConfig,
+  type EvolutionEvent,
+  type SkillLevel,
+  DEFAULT_EVOLUTION_CONFIG,
+  EVOLUTION_THRESHOLDS,
+  generateId,
+  calculateSuccessRate,
+  calculateAvgDuration
+} from './SelfEvolutionTypes'
+
+import Dexie from 'dexie'
+
+// ============================================================================
+// Database Schema
+// ============================================================================
+
+export class SelfEvolutionDB extends Dexie {
+  toolCallRecords!: Dexie.Table<ToolCallRecord, string>
+  successPatterns!: Dexie.Table<SuccessPattern, string>
+  crystallizedSkills!: Dexie.Table<CrystallizedSkill, string>
+  evolutionEvents!: Dexie.Table<{ id: string; event: EvolutionEvent; timestamp: number; data: Record<string, unknown> }, string>
+
+  constructor() {
+    super('SelfEvolutionDB')
+    this.version(1).stores({
+      toolCallRecords: 'id, toolId, timestamp, success',
+      successPatterns: 'id, toolId, lastObserved',
+      crystallizedSkills: 'id, level, lastActivated',
+      evolutionEvents: 'id, event, timestamp'
+    })
+  }
+}
+
+const db = new SelfEvolutionDB()
+
+// ============================================================================
+// SelfEvolutionEngine
+// ============================================================================
 
 export class SelfEvolutionEngine {
-  private memory: MemoryManager
-  private versionHistory: PromptVersion[] = []
+  private config: EvolutionConfig
+  private checkInterval: ReturnType<typeof setInterval> | null = null
 
-  constructor(memory: MemoryManager) {
-    this.memory = memory
-    this.loadVersions()
+  constructor(config: EvolutionConfig = DEFAULT_EVOLUTION_CONFIG) {
+    this.config = config
+  }
+
+  // --------------------------------------------------------------------------
+  // Phase 1: Tool Call Tracking
+  // --------------------------------------------------------------------------
+
+  /**
+   * Record a tool call result for later analysis
+   */
+  async recordToolCall(record: Omit<ToolCallRecord, 'id'>): Promise<string> {
+    const id = generateId()
+    const fullRecord: ToolCallRecord = { ...record, id }
+    await db.toolCallRecords.add(fullRecord)
+    return id
   }
 
   /**
-   * 从 IndexedDB 加载历史版本
+   * Get metrics for a specific tool
    */
-  private async loadVersions(): Promise<void> {
-    try {
-      const rows = await db.prompt_versions.toArray()
-      this.versionHistory = rows as PromptVersion[]
-    } catch {
-      // 表不存在时忽略
+  async getToolMetrics(toolId: string): Promise<EvolutionMetrics | null> {
+    const records = await db.toolCallRecords
+      .where('toolId')
+      .equals(toolId)
+      .toArray()
+
+    if (records.length === 0) return null
+
+    const successful = records.filter(r => r.success).length
+    const patterns = await db.successPatterns
+      .where('toolId')
+      .equals(toolId)
+      .count()
+    const skills = await db.crystallizedSkills.toArray()
+    const skillsForTool = skills.filter(s => s.sourceToolId === toolId)
+
+    return {
+      toolId,
+      totalCalls: records.length,
+      successfulCalls: successful,
+      failedCalls: records.length - successful,
+      avgDurationMs: calculateAvgDuration(records),
+      successRate: calculateSuccessRate(successful, records.length),
+      patternCount: patterns,
+      skillCount: skillsForTool.length,
+      lastUpdated: Date.now()
     }
   }
 
-  /**
-   * 分析成功案例，提炼优化方向
-   */
-  async analyzeSuccessPatterns(): Promise<EvolutionInsight[]> {
-    const skills = await this.getAllSkills()
-    const insights: EvolutionInsight[] = []
+  // --------------------------------------------------------------------------
+  // Phase 2: Pattern Recognition
+  // --------------------------------------------------------------------------
 
-    // 按任务类型分组
-    const taskGroups = new Map<string, Skill[]>()
-    for (const skill of skills) {
-      const key = this.extractTaskKey(skill.task)
-      if (!taskGroups.has(key)) taskGroups.set(key, [])
-      taskGroups.get(key)!.push(skill)
+  /**
+   * Detect success patterns from recent tool calls
+   * Groups calls by context attributes and computes success rates
+   */
+  async detectPatterns(toolId: string): Promise<SuccessPattern[]> {
+    const cutoff = Date.now() - this.config.patternWindowMs
+    const records = await db.toolCallRecords
+      .where('toolId')
+      .equals(toolId)
+      .filter(r => r.timestamp > cutoff)
+      .toArray()
+
+    if (records.length < EVOLUTION_THRESHOLDS.MIN_PATTERN_OCCURRENCES) {
+      return []
     }
 
-    // 分析每组模式
-    for (const [taskKey, groupSkills] of taskGroups) {
-      if (groupSkills.length < 2) continue
+    // Group by context combination
+    const groups = new Map<string, ToolCallRecord[]>()
+    for (const record of records) {
+      const key = this.makeContextKey(record.context)
+      const group = groups.get(key) || []
+      group.push(record)
+      groups.set(key, group)
+    }
 
-      const avgSuccessRate = groupSkills.reduce((sum, s) => sum + s.successRate, 0) / groupSkills.length
-      const totalUseCount = groupSkills.reduce((sum, s) => sum + s.useCount, 0)
+    const patterns: SuccessPattern[] = []
+    const entries = Array.from(groups.entries())
+    for (let i = 0; i < entries.length; i++) {
+      const [contextKey, groupRecords] = entries[i]
+      if (groupRecords.length < EVOLUTION_THRESHOLDS.MIN_PATTERN_OCCURRENCES) continue
 
-      if (avgSuccessRate > 0.7 && totalUseCount > 5) {
-        insights.push({
-          pattern: taskKey,
-          successRate: avgSuccessRate,
-          sampleCount: groupSkills.length,
-          recommendation: this.generateRecommendation(groupSkills),
+      const successful = groupRecords.filter(r => r.success).length
+      const rate = calculateSuccessRate(successful, groupRecords.length)
+      const avgDuration = calculateAvgDuration(groupRecords)
+
+      // Calculate confidence based on sample size
+      const confidence = Math.min(0.95, 0.5 + (groupRecords.length / 100))
+
+      if (confidence >= EVOLUTION_THRESHOLDS.MIN_PATTERN_CONFIDENCE) {
+        const maxTime = groupRecords.reduce((m, r) => r.timestamp > m ? r.timestamp : m, groupRecords[0]?.timestamp ?? 0)
+        patterns.push({
+          id: generateId(),
+          toolId,
+          pattern: contextKey,
+          occurrences: groupRecords.length,
+          avgSuccessRate: rate,
+          avgDurationMs: avgDuration,
+          lastObserved: maxTime,
+          confidence
         })
       }
     }
 
-    return insights
+    return patterns
   }
 
+  private makeContextKey(context: ToolCallRecord['context']): string {
+    const parts: string[] = []
+    if (context.genre) parts.push(`genre=${context.genre}`)
+    if (context.writingStage) parts.push(`stage=${context.writingStage}`)
+    if (context.agentType) parts.push(`agent=${context.agentType}`)
+    return parts.join(', ') || 'default'
+  }
+
+  // --------------------------------------------------------------------------
+  // Phase 3: Skill Crystallization
+  // --------------------------------------------------------------------------
+
   /**
-   * 生成改进后的提示词
+   * Crystallize a pattern into a skill if thresholds are met
    */
-  async generateImprovedPrompt(lesson: Lesson): Promise<PromptVersion | null> {
-    if (lesson.outcome !== 'success') return null
+  async crystallizePattern(pattern: SuccessPattern): Promise<CrystallizedSkill | null> {
+    if (!this.config.enableAutoCrystallization) return null
 
-    const existingVersion = this.versionHistory.length > 0
-      ? this.versionHistory[this.versionHistory.length - 1]
-      : null
+    // Check if already crystallized
+    const existing = await db.crystallizedSkills
+      .where('id')
+      .equals(`pattern-${pattern.id}`)
+      .first()
+    if (existing) return null
 
-    const basePrompt = existingVersion?.improvedPrompt || this.getDefaultPrompt(lesson.task)
-
-    // 提取成功要素
-    const successFactors = this.extractSuccessFactors(lesson)
-
-    // 生成改进提示词
-    const improvedPrompt = this.enhancePrompt(basePrompt, successFactors)
-
-    // 提取任务类型
-    const taskType = this.extractTaskKey(lesson.task)
-
-    const version: PromptVersion = {
-      id: `pv_${Date.now()}`,
-      version: (existingVersion?.version || 0) + 1,
-      basePrompt,
-      improvedPrompt,
-      insight: successFactors.join('; '),
-      performanceScore: 0.9,
-      createdAt: Date.now(),
-      useCount: 0,
-      taskType,
+    if (
+      pattern.occurrences < EVOLUTION_THRESHOLDS.MIN_CRYSTALLIZATION_OCCURRENCES ||
+      pattern.avgSuccessRate < EVOLUTION_THRESHOLDS.MIN_SKILL_SUCCESS_RATE
+    ) {
+      return null
     }
 
-    this.versionHistory.push(version)
-    await this.saveVersion(version)
-
-    return version
-  }
-
-  /**
-   * 应用进化（创建新版本提示词）
-   */
-  async applyEvolution(insight: EvolutionInsight): Promise<PromptVersion> {
-    const existingVersion = this.versionHistory.length > 0
-      ? this.versionHistory[this.versionHistory.length - 1]
-      : null
-
-    const basePrompt = existingVersion?.improvedPrompt || this.getDefaultPrompt(insight.pattern)
-
-    const improvedPrompt = basePrompt + `\n\n[EVOLVED] ${insight.recommendation}`
-
-    const version: PromptVersion = {
-      id: `pv_${Date.now()}`,
-      version: (existingVersion?.version || 0) + 1,
-      basePrompt,
-      improvedPrompt,
-      insight: insight.recommendation,
-      performanceScore: insight.successRate,
+    const skill: CrystallizedSkill = {
+      id: generateId(),
+      name: `Skill-${pattern.toolId}-${Date.now()}`,
+      description: `Auto-crystallized from pattern: ${pattern.pattern}`,
+      sourceToolId: pattern.toolId,
+      rules: [{
+        id: generateId(),
+        condition: this.contextToCondition(pattern.pattern),
+        action: `prefer_tool:${pattern.toolId}`,
+        priority: pattern.confidence * 100,
+        successCount: Math.floor(pattern.occurrences * pattern.avgSuccessRate),
+        failureCount: Math.floor(pattern.occurrences * (1 - pattern.avgSuccessRate)),
+        lastMatched: pattern.lastObserved
+      }],
+      level: 'nascent',
+      successRate: pattern.avgSuccessRate,
+      totalActivations: pattern.occurrences,
+      lastActivated: pattern.lastObserved,
       createdAt: Date.now(),
-      useCount: 0,
-      taskType: insight.pattern,
-    }
-
-    this.versionHistory.push(version)
-    await this.saveVersion(version)
-
-    return version
-  }
-
-  /**
-   * 回滚到历史版本
-   */
-  async rollbackToVersion(versionId: string): Promise<boolean> {
-    const version = this.versionHistory.find(v => v.id === versionId)
-    if (!version) return false
-
-    // 移除之后的所有版本
-    const idx = this.versionHistory.findIndex(v => v.id === versionId)
-    this.versionHistory = this.versionHistory.slice(0, idx + 1)
-
-    return true
-  }
-
-  /**
-   * 获取当前活跃版本
-   */
-  getCurrentVersion(): PromptVersion | null {
-    return this.versionHistory.length > 0
-      ? this.versionHistory[this.versionHistory.length - 1]
-      : null
-  }
-
-  private async getAllSkills(): Promise<Skill[]> {
-    // @ts-ignore
-    return await this.memory.db?.skills?.toArray() || []
-  }
-
-  private extractTaskKey(task: string): string {
-    const words = task.split(/\s+/).filter(w => w.length > 3).slice(0, 3)
-    return words.join('_')
-  }
-
-  private generateRecommendation(skills: Skill[]): string {
-    const commonTriggers = this.findCommonTriggers(skills)
-    const bestSteps = this.findBestSteps(skills)
-    return `优先使用触发词: ${commonTriggers.join(', ')}。关键步骤: ${bestSteps.join(' -> ')}`
-  }
-
-  private findCommonTriggers(skills: Skill[]): string[] {
-    const triggerCounts = new Map<string, number>()
-    for (const skill of skills) {
-      for (const trigger of skill.triggers) {
-        triggerCounts.set(trigger, (triggerCounts.get(trigger) || 0) + 1)
+      evolvedAt: Date.now(),
+      metadata: {
+        patternId: pattern.id,
+        avgDurationMs: pattern.avgDurationMs,
+        confidence: pattern.confidence
       }
     }
-    return [...triggerCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([t]) => t)
+
+    await db.crystallizedSkills.add(skill)
+    await this.logEvent('skill_crystallized', { pattern, skillId: skill.id })
+    return skill
   }
 
-  private findBestSteps(skills: Skill[]): string[] {
-    const sorted = [...skills].sort((a, b) => b.successRate - a.successRate)
-    return sorted[0]?.steps.slice(0, 3) || []
+  private contextToCondition(pattern: string): string {
+    // Convert "genre=fantasy, stage=plotting" to TS condition
+    const parts = pattern.split(', ').map(p => {
+      const [key, value] = p.split('=')
+      return `context.${key} === '${value}'`
+    })
+    return parts.join(' && ')
   }
 
-  private extractSuccessFactors(lesson: Lesson): string[] {
-    const factors: string[] = []
-    if (lesson.context?.strategy) factors.push(`策略: ${lesson.context.strategy}`)
-    if (lesson.context?.tone) factors.push(`语气: ${lesson.context.tone}`)
-    if (lesson.context?.structure) factors.push(`结构: ${lesson.context.structure}`)
-    return factors.length > 0 ? factors : ['保持现有优秀实践']
-  }
+  // --------------------------------------------------------------------------
+  // Phase 4: Skill Lifecycle Management (Promotion / Demotion / Deprecation)
+  // --------------------------------------------------------------------------
 
-  private enhancePrompt(base: string, factors: string[]): string {
-    const enhancement = factors.map(f => `- ${f}`).join('\n')
-    return `${base}\n\n[SUCCESS FACTORS]\n${enhancement}`
-  }
+  /**
+   * Evolve all skills: check promotion, demotion, or deprecation
+   */
+  async evolveSkills(): Promise<{ promoted: string[]; demoted: string[]; deprecated: string[] }> {
+    if (!this.config.enableAutoEvolution) return { promoted: [], demoted: [], deprecated: [] }
 
-  private getDefaultPrompt(task: string): string {
-    return `任务: ${task}\n\n请按照最佳实践完成写作任务，注意语言流畅性和故事逻辑。`
-  }
+    const skills = await db.crystallizedSkills.toArray()
+    const promoted: string[] = []
+    const demoted: string[] = []
+    const deprecated: string[] = []
 
-  private async saveVersion(version: PromptVersion): Promise<void> {
-    try {
-      // @ts-ignore — prompt_versions table may not be declared in db.ts types
-      await db.prompt_versions.add(version)
-    } catch {
-      // 表不存在时静默忽略（首次运行）
+    for (const skill of skills) {
+      if (skill.level === 'deprecated') continue
+
+      const metrics = await this.getSkillMetrics(skill.id)
+      if (!metrics) continue
+
+      // Check deprecation
+      if (
+        metrics.successRate <= EVOLUTION_THRESHOLDS.DEPRECATE_SUCCESS_RATE &&
+        metrics.totalCalls >= EVOLUTION_THRESHOLDS.DEPRECATE_OCCURRENCES
+      ) {
+        await this.updateSkillLevel(skill.id, 'deprecated')
+        deprecated.push(skill.id)
+        continue
+      }
+
+      // Check demotion
+      if (
+        metrics.successRate <= EVOLUTION_THRESHOLDS.DEMOTE_SUCCESS_RATE &&
+        metrics.totalCalls >= EVOLUTION_THRESHOLDS.DEMOTE_OCCURRENCES &&
+        skill.level !== 'nascent'
+      ) {
+        const newLevel = this.getNextLowerLevel(skill.level)
+        await this.updateSkillLevel(skill.id, newLevel)
+        await this.logEvent('skill_demoted', { skillId: skill.id, newLevel })
+        demoted.push(skill.id)
+        continue
+      }
+
+      // Check promotion
+      if (
+        metrics.successRate >= EVOLUTION_THRESHOLDS.PROMOTE_SUCCESS_RATE &&
+        metrics.totalCalls >= EVOLUTION_THRESHOLDS.PROMOTE_OCCURRENCES &&
+        skill.level !== 'mastered'
+      ) {
+        const newLevel = this.getNextHigherLevel(skill.level)
+        await this.updateSkillLevel(skill.id, newLevel)
+        await this.logEvent('skill_promoted', { skillId: skill.id, newLevel })
+        promoted.push(skill.id)
+      }
     }
+
+    return { promoted, demoted, deprecated }
+  }
+
+  private async getSkillMetrics(skillId: string): Promise<{ successRate: number; totalCalls: number } | null> {
+    const skill = await db.crystallizedSkills.get(skillId)
+    if (!skill || !skill.sourceToolId) return null
+
+    const metrics = await this.getToolMetrics(skill.sourceToolId)
+    if (!metrics) return null
+
+    return {
+      successRate: metrics.successRate,
+      totalCalls: metrics.totalCalls
+    }
+  }
+
+  private async updateSkillLevel(skillId: string, newLevel: SkillLevel): Promise<void> {
+    await db.crystallizedSkills.update(skillId, {
+      level: newLevel,
+      evolvedAt: Date.now()
+    })
+  }
+
+  private getNextHigherLevel(level: SkillLevel): SkillLevel {
+    const order: SkillLevel[] = ['nascent', 'developing', 'stable', 'mastered']
+    const idx = order.indexOf(level)
+    return idx < order.length - 1 ? order[idx + 1] : 'mastered'
+  }
+
+  private getNextLowerLevel(level: SkillLevel): SkillLevel {
+    const order: SkillLevel[] = ['nascent', 'developing', 'stable', 'mastered']
+    const idx = order.indexOf(level)
+    return idx > 0 ? order[idx - 1] : 'nascent'
+  }
+
+  // --------------------------------------------------------------------------
+  // Phase 5: Matching & Recommendation
+  // --------------------------------------------------------------------------
+
+  /**
+   * Match context against crystallized skills and return recommended tool
+   */
+  async matchSkill(context: Record<string, unknown>): Promise<CrystallizedSkill | null> {
+    const skills = await db.crystallizedSkills
+      .where('level')
+      .notEqual('deprecated')
+      .toArray()
+
+    let best: { skill: CrystallizedSkill; score: number } | null = null
+
+    for (const skill of skills) {
+      const score = this.evaluateSkillMatch(skill, context)
+      if (score > 0 && (!best || score > best.score)) {
+        best = { skill, score }
+      }
+    }
+
+    if (best) {
+      // Update activation stats
+      await db.crystallizedSkills.update(best.skill.id, {
+        totalActivations: best.skill.totalActivations + 1,
+        lastActivated: Date.now()
+      })
+      return best.skill
+    }
+
+    return null
+  }
+
+  private evaluateSkillMatch(skill: CrystallizedSkill, context: Record<string, unknown>): number {
+    let score = 0
+    for (const rule of skill.rules) {
+      try {
+        // Simple eval for condition matching
+        const conditionMet = this.testCondition(rule.condition, context)
+        if (conditionMet) {
+          score += rule.priority
+        }
+      } catch {
+        // Invalid condition, skip
+      }
+    }
+    return score * skill.successRate
+  }
+
+  private testCondition(condition: string, context: Record<string, unknown>): boolean {
+    try {
+      // Very simple condition parser - only supports equality checks
+      const conditions = condition.split(' && ')
+      for (const cond of conditions) {
+        const match = cond.match(/context\.(\w+) === '([^']+)'/)
+        if (!match) continue
+        const key = match[1]
+        const expected = match[2]
+        const actual = context[key]
+        if (String(actual) !== expected) return false
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Utility
+  // --------------------------------------------------------------------------
+
+  private async logEvent(event: EvolutionEvent, data: Record<string, unknown>): Promise<void> {
+    await db.evolutionEvents.add({
+      id: generateId(),
+      event,
+      timestamp: Date.now(),
+      data
+    })
+  }
+
+  /**
+   * Start background evolution check loop
+   */
+  startAutoEvolution(): void {
+    if (this.checkInterval) return
+    this.checkInterval = setInterval(async () => {
+      try {
+        // Get all tools with recent calls
+        const toolIds = new Set<string>()
+        const cutoff = Date.now() - this.config.patternWindowMs
+        await db.toolCallRecords
+          .where('timestamp')
+          .above(cutoff)
+          .each(r => toolIds.add(r.toolId))
+
+        const toolIdArray = Array.from(toolIds)
+        for (let i = 0; i < toolIdArray.length; i++) {
+          const toolId = toolIdArray[i]
+          const patterns = await this.detectPatterns(toolId)
+          for (const pattern of patterns) {
+            await this.crystallizePattern(pattern)
+          }
+        }
+
+        await this.evolveSkills()
+      } catch (e) {
+        console.error('[SelfEvolutionEngine] Auto-evolution error:', e)
+      }
+    }, this.config.checkIntervalMs)
+  }
+
+  stopAutoEvolution(): void {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval)
+      this.checkInterval = null
+    }
+  }
+
+  /**
+   * Get all crystallized skills
+   */
+  async getAllSkills(): Promise<CrystallizedSkill[]> {
+    return db.crystallizedSkills.toArray()
+  }
+
+  /**
+   * Get skill by ID
+   */
+  async getSkill(id: string): Promise<CrystallizedSkill | undefined> {
+    return db.crystallizedSkills.get(id)
+  }
+
+  /**
+   * Get evolution event log
+   */
+  async getEventLog(limit = 50): Promise<{ id: string; event: EvolutionEvent; timestamp: number; data: Record<string, unknown> }[]> {
+    return db.evolutionEvents
+      .orderBy('timestamp')
+      .reverse()
+      .limit(limit)
+      .toArray()
   }
 }
 
-export const selfEvolutionEngine = new SelfEvolutionEngine(memoryManager)
+// Singleton instance
+let engineInstance: SelfEvolutionEngine | null = null
+
+export function getSelfEvolutionEngine(): SelfEvolutionEngine {
+  if (!engineInstance) {
+    engineInstance = new SelfEvolutionEngine()
+  }
+  return engineInstance
+}
