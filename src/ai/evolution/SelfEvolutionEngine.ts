@@ -1,484 +1,308 @@
 /**
- * SelfEvolutionEngine - V66
- * Core engine for self-evolution closed loop:
- * Tool Success Tracking → Pattern Recognition → Skill Crystallization → Skill Demotion/Deprecation
+ * SelfEvolutionEngine - V105
+ * Unified Self-Evolution Engine Coordinating Pattern and Skill Evolution
+ * 
+ * Inspired by:
+ * - thunderbolt: pipeline architecture + feedback loops for continuous improvement
+ * - nanobot: distributed mesh agents with autonomous specialization
+ * - chatdev: role specialization + multi-agent coordination
+ * - generic-agent: autonomous goal pursuit with self-improvement
+ * - ruflo: hierarchical decomposition for multi-level analysis
+ * 
+ * This is the TOP-LEVEL evolution coordinator that integrates:
+ * - PatternEvolver: pattern library self-evolution
+ * - SkillEvolutionEngine: skill graph self-evolution
+ * - PatternLibrary: the actual pattern repository
+ * - WritingSessionState: session data for analysis
  */
 
-import { 
-  type ToolCallRecord,
-  type SuccessPattern,
-  type CrystallizedSkill,
-  type SkillRule,
-  type EvolutionMetrics,
-  type EvolutionConfig,
-  type EvolutionEvent,
-  type SkillLevel,
-  DEFAULT_EVOLUTION_CONFIG,
-  EVOLUTION_THRESHOLDS,
-  generateId,
-  calculateSuccessRate,
-  calculateAvgDuration
-} from './SelfEvolutionTypes'
+import type { PatternEvolverState } from './PatternEvolver'
+import { createEmptyEvolverState, evolvePatterns } from './PatternEvolver'
+import { createEmptySkillEvolutionState, evolveSkillFromSessions, getSkillRecommendations } from './SkillEvolutionEngine'
+import type { WritingSessionState } from '../session/WritingSessionManager'
 
-import Dexie from 'dexie'
+// =============================================================================
+// Types
+// =============================================================================
 
-// ============================================================================
-// Database Schema
-// ============================================================================
+export interface EvolutionCycleResult {
+  cycleNumber: number
+  timestamp: number
+  patternEvolution: {
+    patternsPromoted: number
+    patternsDemoted: number
+    patternsPruned: number
+    newPatternsDiscovered: number
+    averageEffectivenessImprovement: number
+  }
+  skillEvolution: {
+    skillsImproved: number
+    totalXpGained: number
+    skillLevelsReached: number
+  }
+  recommendations: string[]
+  overallHealthScore: number
+}
 
-export class SelfEvolutionDB extends Dexie {
-  toolCallRecords!: Dexie.Table<ToolCallRecord, string>
-  successPatterns!: Dexie.Table<SuccessPattern, string>
-  crystallizedSkills!: Dexie.Table<CrystallizedSkill, string>
-  evolutionEvents!: Dexie.Table<{ id: string; event: EvolutionEvent; timestamp: number; data: Record<string, unknown> }, string>
+export interface SelfEvolutionConfig {
+  patternEvolverEnabled: boolean
+  skillEvolutionEnabled: boolean
+  autoPruneInactivePatterns: boolean
+  autoPromoteHighPerformers: boolean
+  minSessionsPerCycle: number
+  cycleIntervalMs: number
+  maxPatternsPerCycle: number
+  maxSkillsPerCycle: number
+  lowMasteryThreshold: number
+  highMasteryThreshold: number
+}
 
-  constructor() {
-    super('SelfEvolutionDB')
-    this.version(1).stores({
-      toolCallRecords: 'id, toolId, timestamp, success',
-      successPatterns: 'id, toolId, lastObserved',
-      crystallizedSkills: 'id, level, lastActivated',
-      evolutionEvents: 'id, event, timestamp'
-    })
+export const DEFAULT_SELF_EVOLUTION_CONFIG: SelfEvolutionConfig = {
+  patternEvolverEnabled: true,
+  skillEvolutionEnabled: true,
+  autoPruneInactivePatterns: true,
+  autoPromoteHighPerformers: true,
+  minSessionsPerCycle: 3,
+  cycleIntervalMs: 24 * 60 * 60 * 1000, // 1 day
+  maxPatternsPerCycle: 5,
+  maxSkillsPerCycle: 3,
+  lowMasteryThreshold: 40,
+  highMasteryThreshold: 75,
+}
+
+export interface SelfEvolutionState {
+  config: SelfEvolutionConfig
+  patternEvolverState: PatternEvolverState
+  skillEvolverState: SkillEvolutionState
+  cycleHistory: EvolutionCycleResult[]
+  currentCycleNumber: number
+  lastCycleTimestamp: number
+  totalSessionsAnalyzed: number
+}
+
+export function createEmptySelfEvolutionState(config?: Partial<SelfEvolutionConfig>): SelfEvolutionState {
+  return {
+    config: { ...DEFAULT_SELF_EVOLUTION_CONFIG, ...config },
+    patternEvolverState: createEmptyEvolverState(),
+    skillEvolverState: createEmptySkillEvolutionState(),
+    cycleHistory: [],
+    currentCycleNumber: 0,
+    lastCycleTimestamp: Date.now(),
+    totalSessionsAnalyzed: 0,
   }
 }
 
-const db = new SelfEvolutionDB()
+// =============================================================================
+// Core Evolution Logic
+// =============================================================================
 
-// ============================================================================
-// SelfEvolutionEngine
-// ============================================================================
+export function runEvolutionCycle(
+  state: SelfEvolutionState,
+  sessions: WritingSessionState[],
+  patterns: any
+): { evolvedState: SelfEvolutionState; result: EvolutionCycleResult } {
+  const cycleNumber = state.currentCycleNumber + 1
+  const recommendations: string[] = []
 
-export class SelfEvolutionEngine {
-  private config: EvolutionConfig
-  private checkInterval: ReturnType<typeof setInterval> | null = null
-
-  constructor(config: EvolutionConfig = DEFAULT_EVOLUTION_CONFIG) {
-    this.config = config
-  }
-
-  // --------------------------------------------------------------------------
-  // Phase 1: Tool Call Tracking
-  // --------------------------------------------------------------------------
-
-  /**
-   * Record a tool call result for later analysis
-   */
-  async recordToolCall(record: Omit<ToolCallRecord, 'id'>): Promise<string> {
-    const id = generateId()
-    const fullRecord: ToolCallRecord = { ...record, id }
-    await db.toolCallRecords.add(fullRecord)
-    return id
-  }
-
-  /**
-   * Get metrics for a specific tool
-   */
-  async getToolMetrics(toolId: string): Promise<EvolutionMetrics | null> {
-    const records = await db.toolCallRecords
-      .where('toolId')
-      .equals(toolId)
-      .toArray()
-
-    if (records.length === 0) return null
-
-    const successful = records.filter(r => r.success).length
-    const patterns = await db.successPatterns
-      .where('toolId')
-      .equals(toolId)
-      .count()
-    const skills = await db.crystallizedSkills.toArray()
-    const skillsForTool = skills.filter(s => s.sourceToolId === toolId)
-
+  // Filter sessions by minimum count
+  if (sessions.length < state.config.minSessionsPerCycle) {
     return {
-      toolId,
-      totalCalls: records.length,
-      successfulCalls: successful,
-      failedCalls: records.length - successful,
-      avgDurationMs: calculateAvgDuration(records),
-      successRate: calculateSuccessRate(successful, records.length),
-      patternCount: patterns,
-      skillCount: skillsForTool.length,
-      lastUpdated: Date.now()
+      evolvedState: state,
+      result: {
+        cycleNumber,
+        timestamp: Date.now(),
+        patternEvolution: { patternsPromoted: 0, patternsDemoted: 0, patternsPruned: 0, newPatternsDiscovered: 0, averageEffectivenessImprovement: 0 },
+        skillEvolution: { skillsImproved: 0, totalXpGained: 0, skillLevelsReached: 0 },
+        recommendations: ['Not enough sessions for evolution cycle'],
+        overallHealthScore: 50,
+      },
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Phase 2: Pattern Recognition
-  // --------------------------------------------------------------------------
+  // Pattern evolution
+  let evolvedPatternState = state.patternEvolverState
+  let patternMetrics = { patternsPromoted: 0, patternsDemoted: 0, patternsPruned: 0, newPatternsDiscovered: 0, averageEffectivenessImprovement: 0 }
 
-  /**
-   * Detect success patterns from recent tool calls
-   * Groups calls by context attributes and computes success rates
-   */
-  async detectPatterns(toolId: string): Promise<SuccessPattern[]> {
-    const cutoff = Date.now() - this.config.patternWindowMs
-    const records = await db.toolCallRecords
-      .where('toolId')
-      .equals(toolId)
-      .filter(r => r.timestamp > cutoff)
-      .toArray()
-
-    if (records.length < EVOLUTION_THRESHOLDS.MIN_PATTERN_OCCURRENCES) {
-      return []
+  if (state.config.patternEvolverEnabled) {
+    const { evolvedState: eps, evolutionResults, metrics } = evolvePatterns(
+      state.patternEvolverState,
+      patterns,
+      sessions
+    )
+    evolvedPatternState = eps
+    patternMetrics = {
+      patternsPromoted: metrics.patternsPromoted,
+      patternsDemoted: metrics.patternsDemoted,
+      patternsPruned: metrics.patternsPruned,
+      newPatternsDiscovered: metrics.newPatternsDiscovered,
+      averageEffectivenessImprovement: metrics.averageEffectivenessImprovement,
     }
 
-    // Group by context combination
-    const groups = new Map<string, ToolCallRecord[]>()
-    for (const record of records) {
-      const key = this.makeContextKey(record.context)
-      const group = groups.get(key) || []
-      group.push(record)
-      groups.set(key, group)
-    }
-
-    const patterns: SuccessPattern[] = []
-    const entries = Array.from(groups.entries())
-    for (let i = 0; i < entries.length; i++) {
-      const [contextKey, groupRecords] = entries[i]
-      if (groupRecords.length < EVOLUTION_THRESHOLDS.MIN_PATTERN_OCCURRENCES) continue
-
-      const successful = groupRecords.filter(r => r.success).length
-      const rate = calculateSuccessRate(successful, groupRecords.length)
-      const avgDuration = calculateAvgDuration(groupRecords)
-
-      // Calculate confidence based on sample size
-      const confidence = Math.min(0.95, 0.5 + (groupRecords.length / 100))
-
-      if (confidence >= EVOLUTION_THRESHOLDS.MIN_PATTERN_CONFIDENCE) {
-        const maxTime = groupRecords.reduce((m, r) => r.timestamp > m ? r.timestamp : m, groupRecords[0]?.timestamp ?? 0)
-        patterns.push({
-          id: generateId(),
-          toolId,
-          pattern: contextKey,
-          occurrences: groupRecords.length,
-          avgSuccessRate: rate,
-          avgDurationMs: avgDuration,
-          lastObserved: maxTime,
-          confidence
-        })
+    for (const result of evolutionResults) {
+      if (result.evolutionType === 'promote') {
+        recommendations.push(`Pattern "${result.patternId}" promoted (weight ${result.previousWeight.toFixed(2)} → ${result.newWeight.toFixed(2)})`)
+      } else if (result.evolutionType === 'pruned') {
+        recommendations.push(`Pattern "${result.patternId}" pruned due to low effectiveness`)
       }
     }
-
-    return patterns
   }
 
-  private makeContextKey(context: ToolCallRecord['context']): string {
-    const parts: string[] = []
-    if (context.genre) parts.push(`genre=${context.genre}`)
-    if (context.writingStage) parts.push(`stage=${context.writingStage}`)
-    if (context.agentType) parts.push(`agent=${context.agentType}`)
-    return parts.join(', ') || 'default'
-  }
+  // Skill evolution
+  let evolvedSkillState = state.skillEvolverState
+  let skillMetrics = { skillsImproved: 0, totalXpGained: 0, skillLevelsReached: 0 }
 
-  // --------------------------------------------------------------------------
-  // Phase 3: Skill Crystallization
-  // --------------------------------------------------------------------------
+  if (state.config.skillEvolutionEnabled) {
+    evolvedSkillState = evolveSkillFromSessions(state.skillEvolverState, sessions)
 
-  /**
-   * Crystallize a pattern into a skill if thresholds are met
-   */
-  async crystallizePattern(pattern: SuccessPattern): Promise<CrystallizedSkill | null> {
-    if (!this.config.enableAutoCrystallization) return null
+    // Count skills that reached higher mastery
+    const skillsImproved = Array.from(evolvedSkillState.skillLevels.entries()).filter(([skillId, level]) => {
+      const oldLevel = state.skillEvolverState.skillLevels.get(skillId)
+      return oldLevel ? level.masteryScore > oldLevel.masteryScore : false
+    }).length
 
-    // Check if already crystallized
-    const existing = await db.crystallizedSkills
-      .where('id')
-      .equals(`pattern-${pattern.id}`)
-      .first()
-    if (existing) return null
-
-    if (
-      pattern.occurrences < EVOLUTION_THRESHOLDS.MIN_CRYSTALLIZATION_OCCURRENCES ||
-      pattern.avgSuccessRate < EVOLUTION_THRESHOLDS.MIN_SKILL_SUCCESS_RATE
-    ) {
-      return null
+    skillMetrics = {
+      skillsImproved,
+      totalXpGained: evolvedSkillState.progressionRecords.reduce((sum, r) => sum + r.xpGained, 0),
+      skillLevelsReached: evolvedSkillState.skillLevels.size,
     }
 
-    const skill: CrystallizedSkill = {
-      id: generateId(),
-      name: `Skill-${pattern.toolId}-${Date.now()}`,
-      description: `Auto-crystallized from pattern: ${pattern.pattern}`,
-      sourceToolId: pattern.toolId,
-      rules: [{
-        id: generateId(),
-        condition: this.contextToCondition(pattern.pattern),
-        action: `prefer_tool:${pattern.toolId}`,
-        priority: pattern.confidence * 100,
-        successCount: Math.floor(pattern.occurrences * pattern.avgSuccessRate),
-        failureCount: Math.floor(pattern.occurrences * (1 - pattern.avgSuccessRate)),
-        lastMatched: pattern.lastObserved
-      }],
-      level: 'nascent',
-      successRate: pattern.avgSuccessRate,
-      totalActivations: pattern.occurrences,
-      lastActivated: pattern.lastObserved,
-      createdAt: Date.now(),
-      evolvedAt: Date.now(),
-      metadata: {
-        patternId: pattern.id,
-        avgDurationMs: pattern.avgDurationMs,
-        confidence: pattern.confidence
-      }
-    }
-
-    await db.crystallizedSkills.add(skill)
-    await this.logEvent('skill_crystallized', { pattern, skillId: skill.id })
-    return skill
-  }
-
-  private contextToCondition(pattern: string): string {
-    // Convert "genre=fantasy, stage=plotting" to TS condition
-    const parts = pattern.split(', ').map(p => {
-      const [key, value] = p.split('=')
-      return `context.${key} === '${value}'`
-    })
-    return parts.join(' && ')
-  }
-
-  // --------------------------------------------------------------------------
-  // Phase 4: Skill Lifecycle Management (Promotion / Demotion / Deprecation)
-  // --------------------------------------------------------------------------
-
-  /**
-   * Evolve all skills: check promotion, demotion, or deprecation
-   */
-  async evolveSkills(): Promise<{ promoted: string[]; demoted: string[]; deprecated: string[] }> {
-    if (!this.config.enableAutoEvolution) return { promoted: [], demoted: [], deprecated: [] }
-
-    const skills = await db.crystallizedSkills.toArray()
-    const promoted: string[] = []
-    const demoted: string[] = []
-    const deprecated: string[] = []
-
-    for (const skill of skills) {
-      if (skill.level === 'deprecated') continue
-
-      const metrics = await this.getSkillMetrics(skill.id)
-      if (!metrics) continue
-
-      // Check deprecation
-      if (
-        metrics.successRate <= EVOLUTION_THRESHOLDS.DEPRECATE_SUCCESS_RATE &&
-        metrics.totalCalls >= EVOLUTION_THRESHOLDS.DEPRECATE_OCCURRENCES
-      ) {
-        await this.updateSkillLevel(skill.id, 'deprecated')
-        deprecated.push(skill.id)
-        continue
-      }
-
-      // Check demotion
-      if (
-        metrics.successRate <= EVOLUTION_THRESHOLDS.DEMOTE_SUCCESS_RATE &&
-        metrics.totalCalls >= EVOLUTION_THRESHOLDS.DEMOTE_OCCURRENCES &&
-        skill.level !== 'nascent'
-      ) {
-        const newLevel = this.getNextLowerLevel(skill.level)
-        await this.updateSkillLevel(skill.id, newLevel)
-        await this.logEvent('skill_demoted', { skillId: skill.id, newLevel })
-        demoted.push(skill.id)
-        continue
-      }
-
-      // Check promotion
-      if (
-        metrics.successRate >= EVOLUTION_THRESHOLDS.PROMOTE_SUCCESS_RATE &&
-        metrics.totalCalls >= EVOLUTION_THRESHOLDS.PROMOTE_OCCURRENCES &&
-        skill.level !== 'mastered'
-      ) {
-        const newLevel = this.getNextHigherLevel(skill.level)
-        await this.updateSkillLevel(skill.id, newLevel)
-        await this.logEvent('skill_promoted', { skillId: skill.id, newLevel })
-        promoted.push(skill.id)
-      }
-    }
-
-    return { promoted, demoted, deprecated }
-  }
-
-  private async getSkillMetrics(skillId: string): Promise<{ successRate: number; totalCalls: number } | null> {
-    const skill = await db.crystallizedSkills.get(skillId)
-    if (!skill || !skill.sourceToolId) return null
-
-    const metrics = await this.getToolMetrics(skill.sourceToolId)
-    if (!metrics) return null
-
-    return {
-      successRate: metrics.successRate,
-      totalCalls: metrics.totalCalls
+    // Skill recommendations
+    const skillRecs = getSkillRecommendations(evolvedSkillState)
+    for (const rec of skillRecs.slice(0, 3)) {
+      recommendations.push(`[Skill] ${rec.skillName}: ${rec.reason} (${rec.suggestedPractice})`)
     }
   }
 
-  private async updateSkillLevel(skillId: string, newLevel: SkillLevel): Promise<void> {
-    await db.crystallizedSkills.update(skillId, {
-      level: newLevel,
-      evolvedAt: Date.now()
-    })
+  // Overall health score (weighted average)
+  const patternHealth = 50 + (patternMetrics.patternsPromoted * 5) - (patternMetrics.patternsPruned * 3)
+  const skillHealth = Math.min(100, evolvedSkillState.skillLevels.size * 10)
+  const overallHealthScore = Math.round((patternHealth * 0.4 + skillHealth * 0.6))
+
+  const result: EvolutionCycleResult = {
+    cycleNumber,
+    timestamp: Date.now(),
+    patternEvolution: patternMetrics,
+    skillEvolution: skillMetrics,
+    recommendations,
+    overallHealthScore,
   }
 
-  private getNextHigherLevel(level: SkillLevel): SkillLevel {
-    const order: SkillLevel[] = ['nascent', 'developing', 'stable', 'mastered']
-    const idx = order.indexOf(level)
-    return idx < order.length - 1 ? order[idx + 1] : 'mastered'
+  const evolvedState: SelfEvolutionState = {
+    ...state,
+    config: state.config,
+    patternEvolverState: evolvedPatternState,
+    skillEvolverState: evolvedSkillState,
+    cycleHistory: [...state.cycleHistory, result],
+    currentCycleNumber: cycleNumber,
+    lastCycleTimestamp: Date.now(),
+    totalSessionsAnalyzed: state.totalSessionsAnalyzed + sessions.length,
   }
 
-  private getNextLowerLevel(level: SkillLevel): SkillLevel {
-    const order: SkillLevel[] = ['nascent', 'developing', 'stable', 'mastered']
-    const idx = order.indexOf(level)
-    return idx > 0 ? order[idx - 1] : 'nascent'
+  return { evolvedState, result }
+}
+
+export function shouldRunEvolutionCycle(state: SelfEvolutionState): boolean {
+  const now = Date.now()
+  const timeSinceLastCycle = now - state.lastCycleTimestamp
+
+  // Run if interval has passed
+  if (timeSinceLastCycle >= state.config.cycleIntervalMs) {
+    return true
   }
 
-  // --------------------------------------------------------------------------
-  // Phase 5: Matching & Recommendation
-  // --------------------------------------------------------------------------
+  // Run if we have enough new sessions
+  // (Note: totalSessionsAnalyzed is incremented in runEvolutionCycle)
+  // So we check if there might be new sessions since last cycle
+  return false
+}
 
-  /**
-   * Match context against crystallized skills and return recommended tool
-   */
-  async matchSkill(context: Record<string, unknown>): Promise<CrystallizedSkill | null> {
-    const skills = await db.crystallizedSkills
-      .where('level')
-      .notEqual('deprecated')
-      .toArray()
+export function getEvolutionStatus(state: SelfEvolutionState): {
+  cycleCount: number
+  totalSessionsAnalyzed: number
+  activePatterns: number
+  trackedSkills: number
+  lastCycleAgo: number
+  healthScore: number
+} {
+  const lastCycleAgo = Date.now() - state.lastCycleTimestamp
 
-    let best: { skill: CrystallizedSkill; score: number } | null = null
+  // Get active pattern count
+  const activePatterns = state.patternEvolverState.usageRecords.length > 0
+    ? new Set(state.patternEvolverState.usageRecords.map(r => r.patternId)).size
+    : 0
 
-    for (const skill of skills) {
-      const score = this.evaluateSkillMatch(skill, context)
-      if (score > 0 && (!best || score > best.score)) {
-        best = { skill, score }
-      }
-    }
-
-    if (best) {
-      // Update activation stats
-      await db.crystallizedSkills.update(best.skill.id, {
-        totalActivations: best.skill.totalActivations + 1,
-        lastActivated: Date.now()
-      })
-      return best.skill
-    }
-
-    return null
-  }
-
-  private evaluateSkillMatch(skill: CrystallizedSkill, context: Record<string, unknown>): number {
-    let score = 0
-    for (const rule of skill.rules) {
-      try {
-        // Simple eval for condition matching
-        const conditionMet = this.testCondition(rule.condition, context)
-        if (conditionMet) {
-          score += rule.priority
-        }
-      } catch {
-        // Invalid condition, skip
-      }
-    }
-    return score * skill.successRate
-  }
-
-  private testCondition(condition: string, context: Record<string, unknown>): boolean {
-    try {
-      // Very simple condition parser - only supports equality checks
-      const conditions = condition.split(' && ')
-      for (const cond of conditions) {
-        const match = cond.match(/context\.(\w+) === '([^']+)'/)
-        if (!match) continue
-        const key = match[1]
-        const expected = match[2]
-        const actual = context[key]
-        if (String(actual) !== expected) return false
-      }
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // Utility
-  // --------------------------------------------------------------------------
-
-  private async logEvent(event: EvolutionEvent, data: Record<string, unknown>): Promise<void> {
-    await db.evolutionEvents.add({
-      id: generateId(),
-      event,
-      timestamp: Date.now(),
-      data
-    })
-  }
-
-  /**
-   * Start background evolution check loop
-   */
-  startAutoEvolution(): void {
-    if (this.checkInterval) return
-    this.checkInterval = setInterval(async () => {
-      try {
-        // Get all tools with recent calls
-        const toolIds = new Set<string>()
-        const cutoff = Date.now() - this.config.patternWindowMs
-        await db.toolCallRecords
-          .where('timestamp')
-          .above(cutoff)
-          .each(r => toolIds.add(r.toolId))
-
-        const toolIdArray = Array.from(toolIds)
-        for (let i = 0; i < toolIdArray.length; i++) {
-          const toolId = toolIdArray[i]
-          const patterns = await this.detectPatterns(toolId)
-          for (const pattern of patterns) {
-            await this.crystallizePattern(pattern)
-          }
-        }
-
-        await this.evolveSkills()
-      } catch (e) {
-        console.error('[SelfEvolutionEngine] Auto-evolution error:', e)
-      }
-    }, this.config.checkIntervalMs)
-  }
-
-  stopAutoEvolution(): void {
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval)
-      this.checkInterval = null
-    }
-  }
-
-  /**
-   * Get all crystallized skills
-   */
-  async getAllSkills(): Promise<CrystallizedSkill[]> {
-    return db.crystallizedSkills.toArray()
-  }
-
-  /**
-   * Get skill by ID
-   */
-  async getSkill(id: string): Promise<CrystallizedSkill | undefined> {
-    return db.crystallizedSkills.get(id)
-  }
-
-  /**
-   * Get evolution event log
-   */
-  async getEventLog(limit = 50): Promise<{ id: string; event: EvolutionEvent; timestamp: number; data: Record<string, unknown> }[]> {
-    return db.evolutionEvents
-      .orderBy('timestamp')
-      .reverse()
-      .limit(limit)
-      .toArray()
+  return {
+    cycleCount: state.currentCycleNumber,
+    totalSessionsAnalyzed: state.totalSessionsAnalyzed,
+    activePatterns,
+    trackedSkills: state.skillEvolverState.skillLevels.size,
+    lastCycleAgo,
+    healthScore: state.cycleHistory.length > 0
+      ? state.cycleHistory[state.cycleHistory.length - 1].overallHealthScore
+      : 50,
   }
 }
 
-// Singleton instance
-let engineInstance: SelfEvolutionEngine | null = null
+export function getPrioritizedRecommendations(state: SelfEvolutionState): string[] {
+  const recs: string[] = []
 
-export function getSelfEvolutionEngine(): SelfEvolutionEngine {
-  if (!engineInstance) {
-    engineInstance = new SelfEvolutionEngine()
+  // From pattern evolution
+  const recentPatternEvals = state.patternEvolverState.evolutionHistory.slice(-5)
+  for (const evaluation of recentPatternEvals) {
+    if (evaluation.evolutionType === 'demote') {
+      recs.push(`Review pattern "${evaluation.patternId}" - effectiveness declining: ${evaluation.reason}`)
+    }
   }
-  return engineInstance
+
+  // From skill evolution
+  const skillRecs = getSkillRecommendations(state.skillEvolverState)
+  for (const rec of skillRecs.slice(0, 5)) {
+    if (rec.priority === 'high') {
+      recs.push(`Focus on ${rec.skillName}: ${rec.reason}`)
+    }
+  }
+
+  // Sort by priority (pattern issues first)
+  return recs
 }
+
+export function formatSelfEvolutionSummary(state: SelfEvolutionState): string {
+  const lines = [
+    '=== Self-Evolution Summary ===',
+    `Cycles Run: ${state.currentCycleNumber}`,
+    `Total Sessions Analyzed: ${state.totalSessionsAnalyzed}`,
+    `Tracked Skills: ${state.skillEvolverState.skillLevels.size}`,
+    '',
+  ]
+
+  if (state.cycleHistory.length > 0) {
+    const lastCycle = state.cycleHistory[state.cycleHistory.length - 1]
+    lines.push('--- Last Evolution Cycle ---')
+    lines.push(`Overall Health: ${lastCycle.overallHealthScore}/100`)
+    lines.push(`Patterns: ${lastCycle.patternEvolution.patternsPromoted}↑ ${lastCycle.patternEvolution.patternsDemoted}↓ ${lastCycle.patternEvolution.patternsPruned}✗`)
+    lines.push(`Skills: ${lastCycle.skillEvolution.skillsImproved} improved, ${lastCycle.skillEvolution.totalXpGained} XP gained`)
+    lines.push('')
+  }
+
+  lines.push('--- Recent Recommendations ---')
+  const recs = getPrioritizedRecommendations(state)
+  if (recs.length === 0) {
+    lines.push('No recommendations')
+  } else {
+    for (const rec of recs.slice(0, 5)) {
+      lines.push(`• ${rec}`)
+    }
+  }
+
+  lines.push('')
+  lines.push('--- Skill Levels ---')
+  for (const [skillId, level] of Array.from(state.skillEvolverState.skillLevels.entries())) {
+    lines.push(`${skillId}: Lv${level.level} (${level.masteryScore.toFixed(0)} mastery)`)
+  }
+  if (state.skillEvolverState.skillLevels.size === 0) {
+    lines.push('No skills tracked yet')
+  }
+
+  return lines.join('\n')
+}
+
