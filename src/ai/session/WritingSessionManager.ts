@@ -83,6 +83,13 @@ export interface WritingSessionState {
   completedGoals: string[]
   stagnationCount: number
   pauseReason?: string
+  // Dashboard integration
+  currentMomentum?: number    // 0-100
+  toolCallCount?: number
+  lastToolCallTime?: number
+  qualityHistory?: number[]
+  totalWordsWritten?: number
+  sessionStartTime?: number
 }
 
 export interface SessionContext {
