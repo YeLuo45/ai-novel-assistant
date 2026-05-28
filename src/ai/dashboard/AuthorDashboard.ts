@@ -238,7 +238,7 @@ export function generateDashboardSummary(
       })
     }
 
-    if (sessionAnalytics.momentum > 80) {
+    if (sessionAnalytics.currentMomentum > 80) {
       achievements.push('High writing momentum achieved')
     }
   }
