@@ -512,7 +512,7 @@ export function calculateProseStyleScore(content: string): { score: number; conf
   
   if (showing > telling && showing > 0) {
     score += 10
-    evidence.push('Strong "show don't tell" balance')
+    evidence.push("Strong \"show don\x27t tell\" balance")
   } else if (telling > showing * 2) {
     score -= 10
     evidence.push('Too much "telling" over "showing"')
