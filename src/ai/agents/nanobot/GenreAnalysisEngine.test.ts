@@ -74,7 +74,7 @@ describe('analyzeChapterGenre', () => {
 
   it('should detect enemies_to_lovers trope', () => {
     let state = createEmptyGenreState()
-    state = analyzeChapterGenre(state, 'They were enemies, rivals who hated each other. But eventually love bloomed.', 1)
+    state = analyzeChapterGenre(state, 'They were enemies, rivals who hated each other. But love bloomed.', 1)
     const tropes = state.analyses[0].tropes
     expect(tropes.some(t => t.trope === 'enemies_to_lovers')).toBeTruthy()
   })
@@ -133,7 +133,7 @@ describe('detectTropesInText', () => {
 
   it('should return multiple tropes', () => {
     const state = createEmptyGenreState()
-    const tropes = detectTropesInText(state, 'The chosen one was destined to save the world. There was foreshadowing of the battle.')
+    const tropes = detectTropesInText(state, 'The chosen one was destined to save the world. Foreshadowing of the battle.')
     expect(tropes.length).toBeGreaterThan(1)
   })
 })
