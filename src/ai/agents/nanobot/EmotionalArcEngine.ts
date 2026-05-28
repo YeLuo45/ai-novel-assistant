@@ -27,12 +27,13 @@ function detectArcType(states: EmotionalState[]): 'growth' | 'decline' | 'cycle'
   const last = intensities[intensities.length - 1]
   const mid = intensities[Math.floor(intensities.length / 2)]
 
-  if (last > first && last > mid) return 'growth'
-  if (last < first && last < mid) return 'decline'
-  // Check for cycle: high-low-high or low-high-low
+  // Check for cycle first (high-low-high or low-high-low)
   const peaks = intensities.filter((v, i) => i > 0 && i < intensities.length - 1 && v > intensities[i-1] && v > intensities[i+1])
   const valleys = intensities.filter((v, i) => i > 0 && i < intensities.length - 1 && v < intensities[i-1] && v < intensities[i+1])
   if (peaks.length >= 1 && valleys.length >= 1) return 'cycle'
+
+  if (last > first && last > mid) return 'growth'
+  if (last < first && last < mid) return 'decline'
   return 'stable'
 }
 
