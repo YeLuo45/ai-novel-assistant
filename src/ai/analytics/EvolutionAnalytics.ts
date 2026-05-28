@@ -122,7 +122,7 @@ export function calculateWriterHealthScore(
   }
 
   // Tool efficiency component
-  const toolEfficiencyReport = toolState.totalToolsUsed > 0
+  const toolEfficiencyComponent = toolState.totalToolsUsed > 0
     ? (() => {
         const topTools = Array.from(toolState.efficiencyScores.values()).slice(0, 5)
         const avgEfficiency = topTools.length > 0
