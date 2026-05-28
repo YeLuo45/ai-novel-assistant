@@ -53,8 +53,9 @@ function detectRhythm(beatDistribution: Record<PacingBeat, number>): PacingRhyth
   const min = Math.min(...counts)
   const range = max - min
   
-  if (range < 3) return 'variegated'
-  if (max > counts[0] * 3) return 'rapid'  // one dominant
+  if (range < 5) return 'variegated'
+  const totalOthers = counts.reduce((a, c) => a + c, 0) - max
+  if (max > totalOthers * 3) return 'rapid'  // dominant is 3x others
   return 'moderate'
 }
 
