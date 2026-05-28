@@ -451,16 +451,12 @@ export function addCheckpoint(
   const task = state.tasks.get(taskId)
   if (!task) return state
   
-  const checkpoint = {
-    id: `cp_${Date.now()}`,
-    description,
-    passed: false,
-  }
-  
   const newTasks = new Map(state.tasks)
+  const checkpointId = `cp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+  
   newTasks.set(taskId, {
     ...task,
-    checkpoints: [...task.checkpoints, checkpoint],
+    checkpoints: [...task.checkpoints, { id: checkpointId, description, passed: false }],
   })
   
   return { ...state, tasks: newTasks }
