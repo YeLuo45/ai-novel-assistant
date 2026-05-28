@@ -43,11 +43,10 @@ function classifySensoryDetail(text: string): { mode: SensoryMode; category: str
 
   // Visual
   const visualWords = ['saw', 'looked', 'bright', 'dark', 'color', 'shone', 'glimmered', 'shadow', 'light', 'sky', 'face', 'eyes', 'scene', 'view', 'appearance']
-  const visualCategories = ['lighting', 'color', 'appearance', 'scene', 'shadow', 'sky', 'face', 'eyes']
+  const visualCategories = ['light', 'dark', 'bright', 'color', 'sky', 'shadow', 'red', 'blue', 'green', 'black', 'white']
   for (const cat of visualCategories) {
     if (lower.includes(cat)) return { mode: 'visual', category: cat, intensity: 50 }
   }
-  if (visualWords.filter(w => lower.includes(w)).length >= 2) return { mode: 'visual', category: 'general', intensity: 40 }
 
   // Auditory
   const audioWords = ['heard', 'sound', 'voice', 'whisper', 'shout', 'noise', 'echo', 'silence', 'music', 'rustle', 'crack', 'bang']
