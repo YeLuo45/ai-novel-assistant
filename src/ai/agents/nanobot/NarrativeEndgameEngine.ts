@@ -65,7 +65,7 @@ export function createEmptyEndgameState(): NarrativeEndgameState {
 
 export function setupForeshadowing(state: NarrativeEndgameState, chapter: number, description: string, importance: 'minor' | 'major' = 'major'): NarrativeEndgameState {
   const thread: UnresolvedThread = { threadId: createThreadId(), setupChapter: chapter, description, importance }
-  return { ...state, unresolvedThreads: [...state.unresolvedThreads, thread] }
+  return { ...state, unresolvedThreads: [...state.unresolvedThreads, thread], currentChapter: Math.max(state.currentChapter, chapter) }
 }
 
 export function resolveForeshadowing(state: NarrativeEndgameState, setupDescription: string, payoffChapter: number, payoffDescription: string): NarrativeEndgameState {
