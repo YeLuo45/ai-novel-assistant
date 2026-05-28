@@ -256,10 +256,10 @@ export function evolvePatterns(
   }
 
   // Get all pattern IDs that have usage records
-  const patternIdsWithUsage = Array.from(new Set(evolvedState.usageRecords.map(r => r.patternId)))
+  const patternIdsWithUsageSet = new Set(evolvedState.usageRecords.map(r => r.patternId))
 
   // Analyze each pattern with usage
-  for (const patternId of patternIdsWithUsage) {
+  for (const patternId of patternIdsWithUsageSet) {
     const stats = calculatePatternStatistics(evolvedState, patternId)
     const pattern = patterns.patterns.find(p => p.id === patternId)
 
@@ -337,7 +337,7 @@ export function evolvePatterns(
   }
 
   const metrics: EvolutionMetrics = {
-    totalPatternsAnalyzed: patternIdsWithUsage.size,
+    totalPatternsAnalyzed: patternIdsWithUsageSet.size,
     patternsPromoted: promoted,
     patternsDemoted: demoted,
     patternsPruned: pruned,
