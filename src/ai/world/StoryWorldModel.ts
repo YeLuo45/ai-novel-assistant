@@ -304,7 +304,8 @@ export function addTimelineEvent(
   const newTimeline = Array.from(newEvents.values()).map(e => e.id).sort((a, b) => {
     const evtA = newEvents.get(a)!
     const evtB = newEvents.get(b)!
-    return evtA.chapter - evtB.chapter || evtA.id.localeCompare(evtB.id)
+    if (evtA.chapter !== evtB.chapter) return evtA.chapter - evtB.chapter
+    return evtA.title.localeCompare(evtB.title)
   })
   return {
     ...state,
