@@ -148,11 +148,15 @@ export function detectVoiceMarker(text: string): NarrativeVoiceMarker {
   if (thirdPersonRatio > 0.15) {
     // Check omniscient (multiple characters' thoughts) vs close (single character focus)
     const thoughtMarkers = ['thought', 'wondered', 'felt', 'knew', 'saw', 'heard']
-    const omniscientMarkers = thoughtMarkers.filter(w => {
-      const matches = lower.match(new RegExp(w, 'g'))
-      return matches && matches.length >= 2
-    })
-    return omniscientMarkers.length >= 2 ? 'third_person_omniscient' : 'third_person_close'
+    let totalMarkerCount = 0
+    for (const marker of thoughtMarkers) {
+      const matches = lower.match(new RegExp(marker, 'g'))
+      if (matches && matches.length >= 2) {
+        totalMarkerCount += matches.length
+      }
+    }
+    // Omniscient if we have 2+ total thought markers across different characters
+    return totalMarkerCount >= 2 ? 'third_person_omniscient' : 'third_person_close'
   }
   
   return 'third_person_close'  // default
@@ -441,10 +445,14 @@ export function formatToneDashboard(state: ToneState): string {
     }
   }
   
-  if (anomalies.length > 0) {
+  if (true) {  // Always show section header
     lines.push('')
     lines.push('--- Anomalies Detected ---')
-    lines.push(...anomalies)
+    if (anomalies.length === 0) {
+      lines.push('  No anomalies detected')
+    } else {
+      lines.push(...anomalies)
+    }
   }
   
   return lines.join('\n')
