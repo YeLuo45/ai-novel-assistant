@@ -1,426 +1,372 @@
 /**
- * SkillEvolutionEngine Types - V78
- * Bridge between ToolCallAnalyzer and SkillGraph
+ * SkillEvolutionEngine - V103
+ * Skill Graph Self-Evolution Engine Based on Writing Outcomes
  * 
- * Integrates tool call patterns → skill quality signals → skill promotion/demotion decisions
- * Creates a continuous evolution feedback loop
+ * Inspired by:
+ * - thunderbolt: pipeline feedback loops for continuous skill improvement
+ * - nanobot: distributed mesh agents with autonomous specialization
+ * - generic-agent: autonomous goal pursuit with self-improvement
+ * - ruflo: hierarchical decomposition for multi-level skill analysis
+ * 
+ * Extends PatternEvolver with skill-level analysis:
+ * - Tracks writer skill progression over sessions
+ * - Identifies skill gaps and recommends focus areas
+ * - Self-tunes difficulty based on success rates
+ * - Maps pattern usage to skill development
  */
 
-import type { SkillLevel } from '../evolution/SelfEvolutionTypes'
-import type { ToolChain } from '../analytics/ToolCallAnalyzer'
-import type { SkillNode, SkillHealthScore, EvolutionRecommendation } from './SkillGraph'
+import type { PatternEvolverState } from './PatternEvolver'
+import type { WritingSessionState } from '../session/WritingSessionManager'
 
-// ===============================================================================
-// Evolution Signal Types
-// ===============================================================================
+// =============================================================================
+// Types
+// =============================================================================
 
-export type EvolutionSignalType = 
-  | 'high_frequency_low_quality'    // Tool called often but quality declining
-  | 'low_frequency_high_quality'     // Rare tool but always succeeds
-  | 'pattern_stabilizing'           // Same pattern observed N+ times with high success
-  | 'chain_evolving'                // Tool chain is changing/expanding
-  | 'skill_gap_detected'             // Missing skill detected
-  | 'overreliance_warning'           // Single tool used too frequently
-  | 'cross_session_improvement'      // Same task better in new session
-
-export interface EvolutionSignal {
-  id: string
-  type: EvolutionSignalType
-  source: 'tool_call' | 'skill_graph' | 'pattern_library' | 'user_feedback'
-  toolId?: string
-  skillId?: string
-  pattern?: string
-  description: string
-  evidence: Record<string, unknown>  // Supporting data
-  severity: 'info' | 'warning' | 'action_required'
-  createdAt: number
-  resolvedAt?: number
-}
-
-export interface EvolutionDecision {
-  id: string
-  signalId: string
-  action: 'promote' | 'demote' | 'deprecate' | 'consolidate' | 'split' | 'create' | 'no_action'
-  targetSkillId: string
-  reason: string
-  confidence: number  // 0-1
-  expectedImpact: {
-    qualityDelta: number      // Expected quality change (+/-)
-    vitalityDelta: number     // Expected vitality change (+/-)
-    activationDelta: number  // Expected activation change (+/-)
-  }
-  createdAt: number
-  implementedAt?: number
-  revertedAt?: number
-  revertReason?: string
-}
-
-// ===============================================================================
-// Evolution Cycle Types
-// ===============================================================================
-
-export interface EvolutionCycle {
-  id: string
-  phase: 'collect' | 'analyze' | 'decide' | 'implement' | 'validate'
-  startedAt: number
-  completedAt?: number
-  signals: EvolutionSignal[]
-  decisions: EvolutionDecision[]
-  outcomes: EvolutionOutcome[]
-}
-
-export interface EvolutionOutcome {
-  decisionId: string
+export interface SkillLevel {
   skillId: string
-  actualQualityDelta: number
-  actualVitalityDelta: number
-  actualActivationDelta: number
-  validatedAt: number
-  success: boolean
-  notes?: string
+  level: number           // 1-10
+  experience: number      // 0-100 accumulated XP
+  lastPracticed: number   // timestamp
+  masteryScore: number    // 0-100 calculated mastery
 }
 
-// ===============================================================================
-// Integration Types (bridging ToolCallAnalyzer ↔ SkillGraph)
-// ===============================================================================
-
-export interface ToolSkillMapping {
-  toolId: string
+export interface SkillProgressionRecord {
   skillId: string
-  contribution: number  // 0-1, how much this tool contributes to the skill
-  isPrimary: boolean
+  sessionId: string
+  timestamp: number
+  practiceDuration: number // minutes
+  successRate: number    // 0-1
+  difficultyRating: number // 1-5
+  qualityDelta: number   // quality before vs after
+  xpGained: number
 }
 
-export interface SkillToolContribution {
+export interface SkillRecommendation {
   skillId: string
   skillName: string
-  toolIds: string[]
-  totalCalls: number
-  avgQuality: number
-  qualityTrend: 'improving' | 'stable' | 'declining'
-  healthScore: SkillHealthScore
-  recommendedAction: 'promote' | 'demote' | 'deprecate' | 'consolidate' | 'split' | 'create' | 'no_action'
+  priority: 'high' | 'medium' | 'low'
+  reason: string
+  suggestedPractice: string
+  expectedImprovement: number // 0-100
 }
 
-export interface EvolutionIntegrationReport {
-  skillToolContributions: SkillToolContribution[]
-  signals: EvolutionSignal[]
-  pendingDecisions: EvolutionDecision[]
-  recentDecisions: EvolutionDecision[]
-  cycleStatus: 'idle' | 'collecting' | 'analyzing' | 'deciding' | 'implementing' | 'validating'
-  lastCycleAt?: number
+export interface SkillEvolutionConfig {
+  xpPerQualityPoint: number       // XP gained per quality improvement point (default: 2)
+  xpPerSession: number            // base XP per completed session (default: 10)
+  levelUpThreshold: number       // XP needed per level (default: 100)
+  practiceSessionMin: number     // min session duration in minutes (default: 5)
+  masteryDecayRate: number        // monthly decay when not practiced (default: 0.05)
+  skillCategories: string[]       // skill categories to track
 }
 
-// ===============================================================================
-// Constants
-// ===============================================================================
+export interface SkillEvolutionState {
+  config: SkillEvolutionConfig
+  skillLevels: Map<string, SkillLevel>
+  progressionRecords: SkillProgressionRecord[]
+  lastSkillUpdate: number
+  totalSessionsAnalyzed: number
+}
 
-export const EVOLUTION_CONFIG = {
-  // Frequency thresholds
-  LOW_FREQUENCY_THRESHOLD: 5,
-  HIGH_FREQUENCY_THRESHOLD: 30,
-  
-  // Quality thresholds
-  PROMOTION_QUALITY_THRESHOLD: 0.8,
-  DEMOTION_QUALITY_THRESHOLD: 0.4,
-  DEPRECATION_QUALITY_THRESHOLD: 0.3,
-  
-  // Vitality thresholds
-  LOW_VITALITY_THRESHOLD: 0.2,
-  HIGH_VITALITY_THRESHOLD: 0.7,
-  
-  // Pattern thresholds
-  STABILIZING_PATTERN_MIN_OCCURRENCES: 5,
-  STABILIZING_PATTERN_MIN_SUCCESS_RATE: 0.85,
-  
-  // Cycle intervals
-  MIN_CYCLE_INTERVAL_MS: 24 * 60 * 60 * 1000,  // 24 hours
-  
-  // Validation window
-  VALIDATION_WINDOW_MS: 7 * 24 * 60 * 60 * 1000  // 7 days
-} as const
+export const DEFAULT_SKILL_EVOLUTION_CONFIG: SkillEvolutionConfig = {
+  xpPerQualityPoint: 2,
+  xpPerSession: 10,
+  levelUpThreshold: 100,
+  practiceSessionMin: 5,
+  masteryDecayRate: 0.05,
+  skillCategories: ['dialogue', 'scene', 'character', 'pacing', 'worldbuilding', 'style', 'narrative', 'editing'],
+}
 
-// ===============================================================================
-// Helper Functions
-// ===============================================================================
-
-/**
- * Create a skill evolution signal
- */
-export function createSignal(
-  type: EvolutionSignalType,
-  source: EvolutionSignal['source'],
-  description: string,
-  evidence: Record<string, unknown> = {},
-  severity: EvolutionSignal['severity'] = 'info',
-  toolId?: string,
-  skillId?: string,
-  pattern?: string
-): EvolutionSignal {
+export function createEmptySkillEvolutionState(config: Partial<SkillEvolutionConfig> = {}): SkillEvolutionState {
   return {
-    id: `signal_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    type,
-    source,
-    toolId,
+    config: { ...DEFAULT_SKILL_EVOLUTION_CONFIG, ...config },
+    skillLevels: new Map(),
+    progressionRecords: [],
+    lastSkillUpdate: Date.now(),
+    totalSessionsAnalyzed: 0,
+  }
+}
+
+export function calculateXpGained(
+  qualityDelta: number,
+  sessionDuration: number,
+  successRate: number,
+  config: SkillEvolutionConfig
+): number {
+  const qualityXp = Math.max(0, qualityDelta) * config.xpPerQualityPoint
+  const durationXp = Math.floor(sessionDuration / 5) * config.xpPerSession
+  const successBonus = successRate > 0.8 ? 5 : successRate > 0.5 ? 2 : 0
+  return qualityXp + durationXp + successBonus
+}
+
+export function calculateMasteryScore(
+  level: number,
+  experience: number,
+  lastPracticed: number,
+  config: SkillEvolutionConfig
+): number {
+  // Base mastery from level (0-70)
+  const levelMastery = (level / 10) * 70
+
+  // Experience bonus (0-20)
+  const experienceBonus = Math.min(20, (experience / config.levelUpThreshold) * 20)
+
+  // Recency bonus (0-10, decays if not practiced recently)
+  const daysSincePractice = (Date.now() - lastPracticed) / (1000 * 60 * 60 * 24)
+  const recencyBonus = Math.max(0, 10 - daysSincePractice * config.masteryDecayRate * 30)
+
+  return Math.min(100, levelMastery + experienceBonus + recencyBonus)
+}
+
+export function updateSkillLevel(
+  state: SkillEvolutionState,
+  skillId: string,
+  xpGained: number
+): SkillEvolutionState {
+  let skillLevel = state.skillLevels.get(skillId)
+
+  if (!skillLevel) {
+    skillLevel = {
+      skillId,
+      level: 1,
+      experience: 0,
+      lastPracticed: Date.now(),
+      masteryScore: 0,
+    }
+  }
+
+  const newExperience = skillLevel.experience + xpGained
+  const newLevel = Math.min(10, Math.floor(newExperience / state.config.levelUpThreshold) + 1)
+  const leftoverXp = newExperience % state.config.levelUpThreshold
+
+  const updatedSkillLevel: SkillLevel = {
+    ...skillLevel,
+    level: newLevel,
+    experience: leftoverXp,
+    lastPracticed: Date.now(),
+    masteryScore: calculateMasteryScore(newLevel, leftoverXp, skillLevel.lastPracticed, state.config),
+  }
+
+  const newSkillLevels = new Map(state.skillLevels)
+  newSkillLevels.set(skillId, updatedSkillLevel)
+
+  return { ...state, skillLevels: newSkillLevels }
+}
+
+export function recordSkillProgression(
+  state: SkillEvolutionState,
+  skillId: string,
+  sessionId: string,
+  practiceDuration: number,
+  successRate: number,
+  difficultyRating: number,
+  qualityDelta: number
+): SkillEvolutionState {
+  const xpGained = calculateXpGained(qualityDelta, practiceDuration, successRate, state.config)
+
+  const record: SkillProgressionRecord = {
     skillId,
-    pattern,
-    description,
-    evidence,
-    severity,
-    createdAt: Date.now()
+    sessionId,
+    timestamp: Date.now(),
+    practiceDuration,
+    successRate,
+    difficultyRating,
+    qualityDelta,
+    xpGained,
   }
-}
 
-/**
- * Create an evolution decision from a signal
- */
-export function createDecision(
-  signal: EvolutionSignal,
-  action: EvolutionDecision['action'],
-  targetSkillId: string,
-  reason: string,
-  confidence: number,
-  expectedImpact: EvolutionDecision['expectedImpact']
-): EvolutionDecision {
+  const evolvedState = updateSkillLevel(state, skillId, xpGained)
+
   return {
-    id: `decision_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    signalId: signal.id,
-    action,
-    targetSkillId,
-    reason,
-    confidence,
-    expectedImpact,
-    createdAt: Date.now()
+    ...evolvedState,
+    progressionRecords: [...evolvedState.progressionRecords, record],
+    totalSessionsAnalyzed: evolvedState.totalSessionsAnalyzed + 1,
+    lastSkillUpdate: Date.now(),
   }
 }
 
-/**
- * Determine action recommendation based on quality and vitality
- */
-export function determineAction(
-  quality: number,
-  vitality: number,
-  healthScore: SkillHealthScore
-): EvolutionDecision['action'] {
-  if (quality >= EVOLUTION_CONFIG.PROMOTION_QUALITY_THRESHOLD && vitality >= EVOLUTION_CONFIG.HIGH_VITALITY_THRESHOLD) {
-    return 'promote'
-  }
-  if (quality < EVOLUTION_CONFIG.DEPRECATION_QUALITY_THRESHOLD && healthScore.alerts.length >= 2) {
-    return 'deprecate'
-  }
-  if (quality < EVOLUTION_CONFIG.DEMOTION_QUALITY_THRESHOLD || vitality < EVOLUTION_CONFIG.LOW_VITALITY_THRESHOLD) {
-    return 'demote'
-  }
-  return 'no_action'
-}
+export function getSkillRecommendations(
+  state: SkillEvolutionState
+): SkillRecommendation[] {
+  const recommendations: SkillRecommendation[] = []
 
-/**
- * Map tool chains to skill evolution signals
- */
-export function mapChainsToSignals(chains: ToolChain[]): EvolutionSignal[] {
-  const signals: EvolutionSignal[] = []
+  for (const category of state.config.skillCategories) {
+    const skillLevel = state.skillLevels.get(category)
+    const recentRecords = state.progressionRecords.filter(
+      r => r.skillId === category && Date.now() - r.timestamp < 7 * 24 * 60 * 60 * 1000
+    )
 
-  for (const chain of chains) {
-    if (chain.totalOccurrences >= EVOLUTION_CONFIG.STABILIZING_PATTERN_MIN_OCCURRENCES &&
-        chain.avgSuccessRate >= EVOLUTION_CONFIG.STABILIZING_PATTERN_MIN_SUCCESS_RATE) {
-      signals.push(createSignal(
-        'pattern_stabilizing',
-        'tool_call',
-        `Pattern '${chain.pattern}' has stabilized (${chain.totalOccurrences}x, ${(chain.avgSuccessRate * 100).toFixed(0)}% success)`,
-        {
-          chainPattern: chain.pattern,
-          occurrences: chain.totalOccurrences,
-          successRate: chain.avgSuccessRate,
-          avgDurationMs: chain.avgDurationMs
-        },
-        'info',
-        undefined,
-        undefined,
-        chain.pattern
-      ))
-    }
-  }
-
-  return signals
-}
-
-/**
- * Detect overreliance on single tool
- */
-export function detectOverreliance(
-  toolCallCounts: Map<string, number>,
-  totalCalls: number
-): EvolutionSignal[] {
-  const signals: EvolutionSignal[] = []
-  const overrelianceThreshold = 0.4  // 40% of all calls
-
-  for (const [toolId, count] of Array.from(toolCallCounts.entries())) {
-    const ratio = count / totalCalls
-    if (ratio >= overrelianceThreshold) {
-      signals.push(createSignal(
-        'overreliance_warning',
-        'tool_call',
-        `Tool '${toolId}' accounts for ${(ratio * 100).toFixed(0)}% of all calls (${count}/${totalCalls})`,
-        { toolId, count, totalCalls, ratio },
-        'warning',
-        toolId
-      ))
-    }
-  }
-
-  return signals
-}
-
-/**
- * Detect high-frequency/low-quality signals from tool call analysis
- */
-export function detectQualityIssues(
-  toolCallCounts: Map<string, number>,
-  toolQualityMap: Map<string, { success: number; total: number }>
-): EvolutionSignal[] {
-  const signals: EvolutionSignal[] = []
-
-  for (const [toolId, { success, total }] of Array.from(toolQualityMap.entries())) {
-    if (total < 5) continue
-
-    const quality = success / total
-    const count = toolCallCounts.get(toolId) || 0
-
-    if (count >= EVOLUTION_CONFIG.HIGH_FREQUENCY_THRESHOLD && quality < EVOLUTION_CONFIG.DEMOTION_QUALITY_THRESHOLD) {
-      signals.push(createSignal(
-        'high_frequency_low_quality',
-        'tool_call',
-        `Tool '${toolId}' called ${count} times but quality is only ${(quality * 100).toFixed(0)}%`,
-        { toolId, count, quality, success, total },
-        'action_required',
-        toolId
-      ))
-    }
-
-    if (count <= EVOLUTION_CONFIG.LOW_FREQUENCY_THRESHOLD && quality >= EVOLUTION_CONFIG.PROMOTION_QUALITY_THRESHOLD) {
-      signals.push(createSignal(
-        'low_frequency_high_quality',
-        'tool_call',
-        `Tool '${toolId}' rarely used (${count}x) but achieves ${(quality * 100).toFixed(0)}% quality`,
-        { toolId, count, quality, success, total },
-        'info',
-        toolId
-      ))
-    }
-  }
-
-  return signals
-}
-
-/**
- * Compute skill-tool contributions from tool chains and skill nodes
- */
-export function computeSkillToolContributions(
-  chains: ToolChain[],
-  skillNodes: SkillNode[]
-): SkillToolContribution[] {
-  const contributions: SkillToolContribution[] = []
-  const nodeMap = new Map(skillNodes.map(n => [n.skillId, n]))
-
-  for (const node of skillNodes) {
-    // Find chains where tools from this skill were used
-    const relevantToolIds = new Set<string>()
-    // In real integration, tools would be mapped to skills
-    // For now, we'll use the skill's tags as a proxy
-
-    contributions.push({
-      skillId: node.skillId,
-      skillName: node.name,
-      toolIds: Array.from(relevantToolIds),
-      totalCalls: node.activationCount,
-      avgQuality: node.quality,
-      qualityTrend: node.vitality > 0.7 ? 'improving' : node.vitality > 0.3 ? 'stable' : 'declining',
-      healthScore: { 
-        skillId: node.skillId,
-        overallScore: node.quality * 0.4 + node.vitality * 0.3 + Math.min(0.9, 0.5 + node.relationships.length * 0.1) * 0.3,
-        qualityScore: node.quality,
-        vitalityScore: node.vitality,
-        relationshipScore: node.relationships.length > 0 ? Math.min(0.9, 0.5 + node.relationships.length * 0.1) : 0.2,
-        trend: node.vitality > 0.7 ? 'improving' : node.vitality > 0.3 ? 'stable' : 'declining',
-        alerts: [],
-        recommendations: []
-      },
-      recommendedAction: determineAction(node.quality, node.vitality, { 
-        skillId: node.skillId, 
-        overallScore: node.quality * 0.4 + node.vitality * 0.3 + 0.2,
-        qualityScore: node.quality,
-        vitalityScore: node.vitality,
-        relationshipScore: 0.2,
-        trend: 'stable',
-        alerts: [],
-        recommendations: []
+    if (!skillLevel) {
+      recommendations.push({
+        skillId: category,
+        skillName: category,
+        priority: 'high',
+        reason: 'Skill has not been practiced yet',
+        suggestedPractice: `Start practicing ${category} with low-difficulty exercises`,
+        expectedImprovement: 20,
       })
-    })
-  }
-
-  return contributions
-}
-
-/**
- * Generate evolution recommendations from signals and skill contributions
- */
-export function generateEvolutionRecommendations(
-  signals: EvolutionSignal[],
-  contributions: SkillToolContribution[]
-): EvolutionDecision[] {
-  const decisions: EvolutionDecision[] = []
-
-  for (const signal of signals) {
-    if (signal.severity !== 'action_required') continue
-
-    if (signal.type === 'high_frequency_low_quality' && signal.toolId) {
-      // Find associated skill
-      const contribution = contributions.find(c => c.toolIds.includes(signal.toolId!))
-      if (contribution) {
-        decisions.push(createDecision(
-          signal,
-          contribution.healthScore.overallScore < 0.4 ? 'deprecate' : 'demote',
-          contribution.skillId,
-          `High-frequency tool '${signal.toolId}' with quality ${contribution.avgQuality}`,
-          0.8,
-          { qualityDelta: -0.1, vitalityDelta: -0.2, activationDelta: -10 }
-        ))
-      }
+    } else if (skillLevel.masteryScore < 40) {
+      const avgDifficulty = recentRecords.length > 0
+        ? recentRecords.reduce((s, r) => s + r.difficultyRating, 0) / recentRecords.length
+        : 3
+      recommendations.push({
+        skillId: category,
+        skillName: category,
+        priority: 'high',
+        reason: `Mastery score ${skillLevel.masteryScore.toFixed(0)} is below threshold`,
+        suggestedPractice: avgDifficulty > 3 ? `Practice ${category} with easier exercises` : `Focus on ${category} fundamentals`,
+        expectedImprovement: 25,
+      })
+    } else if (skillLevel.masteryScore < 70) {
+      recommendations.push({
+        skillId: category,
+        skillName: category,
+        priority: 'medium',
+        reason: `Skill at intermediate level (${skillLevel.masteryScore.toFixed(0)} mastery)`,
+        suggestedPractice: `Challenge yourself with harder ${category} exercises`,
+        expectedImprovement: 15,
+      })
     }
   }
 
-  // Add recommendations from skill graph
-  for (const contrib of contributions) {
-    if (contrib.recommendedAction !== 'no_action') {
-      decisions.push(createDecision(
-        createSignal(
-          contrib.recommendedAction === 'promote' ? 'low_frequency_high_quality' : 'high_frequency_low_quality',
-          'skill_graph',
-          `Skill '${contrib.skillName}' recommends ${contrib.recommendedAction}`,
-          { quality: contrib.avgQuality, vitality: contrib.healthScore.vitalityScore },
-          'info',
-          undefined,
-          contrib.skillId
-        ),
-        contrib.recommendedAction,
-        contrib.skillId,
-        `Based on quality=${(contrib.avgQuality * 100).toFixed(0)}%, vitality=${(contrib.healthScore.vitalityScore * 100).toFixed(0)}%`,
-        0.75,
-        {
-          qualityDelta: contrib.recommendedAction === 'promote' ? 0.05 : -0.05,
-          vitalityDelta: contrib.recommendedAction === 'promote' ? 0.1 : -0.1,
-          activationDelta: contrib.recommendedAction === 'promote' ? 5 : -5
-        }
-      ))
+  // Sort by priority
+  const priorityOrder = { high: 0, medium: 1, low: 2 }
+  recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+
+  return recommendations
+}
+
+export function analyzeSkillTrends(
+  state: SkillEvolutionState,
+  skillId: string,
+  windowDays: number = 30
+): {
+  trend: 'improving' | 'stable' | 'declining'
+  sessionsInWindow: number
+  averageXpPerSession: number
+  averageSuccessRate: number
+  recommendedDifficulty: number
+} {
+  const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000
+  const recentRecords = state.progressionRecords.filter(
+    r => r.skillId === skillId && r.timestamp >= cutoff
+  )
+
+  if (recentRecords.length === 0) {
+    return {
+      trend: 'stable',
+      sessionsInWindow: 0,
+      averageXpPerSession: 0,
+      averageSuccessRate: 0,
+      recommendedDifficulty: 3,
     }
   }
 
-  return decisions
+  const avgXp = recentRecords.reduce((s, r) => s + r.xpGained, 0) / recentRecords.length
+  const avgSuccess = recentRecords.reduce((s, r) => s + r.successRate, 0) / recentRecords.length
+
+  // Calculate trend by comparing halves
+  const halfPoint = Math.floor(recentRecords.length / 2)
+  const olderRecords = recentRecords.slice(0, halfPoint)
+  const newerRecords = recentRecords.slice(halfPoint)
+
+  let trend: 'improving' | 'stable' | 'declining' = 'stable'
+  if (olderRecords.length > 0 && newerRecords.length > 0) {
+    const olderXpAvg = olderRecords.reduce((s, r) => s + r.xpGained, 0) / olderRecords.length
+    const newerXpAvg = newerRecords.reduce((s, r) => s + r.xpGained, 0) / newerRecords.length
+    const diff = newerXpAvg - olderXpAvg
+    if (diff > 3) trend = 'improving'
+    else if (diff < -3) trend = 'declining'
+  }
+
+  // Recommend difficulty based on success rate
+  let recommendedDifficulty = 3
+  if (avgSuccess > 0.85) recommendedDifficulty = 5
+  else if (avgSuccess > 0.7) recommendedDifficulty = 4
+  else if (avgSuccess > 0.5) recommendedDifficulty = 3
+  else if (avgSuccess > 0.3) recommendedDifficulty = 2
+  else recommendedDifficulty = 1
+
+  return {
+    trend,
+    sessionsInWindow: recentRecords.length,
+    averageXpPerSession: avgXp,
+    averageSuccessRate: avgSuccess,
+    recommendedDifficulty,
+  }
 }
 
-/**
- * Format decision for display
- */
-export function formatDecision(decision: EvolutionDecision): string {
-  return `${decision.action.toUpperCase()} skill '${decision.targetSkillId}': ${decision.reason} (confidence: ${(decision.confidence * 100).toFixed(0)}%)`
+export function evolveSkillFromSessions(
+  state: SkillEvolutionState,
+  sessions: WritingSessionState[]
+): SkillEvolutionState {
+  let evolvedState = { ...state, totalSessionsAnalyzed: state.totalSessionsAnalyzed + sessions.length }
+
+  for (const session of sessions) {
+    const sessionDuration = (session.lastUpdateTime - session.startTime) / (1000 * 60)
+    if (sessionDuration < state.config.practiceSessionMin) continue
+
+    const qualityDelta = session.currentQualityScore - (session.rollingQualityScores[0] ?? 50)
+    const successRate = session.currentQualityScore > 60 ? 0.8 : session.currentQualityScore > 40 ? 0.5 : 0.2
+
+    // Infer skill from active context
+    const activeCharacters = session.activeContext?.activeCharacters ?? []
+    if (activeCharacters.length > 0) {
+      evolvedState = recordSkillProgression(
+        evolvedState,
+        'character',
+        session.id,
+        sessionDuration,
+        successRate,
+        3,
+        qualityDelta
+      )
+    }
+
+    // Track narrative/scence based on tool usage
+    const toolCallCount = session.totalToolCalls
+    if (toolCallCount > 10) {
+      evolvedState = recordSkillProgression(
+        evolvedState,
+        'pacing',
+        session.id,
+        sessionDuration,
+        successRate,
+        3,
+        qualityDelta
+      )
+    }
+  }
+
+  return evolvedState
+}
+
+export function formatSkillEvolutionSummary(state: SkillEvolutionState): string {
+  const lines = [
+    '=== Skill Evolution Summary ===',
+    `Sessions Analyzed: ${state.totalSessionsAnalyzed}`,
+    `Skills Tracked: ${state.skillLevels.size}`,
+    '',
+  ]
+
+  lines.push('--- Skill Levels ---')
+  for (const [skillId, level] of Array.from(state.skillLevels.entries())) {
+    lines.push(`${skillId}: Lv${level.level} (${level.masteryScore.toFixed(0)} mastery, ${level.experience} XP)`)
+  }
+
+  if (state.skillLevels.size === 0) {
+    lines.push('No skills tracked yet')
+  }
+
+  lines.push('')
+  lines.push('--- Recommendations ---')
+  const recs = getSkillRecommendations(state)
+  if (recs.length === 0) {
+    lines.push('No recommendations')
+  } else {
+    for (const rec of recs.slice(0, 5)) {
+      lines.push(`[${rec.priority.toUpperCase()}] ${rec.skillName}: ${rec.reason}`)
+    }
+  }
+
+  return lines.join('\n')
 }
