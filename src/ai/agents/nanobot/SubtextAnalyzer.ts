@@ -6,7 +6,7 @@
  * - chatdev: multi-perspective dialogue analysis
  * - thunderbolt: feedback loops for subtext accumulation
  * - nanobot: distributed mesh for cross-scene subtext consistency
- * - ruflo: hierarchical decomposition (surface → subtext → thematic meaning)
+ * - ruflo: hierarchical decomposition (surface -> subtext -> thematic meaning)
  * - generic-agent: autonomous emotional undertow detection
  */
 
@@ -54,9 +54,9 @@ const SARCASTIC_PATTERNS = [
 ]
 
 const CONCEALMENT_PATTERNS = [
-  'nothing', 'I'm fine', 'it's nothing', 'don't worry', 'I don't care',
-  'whatever', 'I don't mind', 'it's okay', 'I guess', 'sort of', 'kind of',
-  'not sure', 'maybe', 'probably not', 'I wouldn't say that',
+  'nothing', 'I am fine', 'it is nothing', 'do not worry', 'I do not care',
+  'whatever', 'I do not mind', 'it is okay', 'I guess', 'sort of', 'kind of',
+  'not sure', 'maybe', 'probably not', 'I would not say that',
 ]
 
 const LONGING_PATTERNS = [
@@ -65,13 +65,13 @@ const LONGING_PATTERNS = [
 ]
 
 const MANIPULATION_INDICATORS = [
-  'you should', 'you need to', 'it would be better if', 'don't you think',
-  'wouldn't it be nice', 'think about what', 'consider',
+  'you should', 'you need to', 'it would be better if', 'do not you think',
+  'would not it be nice', 'think about what', 'consider',
 ]
 
 const POWER_STRUGGLE_MARKERS = [
   'I told you', 'you never', 'you always', 'do as I say', 'who do you think',
-  'you don't get to', 'that's not your call', 'I decide',
+  'you do not get to', 'that is not your call', 'I decide',
 ]
 
 // Core Detection
@@ -145,7 +145,7 @@ function detectSubtextTypes(text: string): SubtextType[] {
 }
 
 function generateUnderlyingMeaning(text: string, type: SubtextType): string {
-  const meanings: Record<SubtextType, string[]> = {
+  const meanings: Record<string, string[]> = {
     irony: [
       'The speaker means the opposite of what they say',
       'A caustic observation disguised as agreement',
@@ -189,6 +189,7 @@ function generateUnderlyingMeaning(text: string, type: SubtextType): string {
   }
   
   const options = meanings[type]
+  if (!options) return 'Subtext detected'
   return options[Math.floor(Math.random() * options.length)]
 }
 
@@ -201,15 +202,15 @@ function calculateIntensity(text: string, type: SubtextType): number {
   if (text.length > 200) intensity += 10
   
   // Strong markers increase intensity
-  const strongMarkers = {
+  const strongMarkers: Record<string, string[]> = {
     irony: ['obviously', 'totally', 'definitely', 'clearly'],
     sarcasm: ['congratulations', 'how nice', 'thrilled', 'oh well'],
-    concealment: ['nothing', 'fine', 'don't worry', 'whatever'],
+    concealment: ['nothing', 'fine', 'do not worry', 'whatever'],
     manipulation: ['should', 'need to', 'consider', 'think about'],
     longing: ['wish', 'if only', 'used to', 'remember when', 'miss'],
     power_struggle: ['I told you', 'you never', 'you always', 'my way'],
     grief: ['lost', 'gone', 'never', 'no more'],
-    sexual_tension: ['couldn't help', 'couldn't stop', 'felt something'],
+    sexual_tension: ['could not help', 'could not stop', 'felt something'],
   }
   
   const markers = strongMarkers[type] || []
