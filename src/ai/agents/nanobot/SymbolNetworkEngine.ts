@@ -1,22 +1,17 @@
-/**
- * SymbolNetworkEngine - V186
- * Symbol & Motif Connection Tracking Network Engine
- */
-
 export interface SymbolOccurrence {
   occurrenceId: string
   chapter: number
   context: string
-  meaning: string  // interpreted meaning in context
+  meaning: string
 }
 
 export interface SymbolNode {
   symbolId: string
   name: string
   occurrences: SymbolOccurrence[]
-  connections: string[]  // connected symbol IDs
+  connections: string[]
   frequency: number
-  layers: string[]  // e.g., 'water', 'purification', 'death'
+  layers: string[]
 }
 
 export interface SymbolNetworkState {
@@ -29,10 +24,9 @@ function createSymbolId(): string {
   return 'sym_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
 }
 
-function findSymbolInText(text: string): { name: string; meaning: string }[] {
+function findSymbolInText(text: string): Array<{ name: string; meaning: string }> {
   const lower = text.toLowerCase()
   const symbols: Array<{ name: string; meaning: string }> = []
-
   const symbolMap: Array<[string[], string]> = [
     [['water', 'river', 'ocean', 'rain', 'tears', 'wave'], 'purification, life, emotion'],
     [['fire', 'flame', 'burn', 'ember', 'ash'], 'passion, destruction, transformation'],
@@ -45,13 +39,11 @@ function findSymbolInText(text: string): { name: string; meaning: string }[] {
     [['road', 'path', 'journey'], 'choice, transformation, destiny'],
     [['bird', 'fly', 'wing', 'flight'], 'freedom, escape, transcendence'],
   ]
-
   for (const [keywords, meaning] of symbolMap) {
     if (keywords.some(k => lower.includes(k))) {
       symbols.push({ name: keywords[0], meaning })
     }
   }
-
   return symbols
 }
 
@@ -63,24 +55,17 @@ export function recordSymbolOccurrence(
   state: SymbolNetworkState,
   chapter: number,
   context: string,
-  meaning: string
+  _meaning: string
 ): SymbolNetworkState {
   const found = findSymbolInText(context)
   if (found.length === 0) return state
-
   const newSymbols = new Map(state.symbols)
-
   for (const { name, meaning: symbolMeaning } of found) {
     const symbolId = name.toLowerCase()
-
     if (newSymbols.has(symbolId)) {
       const existing = newSymbols.get(symbolId)!
       const occurrence: SymbolOccurrence = { occurrenceId: createSymbolId(), chapter, context: context.substring(0, 80), meaning: symbolMeaning }
-      const updated: SymbolNode = {
-        ...existing,
-        occurrences: [...existing.occurrences, occurrence],
-        frequency: existing.frequency + 1,
-      }
+      const updated: SymbolNode = { ...existing, occurrences: [...existing.occurrences, occurrence], frequency: existing.frequency + 1 }
       newSymbols.set(symbolId, updated)
     } else {
       const occurrence: SymbolOccurrence = { occurrenceId: createSymbolId(), chapter, context: context.substring(0, 80), meaning: symbolMeaning }
@@ -88,11 +73,8 @@ export function recordSymbolOccurrence(
       newSymbols.set(symbolId, node)
     }
   }
-
-  // Update dominant symbols (top 5 by frequency)
   const sorted = Array.from(newSymbols.values()).sort((a, b) => b.frequency - a.frequency)
   const dominant = sorted.slice(0, 5).map(s => s.symbolId)
-
   return { ...state, symbols: newSymbols, currentChapter: Math.max(state.currentChapter, chapter), dominantSymbols: dominant }
 }
 
@@ -100,18 +82,11 @@ export function connectSymbols(state: SymbolNetworkState, symbolA: string, symbo
   const keyA = symbolA.toLowerCase()
   const keyB = symbolB.toLowerCase()
   if (!state.symbols.has(keyA) || !state.symbols.has(keyB)) return state
-
   const newSymbols = new Map(state.symbols)
   const a = newSymbols.get(keyA)!
   const b = newSymbols.get(keyB)!
-
-  if (!a.connections.includes(keyB)) {
-    newSymbols.set(keyA, { ...a, connections: [...a.connections, keyB] })
-  }
-  if (!b.connections.includes(keyA)) {
-    newSymbols.set(keyB, { ...b, connections: [...b.connections, keyA] })
-  }
-
+  if (!a.connections.includes(keyB)) { newSymbols.set(keyA, { ...a, connections: [...a.connections, keyB] }) }
+  if (!b.connections.includes(keyA)) { newSymbols.set(keyB, { ...b, connections: [...b.connections, keyA] }) }
   return { ...state, symbols: newSymbols }
 }
 
@@ -130,38 +105,25 @@ export function getSymbolConnections(state: SymbolNetworkState, symbolName: stri
 }
 
 export function formatSymbolSummary(state: SymbolNetworkState): string {
-  let s = '=== Symbol Network Summary ===' + '
-'
-  s += 'Total Symbols: ' + state.symbols.size + '
-'
-  s += 'Dominant Symbols: ' + state.dominantSymbols.join(', ') + '
-'
-  s += 'Chapter: ' + state.currentChapter + '
-'
+  let s = "=== Symbol Network Summary ===" + "\n"
+  s += "Total Symbols: " + state.symbols.size + "\n"
+  s += "Dominant Symbols: " + state.dominantSymbols.join(", ") + "\n"
+  s += "Chapter: " + state.currentChapter + "\n"
   return s
 }
 
 export function formatSymbolDashboard(state: SymbolNetworkState): string {
-  let s = '=== Symbol Dashboard ===' + '
-'
-  s += 'Chapter: ' + state.currentChapter + '
-'
-
+  let s = "=== Symbol Dashboard ===" + "\n"
+  s += "Chapter: " + state.currentChapter + "\n"
   if (state.dominantSymbols.length > 0) {
-    s += '
---- Dominant Symbols ---' + '
-'
+    s += "\n--- Dominant Symbols ---" + "\n"
     for (const id of state.dominantSymbols) {
       const sym = state.symbols.get(id)!
-      s += '  ' + sym.name + ' (freq: ' + sym.frequency + ', layers: ' + sym.layers.join(', ') + ')' + '
-'
+      s += "  " + sym.name + " (freq: " + sym.frequency + ", layers: " + sym.layers.join(", ") + ")" + "\n"
     }
   }
-
   if (state.symbols.size > 0) {
-    s += '
---- Recent Occurrences ---' + '
-'
+    s += "\n--- Recent Occurrences ---" + "\n"
     const allOccs: Array<{ chapter: number; symbol: string; context: string }> = []
     for (const [, sym] of state.symbols) {
       for (const occ of sym.occurrences.slice(-2)) {
@@ -170,10 +132,8 @@ export function formatSymbolDashboard(state: SymbolNetworkState): string {
     }
     allOccs.sort((a, b) => b.chapter - a.chapter)
     for (const o of allOccs.slice(0, 5)) {
-      s += '  Ch ' + o.chapter + ' [' + o.symbol + ']: ' + o.context + '
-'
+      s += "  Ch " + o.chapter + " [" + o.symbol + "]: " + o.context + "\n"
     }
   }
-
   return s
 }
