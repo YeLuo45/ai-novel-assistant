@@ -1,11 +1,6 @@
 /**
  * GenreAnalysisEngine - V182
  * Genre Classification & Tropes Detection Engine
- *
- * Design references:
- * - ruflo: hierarchical decomposition (main genre -> subgenres -> tropes)
- * - chatdev: multi-perspective genre analysis
- * - thunderbolt: feedback loops for genre consistency monitoring
  */
 
 export type Genre = 'fantasy' | 'scifi' | 'romance' | 'mystery' | 'thriller' | 'horror' | 'historical' | 'literary' | 'action' | 'comedy' | 'drama' | 'unknown'
@@ -14,24 +9,24 @@ export type TropeTag = 'chosen_one' | 'fake_dating' | 'enemies_to_lovers' | 'fou
 
 export interface TropesDetected {
   trope: TropeTag
-  confidence: number  // 0-100
+  confidence: number
   evidence: string
 }
 
 export interface GenreAnalysis {
   primaryGenre: Genre
   subGenres: Genre[]
-  confidence: number  // 0-100
+  confidence: number
   tropes: TropesDetected[]
   conventions: string[]
-  warnings: string[]  // genre rule violations
+  warnings: string[]
 }
 
 export interface GenreAnalysisState {
   analyses: GenreAnalysis[]
   currentGenre: Genre
   currentChapter: number
-  conventionMap: Record<Genre, string[]>  // genre -> expected conventions
+  conventionMap: Record<Genre, string[]>
 }
 
 function createConventions(): Record<Genre, string[]> {
@@ -53,16 +48,13 @@ function createConventions(): Record<Genre, string[]> {
 
 function classifyGenre(text: string): { primary: Genre; sub: Genre[]; confidence: number } {
   const lower = text.toLowerCase()
-
   const fantasyWords = ['magic', 'wizard', 'dragon', 'elf', 'sword', 'kingdom', 'spell', 'sorcerer', 'enchanted', 'mythical', 'prophecy', 'quest']
   const scifiWords = ['robot', 'space', 'alien', 'future', 'technology', 'computer', 'spaceship', 'dystopia', 'cyber', 'virtual reality', 'AI', 'quantum']
   const romanceWords = ['love', 'heart', 'kiss', 'passion', 'relationship', 'romantic', 'dating', 'couple', 'wedding', 'marriage', 'beloved', 'desire']
   const mysteryWords = ['detective', 'clue', 'murder', 'investigation', 'secret', 'evidence', 'whodunit', 'suspect', 'crime', 'unsolved', 'riddle']
   const thrillerWords = ['danger', 'chase', 'escape', 'threat', 'suspense', 'killer', 'plot twist', 'countdown', 'deadly', 'high stakes', 'survive']
   const horrorWords = ['fear', 'dread', 'monster', 'haunted', 'supernatural', 'creature', 'nightmare', 'terror', 'gore', 'undead', 'possessed']
-
   const score = (words: string[]) => words.filter(w => lower.includes(w)).length
-
   const scores: [Genre, number][] = [
     ['fantasy', score(fantasyWords)],
     ['scifi', score(scifiWords)],
@@ -72,79 +64,53 @@ function classifyGenre(text: string): { primary: Genre; sub: Genre[]; confidence
     ['horror', score(horrorWords)],
   ]
   scores.sort((a, b) => b[1] - a[1])
-
   const top = scores[0]
   const primary = top[1] > 0 ? top[0] : 'unknown'
   const sub = top[1] >= 3 ? scores.filter(s => s[1] >= 2).map(s => s[0]).filter(g => g !== primary).slice(0, 2) as Genre[] : []
   const confidence = top[1] > 0 ? Math.min(100, 40 + top[1] * 15) : 30
-
   return { primary, sub, confidence }
 }
 
 function detectTropes(text: string): TropesDetected[] {
   const lower = text.toLowerCase()
   const tropes: TropesDetected[] = []
-
   const tropeRules: [TropeTag, string[], number][] = [
     ['chosen_one', ['chosen one', 'destined', 'prophecy', 'fated to save'], 60],
     ['enemies_to_lovers', ['hate', 'enemy', 'rivals', 'opposed', 'antagonist'], 50],
     ['found_family', ['family', 'together', 'bond', 'team', 'surrogate'], 50],
     ['redemption_arc', ['redeem', 'forgive', 'change', 'atone', 'reform'], 55],
-    ['love_triangle', ['compete', 'jealous', 'choose between', '三角'], 50],
+    ['love_triangle', ['compete', 'jealous', 'choose between'], 50],
     ['world_building', ['world', 'kingdom', 'realm', 'land', 'continent'], 55],
     ['coming_of_age', ['grow up', 'mature', 'learn', 'becoming', 'youth'], 50],
     ['political_intrigue', ['court', 'throne', 'conspiracy', 'alliance', 'betray'], 55],
     ['foreshadowing', ['later', 'eventually', 'remember', 'foreshadow', 'hint'], 60],
     ['unreliable_narrator', ['truth', 'reliable', 'remember', 'version', 'perspective'], 55],
   ]
-
   for (const [trope, keywords, baseConf] of tropeRules) {
     const matches = keywords.filter(k => lower.includes(k)).length
     if (matches > 0) {
-      tropes.push({
-        trope,
-        confidence: Math.min(100, baseConf + matches * 10),
-        evidence: keywords.find(k => lower.includes(k)) || '',
-      })
+      tropes.push({ trope, confidence: Math.min(100, baseConf + matches * 10), evidence: keywords.find(k => lower.includes(k)) || '' })
     }
   }
-
   return tropes
 }
 
 export function createEmptyGenreState(): GenreAnalysisState {
-  return {
-    analyses: [],
-    currentGenre: 'unknown',
-    currentChapter: 0,
-    conventionMap: createConventions(),
-  }
+  return { analyses: [], currentGenre: 'unknown', currentChapter: 0, conventionMap: createConventions() }
 }
 
 export function analyzeChapterGenre(state: GenreAnalysisState, text: string, chapter: number): GenreAnalysisState {
   const { primary, sub, confidence } = classifyGenre(text)
   const tropes = detectTropes(text)
-
   const conventions = state.conventionMap[primary] || []
   const warnings: string[] = []
-
-  // Check for genre rule violations
   if (primary === 'fantasy' && !conventions.some(c => tropes.some(t => t.trope === 'world_building'))) {
     warnings.push('Fantasy genre may need stronger world building elements')
   }
   if (primary === 'mystery' && !text.toLowerCase().includes('clue') && !text.toLowerCase().includes('evidence')) {
     warnings.push('Mystery genre typically requires detectable clues')
   }
-
-  const analysis: GenreAnalysis = {
-    primaryGenre: primary,
-    subGenres: sub,
-    confidence,
-    tropes,
-    conventions,
-    warnings,
-  }
-
+  const analysis: GenreAnalysis = { primaryGenre: primary, subGenres: sub, confidence, tropes, conventions, warnings }
   return {
     ...state,
     analyses: [...state.analyses, analysis],
@@ -173,58 +139,30 @@ export function getPrimaryGenre(state: GenreAnalysisState): Genre {
 }
 
 export function formatGenreSummary(state: GenreAnalysisState): string {
-  let s = '=== Genre Analysis Summary ===
-'
-  s += 'Chapters Analyzed: ' + state.currentChapter + '
-'
-  s += 'Primary Genre: ' + getPrimaryGenre(state) + '
-'
-  s += 'Total Analyses: ' + state.analyses.length + '
-'
+  let s = '=== Genre Analysis Summary ===' + '\n'
+  s += 'Chapters Analyzed: ' + state.currentChapter + '\n'
+  s += 'Primary Genre: ' + getPrimaryGenre(state) + '\n'
+  s += 'Total Analyses: ' + state.analyses.length + '\n'
   return s
 }
 
 export function formatGenreDashboard(state: GenreAnalysisState): string {
-  let s = '=== Genre Dashboard ===
-'
-  s += 'Chapter: ' + state.currentChapter + '
-'
-  s += 'Current Genre: ' + state.currentGenre + '
-'
-
+  let s = '=== Genre Dashboard ===' + '\n'
+  s += 'Chapter: ' + state.currentChapter + '\n'
+  s += 'Current Genre: ' + state.currentGenre + '\n'
   const genreCounts: Record<string, number> = {}
-  for (const a of state.analyses) {
-    genreCounts[a.primaryGenre] = (genreCounts[a.primaryGenre] || 0) + 1
-  }
+  for (const a of state.analyses) { genreCounts[a.primaryGenre] = (genreCounts[a.primaryGenre] || 0) + 1 }
   if (Object.keys(genreCounts).length > 0) {
-    s += '
---- Genre Distribution ---
-'
-    for (const [genre, count] of Object.entries(genreCounts)) {
-      s += '  ' + genre + ': ' + count + '
-'
-    }
+    s += '\n--- Genre Distribution ---' + '\n'
+    for (const [genre, count] of Object.entries(genreCounts)) { s += '  ' + genre + ': ' + count + '\n' }
   }
-
   const allTropes: TropeTag[] = []
-  for (const a of state.analyses) {
-    for (const t of a.tropes) {
-      allTropes.push(t.trope)
-    }
-  }
+  for (const a of state.analyses) { for (const t of a.tropes) { allTropes.push(t.trope) } }
   if (allTropes.length > 0) {
-    s += '
---- Tropes Detected ---
-'
+    s += '\n--- Tropes Detected ---' + '\n'
     const tropeCounts: Record<string, number> = {}
-    for (const t of allTropes) {
-      tropeCounts[t] = (tropeCounts[t] || 0) + 1
-    }
-    for (const [trope, count] of Object.entries(tropeCounts).slice(0, 5)) {
-      s += '  ' + trope + ': ' + count + '
-'
-    }
+    for (const t of allTropes) { tropeCounts[t] = (tropeCounts[t] || 0) + 1 }
+    for (const [trope, count] of Object.entries(tropeCounts).slice(0, 5)) { s += '  ' + trope + ': ' + count + '\n' }
   }
-
   return s
 }
