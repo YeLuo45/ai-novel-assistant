@@ -1,298 +1,167 @@
 /**
- * WritingSessionManager — V327
- * Context-aware session state, conversation memory, task state persistence.
- * Inspired by: generic-agent (autonomous state), chatdev (conversation context)
+ * WritingSessionManager — V347
+ * Context-aware writing session state management, tool call tracking,
+ * stagnation detection, and session quality scoring.
+ * Inspired by: generic-agent (autonomous planning), chatdev (context awareness)
  */
 
-export interface WritingContext {
-  projectId: string
-  currentChapter: number
-  sceneFocus: string
-  activeCharacters: string[]
-  narrativeThread: string
-  readerMood: 'engaged' | 'neutral' | 'confused' | 'bored'
-}
-
-export interface ConversationMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: number
-  contextSnapshot?: WritingContext
-  taskState?: TaskState
-}
-
-export interface TaskState {
-  taskId: string
-  description: string
-  status: 'pending' | 'in_progress' | 'completed' | 'blocked'
-  subtasks: { id: string; description: string; completed: boolean }[]
-  progress: number  // 0-100
-  blockedBy?: string[]
-  result?: string
+export interface ToolCall {
+  id: string
+  tool: string
+  startTime: number
+  endTime?: number
+  success: boolean
+  input?: Record<string, unknown>
+  output?: unknown
 }
 
 export interface WritingSessionState {
-  context: WritingContext
-  conversationHistory: ConversationMessage[]
-  activeTasks: Map<string, TaskState>
-  completedTaskIds: string[]
-  sessionMetrics: {
-    totalMessages: number
-    tasksCompleted: number
-    avgResponseTime: number
-    contextSwitches: number
-  }
+  sessionId: string
+  startTime: number
+  endTime?: number
+  toolCalls: ToolCall[]
+  recentToolCalls: ToolCall[]
+  stagnationCount: number
+  lastQualityScore: number
+  qualityHistory: number[]
+  activeThreads: string[]
+  contextWindows: ContextWindow[]
   typeAlias: Record<string, unknown>
 }
 
-export function createEmptyState(projectId: string = 'default'): WritingSessionState {
+export interface ContextWindow {
+  threadId: string
+  startTime: number
+  contextSnapshot: string[]
+  relevanceScore: number
+}
+
+export function createEmptyState(sessionId?: string): WritingSessionState {
   return {
-    context: {
-      projectId,
-      currentChapter: 1,
-      sceneFocus: '',
-      activeCharacters: [],
-      narrativeThread: '',
-      readerMood: 'neutral',
-    },
-    conversationHistory: [],
-    activeTasks: new Map(),
-    completedTaskIds: [],
-    sessionMetrics: {
-      totalMessages: 0,
-      tasksCompleted: 0,
-      avgResponseTime: 0,
-      contextSwitches: 0,
-    },
+    sessionId: sessionId || `session_${Date.now()}`,
+    startTime: Date.now(),
+    toolCalls: [],
+    recentToolCalls: [],
+    stagnationCount: 0,
+    lastQualityScore: 0,
+    qualityHistory: [],
+    activeThreads: [],
+    contextWindows: [],
     typeAlias: {},
   }
 }
 
-// Update writing context
-export function updateContext(
+export function recordToolCall(
   state: WritingSessionState,
-  updates: Partial<WritingContext>
+  tool: string,
+  success: boolean,
+  input?: Record<string, unknown>,
+  output?: unknown
 ): WritingSessionState {
-  const newContext = { ...state.context, ...updates }
-  return { ...state, context: newContext }
+  const call: ToolCall = {
+    id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    tool,
+    startTime: Date.now(),
+    endTime: Date.now(),
+    success,
+    input,
+    output,
+  }
+  const toolCalls = [...state.toolCalls, call]
+  const recentToolCalls = toolCalls.slice(-20)
+  return { ...state, toolCalls, recentToolCalls }
 }
 
-// Add conversation message
-export function addMessage(
+export function detectStagnation(state: WritingSessionState, qualityThreshold: number = 0.5): boolean {
+  if (state.qualityHistory.length < 3) return false
+  const recent = state.qualityHistory.slice(-3)
+  return recent.every(q => q < qualityThreshold)
+}
+
+export function updateQualityScore(state: WritingSessionState, score: number): WritingSessionState {
+  const qualityHistory = [...state.qualityHistory, score]
+  const stagnationCount = detectStagnation({ ...state, qualityHistory }) ? state.stagnationCount + 1 : 0
+  return { ...state, lastQualityScore: score, qualityHistory, stagnationCount }
+}
+
+export function flagExcessiveToolCalls(state: WritingSessionState, threshold: number = 40): boolean {
+  if (state.toolCalls.length < 2) return false
+  const recentWindow = state.toolCalls.slice(-20)
+  const timeSpan = (recentWindow[recentWindow.length - 1].startTime - recentWindow[0].startTime) / 60000
+  if (timeSpan < 1) return recentWindow.length > threshold / 2
+  return recentWindow.length / timeSpan > threshold
+}
+
+export function getSessionDuration(state: WritingSessionState): number {
+  const end = state.endTime || Date.now()
+  return end - state.startTime
+}
+
+export function getToolCallFrequency(state: WritingSessionState): number {
+  const duration = getSessionDuration(state) / 60000
+  if (duration < 0.1) return state.toolCalls.length
+  return state.toolCalls.length / duration
+}
+
+export function getSuccessfulCallRate(state: WritingSessionState): number {
+  if (state.toolCalls.length === 0) return 0
+  const successful = state.toolCalls.filter(c => c.success).length
+  return successful / state.toolCalls.length
+}
+
+export function getContextRelevance(state: WritingSessionState, threadId: string): number {
+  const window = state.contextWindows.find(w => w.threadId === threadId)
+  return window?.relevanceScore || 0
+}
+
+export function getSessionQualityTrend(state: WritingSessionState): 'improving' | 'declining' | 'stable' {
+  if (state.qualityHistory.length < 3) return 'stable'
+  const recent = state.qualityHistory.slice(-3)
+  const avg = recent.reduce((a, b) => a + b, 0) / recent.length
+  const older = state.qualityHistory.slice(-6, -3)
+  if (older.length < 3) return 'stable'
+  const olderAvg = older.reduce((a, b) => a + b, 0) / older.length
+  const diff = avg - olderAvg
+  if (diff > 0.05) return 'improving'
+  if (diff < -0.05) return 'declining'
+  return 'stable'
+}
+
+export function addActiveThread(state: WritingSessionState, threadId: string): WritingSessionState {
+  if (state.activeThreads.includes(threadId)) return state
+  return { ...state, activeThreads: [...state.activeThreads, threadId] }
+}
+
+export function pushContextWindow(
   state: WritingSessionState,
-  role: ConversationMessage['role'],
-  content: string
+  threadId: string,
+  snapshot: string[],
+  relevanceScore: number
 ): WritingSessionState {
-  const message: ConversationMessage = {
-    role,
-    content,
-    timestamp: Date.now(),
-    contextSnapshot: { ...state.context },
-  }
+  const window: ContextWindow = { threadId, startTime: Date.now(), contextSnapshot: snapshot, relevanceScore }
+  const contextWindows = [...state.contextWindows, window].slice(-50)
+  return { ...state, contextWindows }
+}
+
+export function getSessionStatistics(state: WritingSessionState) {
   return {
-    ...state,
-    conversationHistory: [...state.conversationHistory, message],
-    sessionMetrics: {
-      ...state.sessionMetrics,
-      totalMessages: state.sessionMetrics.totalMessages + 1,
-    },
+    sessionId: state.sessionId,
+    duration: getSessionDuration(state),
+    totalCalls: state.toolCalls.length,
+    callFrequency: getToolCallFrequency(state),
+    successRate: getSuccessfulCallRate(state),
+    qualityTrend: getSessionQualityTrend(state),
+    stagnationCount: state.stagnationCount,
+    activeThreads: state.activeThreads.length,
   }
 }
 
-// Create a new task
-export function createTask(
-  state: WritingSessionState,
-  taskId: string,
-  description: string,
-  blockedBy: string[] = []
-): WritingSessionState {
-  const task: TaskState = {
-    taskId,
-    description,
-    status: blockedBy.length > 0 ? 'blocked' : 'pending',
-    subtasks: [],
-    progress: 0,
-    blockedBy,
-  }
-  const newTasks = new Map(state.activeTasks)
-  newTasks.set(taskId, task)
-  return { ...state, activeTasks: newTasks }
-}
-
-// Update task state
-export function updateTask(
-  state: WritingSessionState,
-  taskId: string,
-  updates: Partial<TaskState>
-): WritingSessionState {
-  const task = state.activeTasks.get(taskId)
-  if (!task) return state
-
-  const newTasks = new Map(state.activeTasks)
-  newTasks.set(taskId, { ...task, ...updates })
-  return { ...state, activeTasks: newTasks }
-}
-
-// Complete a task
-export function completeTask(
-  state: WritingSessionState,
-  taskId: string,
-  result?: string
-): WritingSessionState {
-  const task = state.activeTasks.get(taskId)
-  if (!task) return state
-
-  const newTasks = new Map(state.activeTasks)
-  newTasks.delete(taskId)
-
-  return {
-    ...state,
-    activeTasks: newTasks,
-    completedTaskIds: [...state.completedTaskIds, taskId],
-    sessionMetrics: {
-      ...state.sessionMetrics,
-      tasksCompleted: state.sessionMetrics.tasksCompleted + 1,
-    },
-  }
-}
-
-// Get tasks blocked by a given task
-export function getBlockedTasks(
-  state: WritingSessionState,
-  completedTaskId: string
-): string[] {
-  const blocked: string[] = []
-  for (const [id, task] of state.activeTasks) {
-    if (task.blockedBy?.includes(completedTaskId)) {
-      blocked.push(id)
-    }
-  }
-  return blocked
-}
-
-// Unblock tasks that were waiting on completed task
-export function unblockTasks(
-  state: WritingSessionState,
-  completedTaskId: string
-): WritingSessionState {
-  const blockedIds = getBlockedTasks(state, completedTaskId)
-  let newState = state
-  for (const id of blockedIds) {
-    const task = newState.activeTasks.get(id)
-    if (task) {
-      const newBlockedBy = task.blockedBy?.filter(t => t !== completedTaskId) || []
-      newState = updateTask(newState, id, {
-        status: newBlockedBy.length > 0 ? 'blocked' : 'pending',
-        blockedBy: newBlockedBy,
-      })
-    }
-  }
-  return newState
-}
-
-// Get conversation summary for context window
-export function getConversationSummary(
-  state: WritingSessionState,
-  maxMessages: number = 10
-): {
-  recentMessages: ConversationMessage[]
-  activeTasksCount: number
-  currentChapter: number
-  contextDescription: string
-} {
-  const recentMessages = state.conversationHistory.slice(-maxMessages)
-  const contextDescription = `Chapter ${state.context.currentChapter}, ${state.context.sceneFocus || 'no scene focus'}, ${state.context.activeCharacters.length} characters active`
-
-  return {
-    recentMessages,
-    activeTasksCount: state.activeTasks.size,
-    currentChapter: state.context.currentChapter,
-    contextDescription,
-  }
-}
-
-// Detect context switch
-export function detectContextSwitch(
-  state: WritingSessionState,
-  newChapter: number,
-  newScene: string
-): boolean {
-  if (state.context.currentChapter !== newChapter) return true
-  if (state.context.sceneFocus !== newScene && newScene !== '') return true
+export function shouldSuggestBreak(state: WritingSessionState): boolean {
+  if (state.stagnationCount >= 3) return true
+  if (state.toolCalls.length > 100 && getSuccessfulCallRate(state) < 0.5) return true
   return false
 }
 
-// Record context switch
-export function recordContextSwitch(
-  state: WritingSessionState,
-  newContext: Partial<WritingContext>
-): WritingSessionState {
-  return {
-    ...state,
-    context: { ...state.context, ...newContext },
-    sessionMetrics: {
-      ...state.sessionMetrics,
-      contextSwitches: state.sessionMetrics.contextSwitches + 1,
-    },
-  }
-}
-
-// Get task progress summary
-export function getTaskProgress(
-  state: WritingSessionState
-): {
-  pending: number
-  inProgress: number
-  blocked: number
-  completed: number
-  overallProgress: number
-} {
-  let pending = 0, inProgress = 0, blocked = 0
-  for (const task of state.activeTasks.values()) {
-    switch (task.status) {
-      case 'pending': pending++; break
-      case 'in_progress': inProgress++; break
-      case 'blocked': blocked++; break
-    }
-  }
-
-  const total = pending + inProgress + blocked + state.completedTaskIds.length
-  const completedWeight = state.completedTaskIds.length
-  const inProgressWeight = inProgress * 0.5
-  const overallProgress = total > 0 ? Math.round((completedWeight + inProgressWeight) / total * 100) : 0
-
-  return { pending, inProgress, blocked, completed: state.completedTaskIds.length, overallProgress }
-}
-
-// Search conversation history
-export function searchHistory(
-  state: WritingSessionState,
-  query: string,
-  limit: number = 5
-): ConversationMessage[] {
-  const q = query.toLowerCase()
-  const matches = state.conversationHistory.filter(
-    m => m.content.toLowerCase().includes(q)
-  )
-  return matches.slice(-limit)
-}
-
-// Get messages by role
-export function getMessagesByRole(
-  state: WritingSessionState,
-  role: ConversationMessage['role']
-): ConversationMessage[] {
-  return state.conversationHistory.filter(m => m.role === role)
-}
-
-// Prune old messages to stay within limit
-export function pruneMessages(
-  state: WritingSessionState,
-  maxMessages: number = 100
-): WritingSessionState {
-  if (state.conversationHistory.length <= maxMessages) return state
-  return {
-    ...state,
-    conversationHistory: state.conversationHistory.slice(-maxMessages),
-  }
+export function endSession(state: WritingSessionState): WritingSessionState {
+  return { ...state, endTime: Date.now() }
 }
