@@ -1,306 +1,174 @@
 /**
- * SceneTransitionOptimizer — V331
- * Smooth scene transitions, temporal smoothing, character continuity preservation.
- * Inspired by: thunderbolt (pipeline smoothing), ruflo (hierarchical continuity)
+ * SceneTransitionOptimizer — V351
+ * Smooth scene transition detection, temporal smoothing, character continuity,
+ * and transition quality scoring.
+ * Inspired by: thunderbolt (feedback loops), ruflo (hierarchical decomposition)
  */
 
-export interface TransitionEdge {
-  fromScene: string
-  toScene: string
-  transitionType: 'cut' | 'fade' | 'dissolve' | 'match_cut' | 'emporal_jump'
-  smoothness: number     // 0-100 how smooth the transition feels
-  continuityScore: number // 0-100 character/plot continuity maintained
-  recommended: boolean
-}
-
 export interface SceneConnection {
-  sceneId: string
-  incomingEdges: TransitionEdge[]
-  outgoingEdges: TransitionEdge[]
-  strength: number        // overall connection strength
+  fromSceneId: string
+  toSceneId: string
+  transitionQuality: number  // 0-100
+  transitionType: TransitionType
   sharedCharacters: string[]
-  sharedLocations: string[]
-  temporalGap: number     // days between scenes (-1 if unknown)
+  temporalJump: number         // seconds between scenes
+  smoothnessScore: number     // 0-100
 }
 
-export interface TransitionConstraint {
-  type: 'no_direct_cut' | 'require_fade' | 'min_gap' | 'character_must_appear'
-  scenes: string[]
-  params?: Record<string, unknown>
-}
+export type TransitionType = 'cut' | 'fade' | 'dissolve' | 'match_cut' | 'cross_cut' | 'flashback' | 'dream_sequence'
 
-export interface SceneTransitionState {
-  sceneConnections: Map<string, SceneConnection>
-  transitionHistory: TransitionEdge[]
-  constraints: TransitionConstraint[]
-  recommendedOrder: string[]  // suggested scene order
+export interface SceneOptimizerState {
+  connections: SceneConnection[]
+  sceneQualityScores: Record<string, number>
+  transitionHistory: TransitionType[]
+  avgTransitionQuality: number
+  smoothnessTrend: 'improving' | 'stable' | 'declining'
   typeAlias: Record<string, unknown>
 }
 
-export function createEmptyState(): SceneTransitionState {
+export function createEmptyState(): SceneOptimizerState {
   return {
-    sceneConnections: new Map(),
+    connections: [],
+    sceneQualityScores: {},
     transitionHistory: [],
-    constraints: [],
-    recommendedOrder: [],
+    avgTransitionQuality: 0,
+    smoothnessTrend: 'stable',
     typeAlias: {},
   }
 }
 
-// Register a scene connection
 export function registerSceneConnection(
-  state: SceneTransitionState,
-  fromScene: string,
-  toScene: string,
-  sharedCharacters: string[] = [],
-  sharedLocations: string[] = [],
-  temporalGap: number = -1
-): SceneTransitionState {
+  state: SceneOptimizerState,
+  fromSceneId: string,
+  toSceneId: string,
+  transitionType: TransitionType,
+  sharedCharacters: string[],
+  temporalJump: number
+): SceneOptimizerState {
+  const quality = calculateTransitionQuality(transitionType, sharedCharacters, temporalJump, state)
   const connection: SceneConnection = {
-    sceneId: toScene,
-    incomingEdges: [],
-    outgoingEdges: [],
-    strength: 0,
+    fromSceneId,
+    toSceneId,
+    transitionQuality: quality,
+    transitionType,
     sharedCharacters,
-    sharedLocations,
-    temporalGap,
+    temporalJump,
+    smoothnessScore: quality,
   }
-
-  const newConnections = new Map(state.sceneConnections)
-  newConnections.set(`${fromScene}->${toScene}`, connection)
-
-  return { ...state, sceneConnections: newConnections }
+  const connections = [...state.connections, connection]
+  const avgTransitionQuality = connections.reduce((s, c) => s + c.transitionQuality, 0) / connections.length
+  const transitionHistory = [...state.transitionHistory, transitionType].slice(-50)
+  const smoothnessTrend = calculateTrend(connections)
+  return { ...state, connections, avgTransitionQuality, transitionHistory, smoothnessTrend }
 }
 
-// Calculate transition smoothness
-export function calculateSmoothness(
-  transition: TransitionEdge,
+export function calculateTransitionQuality(
+  type: TransitionType,
   sharedCharacters: string[],
-  sharedLocations: string[],
-  temporalGap: number
+  temporalJump: number,
+  state: SceneOptimizerState
 ): number {
-  let score = 50
-
+  let score = 50  // base
+  // Type bonuses
+  if (type === 'match_cut') score += 20
+  else if (type === 'dissolve') score += 10
+  else if (type === 'cut') score -= 5
+  else if (type === 'flashback' || type === 'dream_sequence') score -= 10
   // Character continuity bonus
-  if (sharedCharacters.length > 0) {
-    score += Math.min(sharedCharacters.length * 10, 25)
-  }
-
-  // Location continuity bonus
-  if (sharedLocations.length > 0) {
-    score += Math.min(sharedLocations.length * 8, 20)
-  }
-
-  // Temporal proximity bonus
-  if (temporalGap >= 0) {
-    if (temporalGap === 0) score += 10
-    else if (temporalGap <= 1) score += 5
-    else if (temporalGap > 30) score -= 15  // large gap penalty
-  }
-
-  // Transition type adjustment
-  switch (transition.transitionType) {
-    case 'match_cut': score += 10; break
-    case 'dissolve': score += 5; break
-    case 'cut': score -= 10; break
-    case 'emporal_jump': score -= 15; break
-  }
-
+  if (sharedCharacters.length > 0) score += sharedCharacters.length * 5
+  // Temporal jump penalty
+  if (temporalJump > 86400 * 30) score -= 30  // > 1 month
+  else if (temporalJump > 86400 * 7) score -= 15  // > 1 week
+  else if (temporalJump > 86400) score -= 5  // > 1 day
+  else if (temporalJump < 60) score += 5    // < 1 minute (immediate)
   return Math.max(0, Math.min(100, score))
 }
 
-// Analyze transition options between scenes
-export function analyzeTransition(
-  state: SceneTransitionState,
-  fromScene: string,
-  toScene: string,
-  sharedCharacters: string[] = [],
-  sharedLocations: string[] = [],
-  temporalGap: number = -1
-): TransitionEdge[] {
-  const transitionTypes: TransitionEdge['transitionType'][] = ['cut', 'fade', 'dissolve', 'match_cut', 'emporal_jump']
-  const edges: TransitionEdge[] = []
-
-  for (const ttype of transitionTypes) {
-    const edge: TransitionEdge = {
-      fromScene,
-      toScene,
-      transitionType: ttype,
-      smoothness: 0,
-      continuityScore: 0,
-      recommended: false,
-    }
-
-    edge.smoothness = calculateSmoothness(edge, sharedCharacters, sharedLocations, temporalGap)
-    edge.continuityScore = (sharedCharacters.length > 0 ? 80 : 40) + (sharedLocations.length > 0 ? 15 : 0)
-    edges.push(edge)
-  }
-
-  // Mark best transition as recommended
-  edges.sort((a, b) => b.smoothness - a.smoothness)
-  if (edges.length > 0) edges[0].recommended = true
-
-  return edges
+export function calculateTrend(connections: SceneConnection[]): 'improving' | 'stable' | 'declining' {
+  if (connections.length < 4) return 'stable'
+  const half = Math.floor(connections.length / 2)
+  const first = connections.slice(0, half)
+  const last = connections.slice(half)
+  const firstAvg = first.reduce((s, c) => s + c.smoothnessScore, 0) / first.length
+  const lastAvg = last.reduce((s, c) => s + c.smoothnessScore, 0) / last.length
+  const diff = lastAvg - firstAvg
+  if (diff > 3) return 'improving'
+  if (diff < -3) return 'declining'
+  return 'stable'
 }
 
-// Find best scene ordering to minimize transition costs
-export function findOptimalSceneOrder(
-  state: SceneTransitionState,
-  sceneIds: string[],
-  sharedCharacterMap: Map<string, string[]> = new Map(),
-  sharedLocationMap: Map<string, string[]> = new Map()
-): { orderedScenes: string[]; totalSmoothness: number; transitions: TransitionEdge[] } {
-  if (sceneIds.length === 0) return { orderedScenes: [], totalSmoothness: 0, transitions: [] }
-  if (sceneIds.length === 1) return { orderedScenes: sceneIds, totalSmoothness: 100, transitions: [] }
+export function getRecommendedTransitionType(
+  state: SceneOptimizerState,
+  sharedCharacters: string[],
+  temporalJump: number
+): TransitionType {
+  if (sharedCharacters.length > 2) return 'match_cut'
+  if (temporalJump > 86400 * 30) return 'fade'
+  if (temporalJump > 86400) return 'dissolve'
+  if (temporalJump < 60) return 'cut'
+  return 'dissolve'
+}
 
-  // Greedy approach: always pick the most similar next scene
+export function getTransitionSuggestions(state: SceneOptimizerState): string[] {
+  const suggestions: string[] = []
+  if (state.smoothnessTrend === 'declining') {
+    suggestions.push('Transition quality declining - consider using match cuts more often')
+  }
+  const recent = state.transitionHistory.slice(-10)
+  const cutCount = recent.filter(t => t === 'cut').length
+  if (cutCount > 6) suggestions.push('Too many hard cuts - try dissolves or match cuts')
+  const flashbackCount = recent.filter(t => t === 'flashback').length
+  if (flashbackCount > 3) suggestions.push('Multiple flashbacks may confuse readers')
+  if (state.avgTransitionQuality < 50) {
+    suggestions.push('Low average transition quality - review scene connections')
+  }
+  return suggestions
+}
+
+export function smoothTemporalGaps(state: SceneOptimizerState, maxGap: number = 86400): SceneConnection[] {
+  return state.connections.filter(c => c.temporalJump <= maxGap)
+}
+
+export function getCharacterContinuityScore(state: SceneOptimizerState, characterId: string): number {
+  const relevant = state.connections.filter(c => c.sharedCharacters.includes(characterId))
+  if (relevant.length === 0) return 0
+  return relevant.reduce((s, c) => s + c.transitionQuality, 0) / relevant.length
+}
+
+export function getTransitionStatistics(state: SceneOptimizerState) {
+  const typeCounts: Record<TransitionType, number> = {
+    cut: 0, fade: 0, dissolve: 0, match_cut: 0,
+    cross_cut: 0, flashback: 0, dream_sequence: 0,
+  }
+  for (const t of state.transitionHistory) typeCounts[t]++
+  return {
+    totalTransitions: state.connections.length,
+    avgQuality: state.avgTransitionQuality,
+    trend: state.smoothnessTrend,
+    typeDistribution: typeCounts,
+    bestTransition: state.connections.length > 0
+      ? state.connections.reduce((best, c) => c.transitionQuality > best.transitionQuality ? c : best)
+      : null,
+    worstTransition: state.connections.length > 0
+      ? state.connections.reduce((worst, c) => c.transitionQuality < worst.transitionQuality ? c : worst)
+      : null,
+  }
+}
+
+export function optimizeTransitionOrder(state: SceneOptimizerState): string[] {
   const ordered: string[] = []
-  const remaining = new Set(sceneIds)
-  let current = sceneIds[0]
-  ordered.push(current)
-  remaining.delete(current)
-
-  let totalSmoothness = 100
-
-  while (remaining.size > 0) {
-    let bestNext: string | null = null
-    let bestSmoothness = -1
-
-    for (const next of remaining) {
-      const chars = sharedCharacterMap.get(`${current}->${next}`) || []
-      const locs = sharedLocationMap.get(`${current}->${next}`) || []
-      const candidates = analyzeTransition(state, current, next, chars, locs)
-      const best = candidates.find(c => c.recommended) || candidates[0]
-
-      if (best.smoothness > bestSmoothness) {
-        bestSmoothness = best.smoothness
-        bestNext = next
+  const remaining = new Set(state.connections.map(c => c.fromSceneId))
+  for (const conn of state.connections) {
+    if (ordered.length === 0 || !ordered.includes(conn.fromSceneId)) {
+      if (remaining.has(conn.fromSceneId)) {
+        ordered.push(conn.fromSceneId)
+        remaining.delete(conn.fromSceneId)
       }
     }
-
-    if (bestNext) {
-      const chars = sharedCharacterMap.get(`${current}->${bestNext}`) || []
-      const locs = sharedLocationMap.get(`${current}->${bestNext}`) || []
-      const candidates = analyzeTransition(state, current, bestNext, chars, locs)
-      const best = candidates.find(c => c.recommended) || candidates[0]
-      totalSmoothness += best.smoothness
-      ordered.push(bestNext)
-      remaining.delete(bestNext)
-      current = bestNext
-    } else {
-      // No more connections, just append remaining
-      const next = Array.from(remaining)[0]
-      ordered.push(next)
-      remaining.delete(next)
-      current = next
+    if (remaining.has(conn.toSceneId)) {
+      ordered.push(conn.toSceneId)
+      remaining.delete(conn.toSceneId)
     }
   }
-
-  // Generate transition list
-  const transitions: TransitionEdge[] = []
-  for (let i = 0; i < ordered.length - 1; i++) {
-    const chars = sharedCharacterMap.get(`${ordered[i]}->${ordered[i+1]}`) || []
-    const locs = sharedLocationMap.get(`${ordered[i]}->${ordered[i+1]}`) || []
-    const candidates = analyzeTransition(state, ordered[i], ordered[i+1], chars, locs)
-    transitions.push(candidates.find(c => c.recommended) || candidates[0])
-  }
-
-  return { orderedScenes: ordered, totalSmoothness: totalSmoothness / ordered.length, transitions }
-}
-
-// Validate transition against constraints
-export function validateTransition(
-  state: SceneTransitionState,
-  edge: TransitionEdge
-): { valid: boolean; violations: string[] } {
-  const violations: string[] = []
-
-  for (const constraint of state.constraints) {
-    switch (constraint.type) {
-      case 'no_direct_cut':
-        if (constraint.scenes.includes(edge.fromScene) && constraint.scenes.includes(edge.toScene)) {
-          if (edge.transitionType === 'cut') {
-            violations.push(`Direct cut forbidden between scenes ${edge.fromScene} and ${edge.toScene}`)
-          }
-        }
-        break
-
-      case 'require_fade':
-        if (constraint.scenes.includes(edge.fromScene) && constraint.scenes.includes(edge.toScene)) {
-          if (edge.transitionType !== 'fade' && edge.transitionType !== 'dissolve') {
-            violations.push(`Fade/dissolve required between scenes ${edge.fromScene} and ${edge.toScene}`)
-          }
-        }
-        break
-
-      case 'min_gap':
-        if (constraint.scenes.includes(edge.fromScene) && constraint.scenes.includes(edge.toScene)) {
-          const gap = (constraint.params?.gap as number) || 1
-          const fromConn = state.sceneConnections.get(constraint.scenes[0])
-          if (fromConn && fromConn.temporalGap < gap) {
-            violations.push(`Minimum gap of ${gap} required between scenes`)
-          }
-        }
-        break
-    }
-  }
-
-  return { valid: violations.length === 0, violations }
-}
-
-// Add transition constraint
-export function addConstraint(
-  state: SceneTransitionState,
-  constraint: TransitionConstraint
-): SceneTransitionState {
-  return { ...state, constraints: [...state.constraints, constraint] }
-}
-
-// Get transition summary for a scene sequence
-export function getTransitionSummary(
-  transitions: TransitionEdge[]
-): {
-  avgSmoothness: number
-  recommendedCount: number
-  problematicTransitions: string[]
-  overallQuality: string
-} {
-  if (transitions.length === 0) {
-    return { avgSmoothness: 100, recommendedCount: 0, problematicTransitions: [], overallQuality: 'excellent' }
-  }
-
-  const avgSmoothness = transitions.reduce((s, t) => s + t.smoothness, 0) / transitions.length
-  const recommendedCount = transitions.filter(t => t.recommended).length
-  const problematicTransitions = transitions
-    .filter(t => t.smoothness < 40)
-    .map(t => `${t.fromScene} -> ${t.toScene}`)
-
-  let overallQuality: string
-  if (avgSmoothness >= 80) overallQuality = 'excellent'
-  else if (avgSmoothness >= 60) overallQuality = 'good'
-  else if (avgSmoothness >= 40) overallQuality = 'fair'
-  else overallQuality = 'needs_improvement'
-
-  return { avgSmoothness: Math.round(avgSmoothness), recommendedCount, problematicTransitions, overallQuality }
-}
-
-// Suggest best transition type for given scenes
-export function suggestTransitionType(
-  sharedCharacters: string[],
-  sharedLocations: string[],
-  temporalGap: number
-): { type: TransitionEdge['transitionType']; reason: string } {
-  if (sharedCharacters.length > 2 && temporalGap <= 1) {
-    return { type: 'match_cut', reason: 'Strong character/location continuity warrants match cut' }
-  }
-  if (sharedCharacters.length > 0 && temporalGap <= 7) {
-    return { type: 'dissolve', reason: 'Some continuity with time gap suggests dissolve' }
-  }
-  if (sharedLocations.length > 0 && temporalGap > 7) {
-    return { type: 'fade', reason: 'Same location after significant time gap - fade recommended' }
-  }
-  if (temporalGap > 30 || sharedCharacters.length === 0) {
-    return { type: 'emporal_jump', reason: 'Large time gap or no shared elements - temporal jump needed' }
-  }
-  return { type: 'cut', reason: 'Standard cut appropriate for disconnected scenes' }
+  return ordered
 }
