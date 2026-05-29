@@ -47,7 +47,10 @@ export function recordTensionPoint(
 ): MomentumState {
   const point: TensionPoint = { chapterId, position, tension, momentum, timestamp: Date.now(), label }
   const tensionHistory = [...state.tensionHistory, point]
-  return { ...state, tensionHistory, chaptersAnalyzed: new Set(tensionHistory.map(p => p.chapterId)).size }
+  // Update avgTension
+  const allTensions = tensionHistory.map(p => p.tension)
+  const avgTension = allTensions.reduce((a, b) => a + b, 0) / allTensions.length
+  return { ...state, tensionHistory, chaptersAnalyzed: new Set(tensionHistory.map(p => p.chapterId)).size, avgTension }
 }
 
 // Analyze momentum trend
