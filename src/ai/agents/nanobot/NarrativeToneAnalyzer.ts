@@ -71,9 +71,10 @@ export function setNarrativeTone(
   reason: string = ''
 ): NarrativeToneState {
   const fromTone = state.currentTone
-  const smoothness = calculateSmoothness(fromTone, newTone)
 
-  if (fromTone !== newTone) {
+  // Only record a shift when coming from a non-neutral tone AND tone changed
+  if (fromTone !== 'neutral' && fromTone !== newTone) {
+    const smoothness = calculateSmoothness(fromTone, newTone)
     const shift: ToneShift = {
       shiftId: createShiftId(),
       chapter,
@@ -94,16 +95,17 @@ export function setNarrativeTone(
     return {
       ...state,
       currentTone: newTone,
+      currentChapter: chapter,
       toneHistory: [...state.toneHistory, { chapter, tone: newTone }],
       shifts,
-      currentChapter: chapter,
-      toneConsistencyScore: shifts.length > 0 ? consistency : 100,
+      toneConsistencyScore: consistency,
       abruptShifts,
     }
   }
 
   return {
     ...state,
+    currentTone: newTone,
     currentChapter: Math.max(state.currentChapter, chapter),
     toneHistory: [...state.toneHistory, { chapter, tone: newTone }],
   }
