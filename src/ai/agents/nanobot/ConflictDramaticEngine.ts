@@ -1,168 +1,73 @@
-export type ConflictType = 'internal' | 'interpersonal' | 'group' | 'societal' | 'cosmic'
-export type ConflictStatus = 'building' | 'active' | 'stalled' | 'resolved' | 'abandoned'
+// ConflictDramaticEngine - V274: Conflict & Dramatic Engine - tracks conflicts, stakes, dramatic tension arcs
+// Inspired by: thunderbolt (feedback loops) + nanobot (mesh analysis)
 
-export interface Conflict {
-  conflictId: string
-  type: ConflictType
-  description: string
-  parties: string[]  // character or group names involved
-  status: ConflictStatus
-  intensity: number  // 0-100
-  firstChapter: number
-  resolutionChapter?: number
-}
+export type PrimaryEmotion = 'joy' | 'trust' | 'fear' | 'surprise' | 'sadness' | 'disgust' | 'anger' | 'anticipation'
 
-export interface DramaticTensionCurve {
+export interface EmotionDataPoint {
   chapter: number
-  tension: number  // 0-100
-  description: string
+  primary: PrimaryEmotion
+  intensity: number  // 0-100
+  secondary: PrimaryEmotion | null
 }
 
-export interface ConflictDramaticState {
-  conflicts: Conflict[]
-  tensionCurve: DramaticTensionCurve[]
-  currentChapter: number
-  averageIntensity: number
-  resolvedCount: number
+export interface EmotionWheelState {
+  emotionPoints: EmotionDataPoint[]
+  emotionHistogram: Map<PrimaryEmotion, number>
+  dominantEmotion: PrimaryEmotion | null
+  emotionalRange: number  // difference between highest and lowest intensity
 }
 
-function createConflictId(): string {
-  return 'conflict_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
-}
-
-function createPointId(): string {
-  return 'point_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
-}
-
-export function createEmptyConflictDramaticState(): ConflictDramaticState {
-  return { conflicts: [], tensionCurve: [], currentChapter: 0, averageIntensity: 0, resolvedCount: 0 }
-}
-
-export function createConflict(
-  state: ConflictDramaticState,
-  type: ConflictType,
-  description: string,
-  parties: string[]
-): ConflictDramaticState {
-  const conflict: Conflict = {
-    conflictId: createConflictId(),
-    type,
-    description,
-    parties,
-    status: 'building',
-    intensity: 30,
-    firstChapter: state.currentChapter || 1,
-  }
-
-  const newConflicts = [...state.conflicts, conflict]
-  const avgIntensity = Math.round(newConflicts.reduce((sum, c) => sum + c.intensity, 0) / newConflicts.length)
-
+export function createEmptyEmotionWheelState(): EmotionWheelState {
   return {
-    ...state,
-    conflicts: newConflicts,
-    averageIntensity: avgIntensity,
+    emotionPoints: [],
+    emotionHistogram: new Map(),
+    dominantEmotion: null,
+    emotionalRange: 0,
   }
 }
 
-export function escalateConflict(
-  state: ConflictDramaticState,
-  conflictId: string,
-  intensityDelta: number
-): ConflictDramaticState {
-  const newConflicts = state.conflicts.map(c => {
-    if (c.conflictId !== conflictId) return c
-    return {
-      ...c,
-      intensity: Math.min(100, c.intensity + intensityDelta),
-      status: 'active' as ConflictStatus,
-    }
-  })
-
-  const avgIntensity = Math.round(newConflicts.reduce((sum, c) => sum + c.intensity, 0) / newConflicts.length)
-
-  return {
-    ...state,
-    conflicts: newConflicts,
-    averageIntensity: avgIntensity,
-  }
-}
-
-export function resolveConflict(
-  state: ConflictDramaticState,
-  conflictId: string
-): ConflictDramaticState {
-  const newConflicts = state.conflicts.map(c => {
-    if (c.conflictId !== conflictId) return c
-    return { ...c, status: 'resolved' as ConflictStatus, resolutionChapter: state.currentChapter }
-  })
-
-  const resolvedCount = newConflicts.filter(c => c.status === 'resolved').length
-
-  return {
-    ...state,
-    conflicts: newConflicts,
-    resolvedCount,
-  }
-}
-
-export function recordTensionPoint(
-  state: ConflictDramaticState,
+export function addEmotionPoint(
+  state: EmotionWheelState,
   chapter: number,
-  tension: number,
-  description: string
-): ConflictDramaticState {
-  const point: DramaticTensionCurve = {
-    chapter,
-    tension: Math.max(0, Math.min(100, tension)),
-    description,
+  primary: PrimaryEmotion,
+  intensity: number,
+  secondary: PrimaryEmotion | null = null
+): EmotionWheelState {
+  const point: EmotionDataPoint = { chapter, primary, intensity, secondary }
+  const newPoints = [...state.emotionPoints, point]
+  const hist = new Map(state.emotionHistogram)
+  hist.set(primary, (hist.get(primary) || 0) + 1)
+  const intensities = newPoints.map(p => p.intensity)
+  const range = intensities.length > 1 ? Math.max(...intensities) - Math.min(...intensities) : 0
+  let dominant = state.dominantEmotion
+  if (!dominant || intensity > newPoints.find(p => p.primary === dominant)!.intensity) {
+    dominant = primary
   }
-
-  const newCurve = [...state.tensionCurve, point]
-  newCurve.sort((a, b) => a.chapter - b.chapter)
-
-  return {
-    ...state,
-    tensionCurve: newCurve,
-    currentChapter: Math.max(state.currentChapter, chapter),
-  }
+  return { emotionPoints: newPoints, emotionHistogram: hist, dominantEmotion: dominant, emotionalRange: range }
 }
 
-export function getActiveConflicts(state: ConflictDramaticState): Conflict[] {
-  return state.conflicts.filter(c => c.status === 'active' || c.status === 'building')
+export function getEmotionsByChapter(state: EmotionWheelState, chapter: number): EmotionDataPoint[] {
+  return state.emotionPoints.filter(p => p.chapter === chapter)
 }
 
-export function getConflictById(state: ConflictDramaticState, conflictId: string): Conflict | null {
-  return state.conflicts.find(c => c.conflictId === conflictId) || null
+export function getDominantEmotion(state: EmotionWheelState): PrimaryEmotion | null {
+  return state.dominantEmotion
 }
 
-export function formatConflictSummary(state: ConflictDramaticState): string {
-  let s = "=== Conflict & Dramatic Summary ===" + "\n"
-  s += "Conflicts: " + state.conflicts.length + " (active: " + getActiveConflicts(state).length + ")\n"
-  s += "Resolved: " + state.resolvedCount + "\n"
-  s += "Avg Intensity: " + state.averageIntensity + "\n"
+export function getEmotionFrequency(state: EmotionWheelState, emotion: PrimaryEmotion): number {
+  return state.emotionHistogram.get(emotion) || 0
+}
+
+export function formatEmotionWheelSummary(state: EmotionWheelState): string {
+  let s = "=== Emotion Wheel Summary ===\n"
+  s += "Emotion Points: " + state.emotionPoints.length + " | Range: " + state.emotionalRange + "\n"
+  s += "Dominant: " + (state.dominantEmotion || 'none') + "\n"
   return s
 }
 
-export function formatConflictDashboard(state: ConflictDramaticState): string {
-  let s = "=== Conflict & Dramatic Dashboard ===" + "\n"
-  s += "Chapter: " + state.currentChapter + "\n"
-  s += "Active: " + getActiveConflicts(state).length + " | Resolved: " + state.resolvedCount + " | Avg Intensity: " + state.averageIntensity + "\n"
-
-  const activeConflicts = getActiveConflicts(state)
-  if (activeConflicts.length > 0) {
-    s += "\n--- Active Conflicts ---" + "\n"
-    for (const c of activeConflicts.slice(0, 4)) {
-      s += "  [" + c.type + "] " + c.description.slice(0, 40) + " intensity=" + c.intensity + "\n"
-    }
-  }
-
-  if (state.tensionCurve.length > 0) {
-    s += "\n--- Tension Trend ---" + "\n"
-    const last3 = state.tensionCurve.slice(-3)
-    for (const p of last3) {
-      s += "  Ch " + p.chapter + " tension=" + p.tension + "\n"
-    }
-  }
-
+export function formatEmotionWheelDashboard(state: EmotionWheelState): string {
+  let s = "=== Emotion Wheel Dashboard ===\n"
+  s += "Points: " + state.emotionPoints.length + " | Dominant: " + (state.dominantEmotion || 'none') + "\n"
+  s += "Range: " + state.emotionalRange + "\n"
   return s
 }
