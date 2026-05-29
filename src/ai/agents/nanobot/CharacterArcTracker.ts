@@ -1,4 +1,4 @@
-// CharacterArcTracker - V258: Character Development Arc Tracking
+// CharacterArcTracker - V258: character development arcs, transformation milestones
 // Inspired by: ruflo (hierarchical decomposition) + thunderbolt (pipeline)
 
 export type ArcPhase = 'setup' | 'rising' | 'climax' | 'falling' | 'resolution'
@@ -88,16 +88,14 @@ export function getActiveArcs(state: CharacterArcState): CharacterArc[] {
 }
 
 export function formatArcSummary(state: CharacterArcState): string {
-  let s = "=== Character Arc Summary ===
-"
+  let s = "=== Character Arc Summary ===\n"
   s += "Chapter: " + state.currentChapter + " | Characters: " + state.characterCount + "\n"
   s += "Active Arcs: " + getActiveArcs(state).length + " | Avg Transformation: " + state.averageTransformation + "\n"
   return s
 }
 
 export function formatArcDashboard(state: CharacterArcState): string {
-  let s = "=== Arc Dashboard ===
-"
+  let s = "=== Arc Dashboard ===\n"
   s += "Chapter: " + state.currentChapter + "\n"
   s += "Total Arcs: " + state.arcs.length + " | Avg Transformation: " + state.averageTransformation + "\n"
   if (state.arcs.length > 0) {
