@@ -1,131 +1,107 @@
-export interface DialogueSegment {
-  segmentId: string
+export type SpeechPattern = 'formal' | 'casual' | 'regional' | 'formal_casual' | 'educated' | 'street'
+
+export interface DialogueEntry {
+  dialogueId: string
   chapter: number
   speaker: string
-  text: string
   authenticityScore: number  // 0-100
-  subtextDepth: number  // 0-100
-  subtextHint: string
+  hasSubtext: boolean
+  speechPattern: SpeechPattern
+  fillerWordCount: number
+  overlapWithOtherCharacters: number  // how many other characters share similar speech patterns
 }
 
 export interface DialogueAuthenticityState {
-  segments: DialogueSegment[]
-  characterVoices: Map<string, { wordCount: number; patternCount: number }>
+  entries: DialogueEntry[]
   currentChapter: number
-  averageAuthenticity: number  // 0-100
+  averageAuthenticity: number
+  dialoguesWithSubtext: number
+  authenticityScore: number  // overall 0-100
 }
 
-function createSegmentId(): string {
-  return 'dlg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
-}
-
-function assessAuthenticity(text: string): number {
-  const words = text.split(' ')
-  let score = 50
-
-  // Natural dialogue tends to be concise
-  if (words.length >= 5 && words.length <= 30) score += 15
-  if (words.length > 50) score -= 10
-  if (words.length < 3) score -= 10
-
-  // Contains common filler words (natural speech)
-  const fillers = ['um', 'uh', 'well', 'like', 'you know', 'actually']
-  const lower = text.toLowerCase()
-  const fillerCount = fillers.filter(f => lower.includes(f)).length
-  score += fillerCount * 3
-
-  // Contains contractions (natural speech)
-  const contractions = ["i'm", "don't", "can't", "won't", "it's", "that's", "you're"]
-  const contractionCount = contractions.filter(c => lower.includes(c)).length
-  score += contractionCount * 5
-
-  return Math.max(0, Math.min(100, score))
-}
-
-function assessSubtextDepth(text: string): { depth: number; hint: string } {
-  const lower = text.toLowerCase()
-
-  if (lower.includes('implied') || lower.includes('meaning')) return { depth: 80, hint: 'Metaphorical expression' }
-  if (lower.includes('hint') || lower.includes('suggest')) return { depth: 70, hint: 'Hinting at something' }
-  if (lower.includes('maybe') || lower.includes('perhaps')) return { depth: 60, hint: 'Hedged statement' }
-  if (lower.includes('always') || lower.includes('never')) return { depth: 55, hint: 'Absolute statement with subtext' }
-  if (lower.includes('fine') || lower.includes('whatever')) return { depth: 65, hint: 'Dismissive with hidden emotion' }
-  if (lower.includes('okay') || lower.includes('sure')) return { depth: 50, hint: 'Agreement with reservations' }
-
-  return { depth: 40, hint: 'Direct statement' }
+function createDialogueId(): string {
+  return 'diag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
 }
 
 export function createEmptyDialogueAuthenticityState(): DialogueAuthenticityState {
-  return { segments: [], characterVoices: new Map(), currentChapter: 0, averageAuthenticity: 0 }
+  return { entries: [], currentChapter: 0, averageAuthenticity: 0, dialoguesWithSubtext: 0, authenticityScore: 100 }
 }
 
-export function recordDialogue(
+export function analyzeDialogue(
   state: DialogueAuthenticityState,
   chapter: number,
   speaker: string,
-  text: string
+  dialogueText: string,
+  speechPattern: SpeechPattern,
+  hasSubtext: boolean,
+  fillerWordCount: number
 ): DialogueAuthenticityState {
-  const authenticity = assessAuthenticity(text)
-  const { depth: subtextDepth, hint: subtextHint } = assessSubtextDepth(text)
+  let authenticityScore = 70  // base score
 
-  const segment: DialogueSegment = {
-    segmentId: createSegmentId(),
+  // Filler words reduce authenticity
+  const fillerRatio = fillerWordCount / Math.max(1, dialogueText.split(' ').length)
+  authenticityScore -= Math.round(fillerRatio * 50)
+
+  // Subtext adds authenticity
+  if (hasSubtext) authenticityScore += 15
+
+  // Very short or very long dialogue reduces authenticity
+  const wordCount = dialogueText.split(' ').length
+  if (wordCount < 5 || wordCount > 400) authenticityScore -= 15
+
+  authenticityScore = Math.max(0, Math.min(100, authenticityScore))
+
+  const entry: DialogueEntry = {
+    dialogueId: createDialogueId(),
     chapter,
     speaker,
-    text,
-    authenticityScore: authenticity,
-    subtextDepth,
-    subtextHint,
+    authenticityScore,
+    hasSubtext,
+    speechPattern,
+    fillerWordCount,
+    overlapWithOtherCharacters: 0,
   }
 
-  const newSegments = [...state.segments, segment]
-
-  // Track character voice patterns
-  const newVoices = new Map(state.characterVoices)
-  const voice = newVoices.get(speaker) || { wordCount: 0, patternCount: 0 }
-  newVoices.set(speaker, {
-    wordCount: voice.wordCount + text.split(' ').length,
-    patternCount: voice.patternCount + 1,
-  })
-
-  const avgAuthenticity = Math.round(newSegments.reduce((sum, s) => sum + s.authenticityScore, 0) / newSegments.length)
+  const newEntries = [...state.entries, entry]
+  const totalAuth = newEntries.reduce((s, e) => s + e.authenticityScore, 0)
+  const averageAuthenticity = Math.round(totalAuth / newEntries.length)
+  const dialoguesWithSubtext = newEntries.filter(e => e.hasSubtext).length
 
   return {
-    ...state,
-    segments: newSegments,
-    characterVoices: newVoices,
-    currentChapter: Math.max(state.currentChapter, chapter),
-    averageAuthenticity: avgAuthenticity,
+    entries: newEntries,
+    currentChapter: chapter,
+    averageAuthenticity,
+    dialoguesWithSubtext,
+    authenticityScore: averageAuthenticity,
   }
 }
 
-export function getDialogueAtChapter(state: DialogueAuthenticityState, chapter: number): DialogueSegment[] {
-  return state.segments.filter(s => s.chapter === chapter)
+export function getDialoguesBySpeaker(state: DialogueAuthenticityState, speaker: string): DialogueEntry[] {
+  return state.entries.filter(e => e.speaker === speaker)
 }
 
-export function getAverageAuthenticity(state: DialogueAuthenticityState): number {
-  return state.averageAuthenticity
+export function getDialoguesWithSubtext(state: DialogueAuthenticityState): DialogueEntry[] {
+  return state.entries.filter(e => e.hasSubtext)
 }
 
-export function formatDialogueSummary(state: DialogueAuthenticityState): string {
+export function formatDialogueAuthenticitySummary(state: DialogueAuthenticityState): string {
   let s = "=== Dialogue Authenticity Summary ===" + "\n"
-  s += "Segments: " + state.segments.length + "\n"
-  s += "Avg Authenticity: " + state.averageAuthenticity + "\n"
-  s += "Characters: " + state.characterVoices.size + "\n"
+  s += "Total Dialogues: " + state.entries.length + "\n"
+  s += "Average Authenticity: " + state.averageAuthenticity + "\n"
+  s += "Dialogues with Subtext: " + state.dialoguesWithSubtext + "\n"
   return s
 }
 
-export function formatDialogueDashboard(state: DialogueAuthenticityState): string {
-  let s = "=== Dialogue Dashboard ===" + "\n"
-  s += "Chapter: " + state.currentChapter + "\n"
-  s += "Avg Authenticity: " + state.averageAuthenticity + "\n"
-  s += "Segments: " + state.segments.length + " | Characters: " + state.characterVoices.size + "\n"
+export function formatDialogueAuthenticityDashboard(state: DialogueAuthenticityState): string {
+  let s = "=== Dialogue Authenticity Dashboard ===" + "\n"
+  s += "Chapter: " + state.currentChapter + " | Authenticity: " + state.authenticityScore + "\n"
+  s += "Total: " + state.entries.length + " | With Subtext: " + state.dialoguesWithSubtext + "\n"
 
-  const deepSubtext = state.segments.filter(seg => seg.subtextDepth >= 60)
-  if (deepSubtext.length > 0) {
-    s += "\n--- Deep Subtext Segments ---" + "\n"
-    for (const seg of deepSubtext.slice(0, 3)) {
-      s += "  Ch " + seg.chapter + " [" + seg.speaker + "] " + seg.subtextHint + "\n"
+  if (state.entries.length > 0) {
+    s += "\n--- Recent Dialogues ---" + "\n"
+    for (const e of state.entries.slice(-4)) {
+      const subtextFlag = e.hasSubtext ? " [SUBTEXT]" : ""
+      s += "  Ch" + e.chapter + " " + e.speaker + " score=" + e.authenticityScore + " [" + e.speechPattern + "]" + subtextFlag + "\n"
     }
   }
 

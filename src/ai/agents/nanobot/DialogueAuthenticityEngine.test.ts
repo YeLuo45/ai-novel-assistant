@@ -1,139 +1,115 @@
 import { describe, it, expect } from 'vitest'
 import {
   createEmptyDialogueAuthenticityState,
-  recordDialogue,
-  getDialogueAtChapter,
-  getAverageAuthenticity,
-  formatDialogueSummary,
-  formatDialogueDashboard,
+  analyzeDialogue,
+  getDialoguesBySpeaker,
+  getDialoguesWithSubtext,
+  formatDialogueAuthenticitySummary,
+  formatDialogueAuthenticityDashboard,
 } from './DialogueAuthenticityEngine'
 
 describe('createEmptyDialogueAuthenticityState', () => {
   it('should create empty state', () => {
     const state = createEmptyDialogueAuthenticityState()
-    expect(state.segments.length).toBe(0)
-    expect(state.characterVoices.size).toBe(0)
+    expect(state.entries.length).toBe(0)
     expect(state.averageAuthenticity).toBe(0)
+    expect(state.authenticityScore).toBe(100)
   })
 })
 
-describe('recordDialogue', () => {
-  it('should add first dialogue segment', () => {
+describe('analyzeDialogue', () => {
+  it('should add dialogue entry', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', "I'm not sure about this")
-    expect(state.segments.length).toBe(1)
+    state = analyzeDialogue(state, 1, 'John', 'Hello there', 'casual', false, 0)
+    expect(state.entries.length).toBe(1)
+    expect(state.currentChapter).toBe(1)
   })
 
-  it('should track speaker', () => {
+  it('should boost authenticity for dialogues with subtext', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', "I'm not sure about this")
-    expect(state.characterVoices.has('alice')).toBeTruthy()
+    state = analyzeDialogue(state, 1, 'John', 'I am fine', 'casual', false, 0)
+    const noSubtext = state.entries[0].authenticityScore
+    state = analyzeDialogue(state, 2, 'Jane', 'I am fine', 'casual', true, 0)
+    expect(state.entries[1].authenticityScore).toBeGreaterThan(noSubtext)
   })
 
-  it('should assess authenticity for natural speech', () => {
+  it('should penalize high filler word ratio', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', "I don't know, um, maybe it's fine")
-    expect(state.segments[0].authenticityScore).toBeGreaterThan(50)
-  })
-
-  it('should assess authenticity for unnatural speech', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', 'The weather is pleasant today is it not')
-    expect(state.segments[0].authenticityScore).toBeLessThan(70)
-  })
-
-  it('should detect subtext for dismissive speech', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', 'Fine, whatever you say')
-    expect(state.segments[0].subtextDepth).toBeGreaterThan(50)
-  })
-
-  it('should detect subtext hint', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', 'Maybe we should consider that')
-    expect(state.segments[0].subtextHint).not.toBe('')
-  })
-
-  it('should update current chapter', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 5, 'alice', 'Dialogue')
-    expect(state.currentChapter).toBe(5)
+    state = analyzeDialogue(state, 1, 'John', 'um like you know', 'casual', false, 3)
+    expect(state.entries[0].authenticityScore).toBeLessThan(70)
   })
 
   it('should update average authenticity', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', "I'm not sure")
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
+    state = analyzeDialogue(state, 2, 'Jane', 'Hi there', 'casual', false, 0)
     expect(state.averageAuthenticity).toBeGreaterThan(0)
   })
-})
 
-describe('getDialogueAtChapter', () => {
-  it('should return empty for unknown chapter', () => {
-    const state = createEmptyDialogueAuthenticityState()
-    expect(getDialogueAtChapter(state, 1).length).toBe(0)
-  })
-
-  it('should return segments at chapter', () => {
+  it('should track subtext dialogue count', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 3, 'alice', 'Dialogue at ch 3')
-    state = recordDialogue(state, 5, 'bob', 'Dialogue at ch 5')
-    const at3 = getDialogueAtChapter(state, 3)
-    expect(at3.length).toBe(1)
-    expect(at3[0].speaker).toBe('alice')
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
+    state = analyzeDialogue(state, 2, 'Jane', 'Hi', 'casual', false, 0)
+    expect(state.dialoguesWithSubtext).toBe(1)
   })
 })
 
-describe('getAverageAuthenticity', () => {
-  it('should return 0 for no segments', () => {
-    const state = createEmptyDialogueAuthenticityState()
-    expect(getAverageAuthenticity(state)).toBe(0)
-  })
-
-  it('should return average across segments', () => {
+describe('getDialoguesBySpeaker', () => {
+  it('should return dialogues for specific speaker', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', "I'm not sure about this")
-    state = recordDialogue(state, 2, 'bob', 'Another dialogue')
-    expect(getAverageAuthenticity(state)).toBeGreaterThan(0)
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
+    state = analyzeDialogue(state, 2, 'Jane', 'Hi', 'casual', false, 0)
+    const johns = getDialoguesBySpeaker(state, 'John')
+    expect(johns.length).toBe(1)
+    expect(johns[0].speaker).toBe('John')
   })
 })
 
-describe('formatDialogueSummary', () => {
-  it('should show segment count', () => {
+describe('getDialoguesWithSubtext', () => {
+  it('should return only dialogues with subtext', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', 'Dialogue')
-    state = recordDialogue(state, 2, 'bob', 'Dialogue')
-    const summary = formatDialogueSummary(state)
-    expect(summary).toContain('Segments: 2')
-  })
-
-  it('should show avg authenticity', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', "I'm not sure about this")
-    const summary = formatDialogueSummary(state)
-    expect(summary).toContain('Avg Authenticity:')
-  })
-
-  it('should show character count', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', 'Dialogue')
-    state = recordDialogue(state, 2, 'bob', 'Dialogue')
-    const summary = formatDialogueSummary(state)
-    expect(summary).toContain('Characters: 2')
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
+    state = analyzeDialogue(state, 2, 'Jane', 'Hi', 'casual', false, 0)
+    const withSubtext = getDialoguesWithSubtext(state)
+    expect(withSubtext.length).toBe(1)
   })
 })
 
-describe('formatDialogueDashboard', () => {
+describe('formatDialogueAuthenticitySummary', () => {
+  it('should show dialogue count', () => {
+    let state = createEmptyDialogueAuthenticityState()
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
+    const summary = formatDialogueAuthenticitySummary(state)
+    expect(summary).toContain('Total Dialogues: 1')
+  })
+
+  it('should show average authenticity', () => {
+    let state = createEmptyDialogueAuthenticityState()
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
+    const summary = formatDialogueAuthenticitySummary(state)
+    expect(summary).toContain('Average Authenticity:')
+  })
+
+  it('should show subtext count', () => {
+    let state = createEmptyDialogueAuthenticityState()
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
+    const summary = formatDialogueAuthenticitySummary(state)
+    expect(summary).toContain('Dialogues with Subtext: 1')
+  })
+})
+
+describe('formatDialogueAuthenticityDashboard', () => {
   it('should show chapter', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 3, 'alice', 'Dialogue')
-    const dashboard = formatDialogueDashboard(state)
+    state = analyzeDialogue(state, 3, 'John', 'Hello', 'casual', false, 0)
+    const dashboard = formatDialogueAuthenticityDashboard(state)
     expect(dashboard).toContain('Chapter: 3')
   })
 
-  it('should show deep subtext segments', () => {
+  it('should show SUBTEXT flag', () => {
     let state = createEmptyDialogueAuthenticityState()
-    state = recordDialogue(state, 1, 'alice', 'Fine, whatever you want')
-    const dashboard = formatDialogueDashboard(state)
-    expect(dashboard).toContain('Deep Subtext Segments')
+    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
+    const dashboard = formatDialogueAuthenticityDashboard(state)
+    expect(dashboard).toContain('SUBTEXT')
   })
 })
