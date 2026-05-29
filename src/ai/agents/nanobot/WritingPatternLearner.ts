@@ -1,10 +1,3 @@
-/**
- * WritingPatternLearner — V337
- * Personal writing pattern mining, vocabulary preferences, pacing habits,
- * style fingerprint extraction and tracking.
- * Inspired by: nanobot (distributed learning), chatdev (style analysis)
- */
-
 export interface VocabularyPreference {
   word: string
   frequency: number
@@ -41,25 +34,21 @@ export interface WritingPatternState {
 }
 
 export function createEmptyState(): WritingPatternState {
-  return {
-    vocabulary: [],
-    pacingHabit: null,
-    fingerprint: null,
-    totalWordsAnalyzed: 0,
-    sessionsAnalyzed: 0,
-    lastAnalysisTimestamp: 0,
-    typeAlias: {},
-  }
+  return { vocabulary: [], pacingHabit: null, fingerprint: null, totalWordsAnalyzed: 0, sessionsAnalyzed: 0, lastAnalysisTimestamp: 0, typeAlias: {} }
 }
 
 function tokenize(text: string): string[] {
-  return text.toLowerCase().match(/\b[a-z\u4e00-\u9fff]{2,}\b/g) || []
+  return text.toLowerCase().split(/\s+/).filter(w => w.length >= 2)
 }
 
-export function analyzeVocabularyPreferences(
-  state: WritingPatternState,
-  text: string
-): WritingPatternState {
+function countOccurrences(text: string, char: string): number {
+  let count = 0
+  let idx = text.indexOf(char)
+  while (idx !== -1) { count++; idx = text.indexOf(char, idx + 1) }
+  return count
+}
+
+export function analyzeVocabularyPreferences(state: WritingPatternState, text: string): WritingPatternState {
   const words = tokenize(text)
   const wordFreq: Record<string, number> = {}
   for (const w of words) { wordFreq[w] = (wordFreq[w] || 0) + 1 }
@@ -105,8 +94,10 @@ export function extractStyleFingerprint(state: WritingPatternState, text: string
   const paragraphVariance = paragraphLengths.length > 1 ? paragraphLengths.reduce((s, len) => s + (len - meanPL) ** 2, 0) / paragraphLengths.length : 0
   const punctuation: Record<string, number> = {}
   const totalChars = Math.max(1, text.length)
-  for (const p of [',', '，', '.', '。', '-', '—', '!', '?', '"', '"']) {
-    punctuation[p] = Math.round(((text.match(new RegExp(p, 'g')) || []).length / totalChars) * 1000) / 10
+  const punctChars = [',', '，', '.', '。', '-', '—', '!', '?', '"', '"']
+  for (const p of punctChars) {
+    const count = countOccurrences(text, p)
+    punctuation[p] = Math.round((count / totalChars) * 1000) / 10
   }
   const firstPersonWords = ['i', 'me', 'my', 'mine', 'myself', 'we', 'us', 'our']
   const firstPersonCount = words.filter(w => firstPersonWords.includes(w)).length

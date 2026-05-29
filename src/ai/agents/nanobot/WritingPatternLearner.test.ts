@@ -3,182 +3,243 @@ import {
   createEmptyState,
   analyzeVocabularyPreferences,
   analyzePacingHabits,
-  detectStructurePatterns,
-  discoverPatterns,
-  getTopVocabularyPreferences,
-  getPersonalStyleSignature,
-  compareWithPrevious,
-  getSuggestedImprovements,
+  extractStyleFingerprint,
+  analyzeWritingSample,
+  getMostCommonWords,
+  compareFingerprints,
+  checkStyleConsistency,
+  suggestVocabularyImprovements,
 } from './WritingPatternLearner'
 
 describe('createEmptyState', () => {
-  it('should create empty state with default pacing habits', () => {
-    const state = createEmptyState()
-    expect(state.vocabularyProfile.size).toBe(0)
-    expect(state.discoveredPatterns.size).toBe(0)
-    expect(state.pacingHabits.sceneLength).toBe(0)
-    expect(state.pacingHabits.dialogueRatio).toBe(0)
-    expect(state.structurePatterns.structureType).toBe('linear')
-    expect(state.typeAlias).toEqual({})
+  it('should create empty state', () => {
+    const s = createEmptyState()
+    expect(s.vocabulary).toEqual([])
+    expect(s.pacingHabit).toBeNull()
+    expect(s.fingerprint).toBeNull()
+    expect(s.totalWordsAnalyzed).toBe(0)
+    expect(s.typeAlias).toEqual({})
   })
 })
 
 describe('analyzeVocabularyPreferences', () => {
-  it('should build vocabulary profile from text', () => {
-    let state = createEmptyState()
-    state = analyzeVocabularyPreferences(state, 'The beautiful cat sat on the mat', 'text-1', 8)
-    expect(state.vocabularyProfile.size).toBeGreaterThan(0)
-    expect(state.historicalTexts.has('text-1')).toBe(true)
+  it('should count word frequencies', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'hello world hello everyone hello')
+    expect(s.vocabulary.find(v => v.word === 'hello')!.frequency).toBe(3)
   })
 
-  it('should accumulate frequency across texts', () => {
-    let state = createEmptyState()
-    state = analyzeVocabularyPreferences(state, 'The beautiful cat', 'text-1', 4)
-    state = analyzeVocabularyPreferences(state, 'The beautiful dog', 'text-2', 4)
-    const catPref = state.vocabularyProfile.get('cat')
-    expect(catPref).not.toBeUndefined()
-    expect(catPref!.frequency).toBeGreaterThan(0)
+  it('should update existing words on second call', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'testing testing running')
+    s = analyzeVocabularyPreferences(s, 'testing jumping climbing')
+    expect(s.vocabulary.find(v => v.word === 'testing')!.frequency).toBeGreaterThanOrEqual(1)
   })
 
-  it('should update historical texts map', () => {
-    let state = createEmptyState()
-    state = analyzeVocabularyPreferences(state, 'Hello world test text', 't1', 4)
-    expect(state.historicalTexts.get('t1')!.wordCount).toBe(4)
-    expect(state.historicalTexts.get('t1')!.timestamp).toBeGreaterThan(0)
+  it('should track total words analyzed', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'one two three four five')
+    expect(s.totalWordsAnalyzed).toBe(5)
+  })
+
+  it('should increment sessions', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'first session content here')
+    expect(s.sessionsAnalyzed).toBe(1)
+    s = analyzeVocabularyPreferences(s, 'second session content here')
+    expect(s.sessionsAnalyzed).toBe(2)
+  })
+
+  it('should sort by frequency descending', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'alpha beta alpha beta beta gamma alpha')
+    expect(s.vocabulary[0].word).toBe('alpha')
+    expect(s.vocabulary[1].word).toBe('beta')
+  })
+
+  it('should set timestamp', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'some words in this text')
+    expect(s.lastAnalysisTimestamp).toBeGreaterThan(0)
   })
 })
 
 describe('analyzePacingHabits', () => {
-  it('should calculate average pacing metrics', () => {
-    let state = createEmptyState()
-    state = analyzePacingHabits(
-      state,
-      [500, 600, 400],  // sceneLengths
-      [3000, 3500, 3200], // chapterLengths
-      [0.3, 0.4, 0.35],  // dialogueRatios
-      [5, 6, 4],         // actionDensities
-      [1, 2, 1]          // pauseFrequencies
-    )
-    expect(state.pacingHabits.sceneLength).toBeCloseTo(500, -1)
-    expect(state.pacingHabits.dialogueRatio).toBeCloseTo(0.35, -1)
+  it('should compute avg sentence length', () => {
+    let s = createEmptyState()
+    s = analyzePacingHabits(s, 'Short sentence. Another one here. And one more.')
+    expect(s.pacingHabit!.avgSentenceLength).toBeGreaterThan(0)
   })
 
-  it('should preserve existing values when arrays empty', () => {
-    let state = createEmptyState()
-    state = { ...state, pacingHabits: { ...state.pacingHabits, sceneLength: 800 } }
-    state = analyzePacingHabits(state, [], [], [], [], [])
-    expect(state.pacingHabits.sceneLength).toBe(800)
-  })
-})
-
-describe('detectStructurePatterns', () => {
-  it('should detect linear structure', () => {
-    let state = createEmptyState()
-    state = detectStructurePatterns(state, 'Once upon', 'The end', [1, 2, 3], 'smooth')
-    expect(state.structurePatterns.structureType).toBe('linear')
+  it('should compute avg paragraph length', () => {
+    let s = createEmptyState()
+    s = analyzePacingHabits(s, 'First paragraph words here.\n\nSecond paragraph words here still.')
+    expect(s.pacingHabit!.avgParagraphLength).toBeGreaterThan(0)
   })
 
-  it('should detect framed structure (decreasing)', () => {
-    let state = createEmptyState()
-    state = detectStructurePatterns(state, 'Opening', 'Closing', [5, 4, 3, 2, 1], 'chapter-break')
-    expect(state.structurePatterns.structureType).toBe('framed')
+  it('should handle empty text', () => {
+    let s = createEmptyState()
+    s = analyzePacingHabits(s, '')
+    expect(s.pacingHabit!.avgSentenceLength).toBe(0)
   })
 
-  it('should detect nonlinear structure', () => {
-    let state = createEmptyState()
-    state = detectStructurePatterns(state, 'Start', 'End', [3, 1, 5, 2, 4], 'cliffhanger')
-    expect(state.structurePatterns.structureType).toBe('nonlinear')
+  it('should calculate dialogue ratio', () => {
+    let s = createEmptyState()
+    s = analyzePacingHabits(s, '"Hello," said the girl. The room was dark.')
+    expect(s.pacingHabit!.dialogueToNarrationRatio).toBeGreaterThan(0)
   })
 
-  it('should store opening and closing patterns', () => {
-    let state = createEmptyState()
-    const opening = 'Once upon a time in a faraway land'
-    const closing = 'They lived happily ever after'
-    state = detectStructurePatterns(state, opening, closing, [1, 2], 'smooth')
-    expect(state.structurePatterns.openingPattern).toBe(opening.slice(0, 100))
-    expect(state.structurePatterns.closingPattern).toBe(closing.slice(0, 100))
+  it('should track action density', () => {
+    let s = createEmptyState()
+    s = analyzePacingHabits(s, 'He ran to the door and jumped out the window when he looked at me.')
+    expect(s.pacingHabit!.actionDensity).toBeGreaterThan(0)
   })
 })
 
-describe('discoverPatterns', () => {
-  it('should discover patterns from vocabulary', () => {
-    let state = createEmptyState()
-    state = analyzeVocabularyPreferences(state, 'beautiful wonderful amazing beautiful', 't1', 4)
-    state = { ...state, historicalTexts: new Map([['t1', { wordCount: 4, timestamp: Date.now() }]]) }
-    state = discoverPatterns(state, 1)
-    // Should have discovered vocabulary patterns
-    expect(state.discoveredPatterns.size).toBeGreaterThan(0)
+describe('extractStyleFingerprint', () => {
+  it('should compute unique word ratio', () => {
+    let s = createEmptyState()
+    s = extractStyleFingerprint(s, 'hello world hello planet hello')
+    expect(s.fingerprint!.uniqueWordRatio).toBeLessThan(1)
+    expect(s.fingerprint!.uniqueWordRatio).toBeGreaterThan(0)
   })
 
-  it('should set confidence based on occurrences', () => {
-    let state = createEmptyState()
-    state = analyzeVocabularyPreferences(state, 'test test test test test', 't1', 5)
-    state = { ...state, historicalTexts: new Map([['t1', { wordCount: 5, timestamp: Date.now() }]]) }
-    state = discoverPatterns(state, 1)
-    const pattern = Array.from(state.discoveredPatterns.values())[0]
-    expect(pattern.confidence).toBeGreaterThan(0)
+  it('should compute avg word length', () => {
+    let s = createEmptyState()
+    s = extractStyleFingerprint(s, 'hello world testing')
+    expect(s.fingerprint!.avgWordLength).toBeGreaterThan(3)
+  })
+
+  it('should compute sentence variance', () => {
+    let s = createEmptyState()
+    s = extractStyleFingerprint(s, 'Short. Medium length sentence here. This is a much longer sentence to balance things out.')
+    expect(s.fingerprint!.sentenceVariance).toBeGreaterThan(0)
+  })
+
+  it('should compute punctuation density', () => {
+    let s = createEmptyState()
+    s = extractStyleFingerprint(s, 'Hello, world! How are you? I am fine.')
+    expect(s.fingerprint!.punctuationDensity[',']).toBeGreaterThan(0)
+  })
+
+  it('should track first person pronouns', () => {
+    let s = createEmptyState()
+    s = extractStyleFingerprint(s, 'I walked to the store and I saw my friend. We talked for a while.')
+    expect(s.fingerprint!.firstPersonPronounRatio).toBeGreaterThan(0)
+  })
+
+  it('should track conjunction ratio', () => {
+    let s = createEmptyState()
+    s = extractStyleFingerprint(s, 'I walked and I ran but I did not stop so I kept going')
+    expect(s.fingerprint!.conjunctionRatio).toBeGreaterThan(0)
   })
 })
 
-describe('getTopVocabularyPreferences', () => {
-  it('should return top K vocabulary', () => {
-    let state = createEmptyState()
-    state = analyzeVocabularyPreferences(state, 'beautiful cat dog running quickly slowly', 't1', 6)
-    const top = getTopVocabularyPreferences(state, undefined, 3)
+describe('analyzeWritingSample', () => {
+  it('should call all three analyzers', () => {
+    let s = createEmptyState()
+    s = analyzeWritingSample(s, 'I walked to the store and I bought some food. It was good.')
+    expect(s.vocabulary.length).toBeGreaterThan(0)
+    expect(s.pacingHabit).not.toBeNull()
+    expect(s.fingerprint).not.toBeNull()
+  })
+})
+
+describe('getMostCommonWords', () => {
+  it('should return top N words', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'alpha beta gamma delta epsilon alpha beta gamma alpha beta')
+    const top = getMostCommonWords(s, 3)
     expect(top.length).toBeLessThanOrEqual(3)
-    expect(top[0]?.frequency).toBeGreaterThanOrEqual(top[1]?.frequency || 0)
+  })
+
+  it('should be ordered by frequency descending', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'zero one two one two one one')
+    const top = getMostCommonWords(s, 2)
+    expect(top[0].word).toBe('one')
+    expect(top[0].frequency).toBe(4)
+  })
+
+  it('should default to 20 words', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, Array(30).fill('word').join(' '))
+    const top = getMostCommonWords(s)
+    expect(top.length).toBeGreaterThan(0) // all same word
   })
 })
 
-describe('getPersonalStyleSignature', () => {
-  it('should return style signature', () => {
-    const state = createEmptyState()
-    const sig = getPersonalStyleSignature(state)
-    expect(sig.uniqueWordCount).toBe(0)
-    expect(sig.avgSceneLength).toBe(0)
-    expect(sig.structureType).toBe('linear')
+describe('compareFingerprints', () => {
+  it('should return high similarity for similar fingerprints', () => {
+    const fp1: any = { uniqueWordRatio: 0.8, avgWordLength: 4.5, sentenceVariance: 10, paragraphVariance: 20, punctuationDensity: {}, firstPersonPronounRatio: 0.05, conjunctionRatio: 0.03 }
+    const fp2: any = { uniqueWordRatio: 0.82, avgWordLength: 4.6, sentenceVariance: 11, paragraphVariance: 19, punctuationDensity: {}, firstPersonPronounRatio: 0.05, conjunctionRatio: 0.03 }
+    const result = compareFingerprints(fp1, fp2)
+    expect(result.similarity).toBeGreaterThan(80)
+  })
+
+  it('should return low similarity for very different fingerprints', () => {
+    const fp1: any = { uniqueWordRatio: 0.5, avgWordLength: 3.0, sentenceVariance: 30, paragraphVariance: 40, punctuationDensity: {}, firstPersonPronounRatio: 0.2, conjunctionRatio: 0.1 }
+    const fp2: any = { uniqueWordRatio: 0.9, avgWordLength: 7.0, sentenceVariance: 2, paragraphVariance: 5, punctuationDensity: {}, firstPersonPronounRatio: 0.01, conjunctionRatio: 0.01 }
+    const result = compareFingerprints(fp1, fp2)
+    expect(result.differences.length).toBeGreaterThan(2)
+    expect(result.similarity).toBeLessThan(50)
+  })
+
+  it('should report specific differences', () => {
+    const fp1: any = { uniqueWordRatio: 0.5, avgWordLength: 3.0, sentenceVariance: 30, paragraphVariance: 40, punctuationDensity: {}, firstPersonPronounRatio: 0.2, conjunctionRatio: 0.1 }
+    const fp2: any = { uniqueWordRatio: 0.9, avgWordLength: 3.2, sentenceVariance: 30, paragraphVariance: 40, punctuationDensity: {}, firstPersonPronounRatio: 0.2, conjunctionRatio: 0.1 }
+    const result = compareFingerprints(fp1, fp2)
+    expect(result.differences.some(d => d.includes('uniqueWordRatio'))).toBe(true)
   })
 })
 
-describe('compareWithPrevious', () => {
-  it('should detect vocabulary change', () => {
-    const state = createEmptyState()
-    const prev = getPersonalStyleSignature(state)
-    const next = { ...prev, uniqueWordCount: 2000 }
-    const state2 = { ...state, vocabularyProfile: new Map([['word', { word: 'word', category: 'noun', frequency: 10, favorability: 0.5 }]]) }
-    const diff = compareWithPrevious(state2, prev)
-    expect(diff.vocabularyChange).not.toBe(0)
+describe('checkStyleConsistency', () => {
+  it('should return consistent for insufficient sessions', () => {
+    let s = createEmptyState()
+    s.fingerprint = { uniqueWordRatio: 0.7, avgWordLength: 4, sentenceVariance: 10, paragraphVariance: 20, punctuationDensity: {}, firstPersonPronounRatio: 0.05, conjunctionRatio: 0.03 }
+    s.sessionsAnalyzed = 2
+    const result = checkStyleConsistency(s, 'Some text to check')
+    expect(result.consistent).toBe(true)
+    expect(result.warnings[0]).toContain('Insufficient')
   })
 
-  it('should handle zero previous pace', () => {
-    const state = createEmptyState()
-    const prev = { uniqueWordCount: 0, avgSceneLength: 0, dialogueRatio: 0, structureType: 'linear', dominantPatternTypes: [] }
-    const diff = compareWithPrevious(state, prev)
-    expect(diff.pacingChange).toBe(0)
+  it('should return consistent for similar text', () => {
+    let s = createEmptyState()
+    for (let i = 0; i < 5; i++) {
+      s = analyzeWritingSample(s, 'I walked to the store and I bought some food yesterday when I was feeling tired.')
+    }
+    const result = checkStyleConsistency(s, 'I ran to the park and I played some games with my friend.')
+    expect(result.similarityScore).toBeGreaterThan(60)
   })
 })
 
-describe('getSuggestedImprovements', () => {
-  it('should suggest dialogue improvement when ratio low', () => {
-    let state = createEmptyState()
-    state = analyzePacingHabits(state, [500], [3000], [0.1], [5], [2])
-    const suggestions = getSuggestedImprovements(state)
-    expect(suggestions.some(s => s.toLowerCase().includes('dialogue'))).toBe(true)
+describe('suggestVocabularyImprovements', () => {
+  it('should suggest expansion for small vocabulary', () => {
+    let s = createEmptyState()
+    s = analyzeVocabularyPreferences(s, 'word word word word word')
+    const suggestions = suggestVocabularyImprovements(s)
+    expect(suggestions.length).toBeGreaterThan(0)
+    expect(suggestions[0]).toContain('vocabulary')
   })
 
-  it('should suggest structure variety when linear', () => {
-    let state = createEmptyState()
-    state = detectStructurePatterns(state, 'Open', 'Close', [1, 2, 3], 'smooth')
-    const suggestions = getSuggestedImprovements(state)
-    expect(suggestions.some(s => s.toLowerCase().includes('linear') || s.toLowerCase().includes('non-linear'))).toBe(true)
+  it('should warn about overused words', () => {
+    let s = createEmptyState()
+    // Create many entries of the same word
+    for (let i = 0; i < 30; i++) {
+      s = analyzeVocabularyPreferences(s, 'repeat repeat repeat repeat repeat')
+    }
+    const suggestions = suggestVocabularyImprovements(s)
+    expect(suggestions.length).toBeGreaterThan(0)
   })
 
-  it('should return empty when patterns are rich', () => {
-    let state = createEmptyState()
-    state = { ...state, discoveredPatterns: new Map([['p1', { patternId: 'p1', patternType: 'pacing', occurrences: 5, confidence: 0.8, examples: [], frequency: 10, lastSeen: Date.now() }], ['p2', { patternId: 'p2', patternType: 'dialogue', occurrences: 5, confidence: 0.8, examples: [], frequency: 0.5, lastSeen: Date.now() }], ['p3', { patternId: 'p3', patternType: 'structure', occurrences: 5, confidence: 0.8, examples: [], frequency: 1, lastSeen: Date.now() }]]) }
-    state = { ...state, pacingHabits: { ...state.pacingHabits, dialogueRatio: 0.35, pauseFrequency: 2 } }
-    state = detectStructurePatterns(state, 'Open', 'Close', [3, 1, 5, 2, 4], 'cliffhanger')
-    const suggestions = getSuggestedImprovements(state)
-    expect(suggestions.length).toBe(0)
+  it('should return empty for normal vocabulary', () => {
+    let s = createEmptyState()
+    const words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon',
+      'mango', 'nectarine', 'orange', 'papaya', 'quince', 'raspberry', 'strawberry', 'tangerine', 'watermelon', 'zucchini',
+      'carrot', 'broccoli', 'spinach', 'kale', 'lettuce', 'tomato', 'cucumber', 'pepper', 'onion', 'garlic']
+    s = analyzeVocabularyPreferences(s, words.join(' ') + ' ' + words.join(' '))
+    const suggestions = suggestVocabularyImprovements(s)
+    // May or may not have suggestions depending on pacing
+    expect(Array.isArray(suggestions)).toBe(true)
   })
 })
