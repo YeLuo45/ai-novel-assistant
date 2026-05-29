@@ -11,7 +11,6 @@ import { EmotionalArcState, createEmptyEmotionalArcState } from './EmotionalArcE
 import { WritingAnalyticsState, createEmptyWritingAnalyticsState } from './WritingAnalyticsEngine'
 
 export interface NarrativeIntelligenceState {
-  // Sub-states for each engine
   arcRefinement: ArcRefinementState
   settingWorld: SettingWorldState
   conflictDramatic: ConflictDramaticState
@@ -22,7 +21,6 @@ export interface NarrativeIntelligenceState {
   voiceConsistency: VoiceConsistencyState
   emotionalArc: EmotionalArcState
   writingAnalytics: WritingAnalyticsState
-  // Cross-engine metadata
   currentChapter: number
   lastUpdated: string
 }
@@ -31,7 +29,7 @@ export type NarrativeScoreCategory = 'arc' | 'setting' | 'conflict' | 'character
 
 export interface NarrativeScore {
   category: NarrativeScoreCategory
-  score: number  // 0-100
+  score: number
   label: string
   detail: string
 }
@@ -55,18 +53,21 @@ function getSettingScore(state: NarrativeIntelligenceState): NarrativeScore {
 }
 
 function getConflictScore(state: NarrativeIntelligenceState): NarrativeScore {
+  const activeCount = state.conflictDramatic.conflicts.filter(c => c.status === 'active').length
   return {
     category: 'conflict',
-    score: state.conflictDramatic.averageIntensity,
+    score: Math.min(100, state.conflictDramatic.averageIntensity),
     label: 'Dramatic Intensity',
-    detail: 'Active conflicts: ' + state.conflictDramatic.conflicts.filter(c => c.status === 'active').length,
+    detail: 'Active conflicts: ' + activeCount,
   }
 }
 
 function getCharacterScore(state: NarrativeIntelligenceState): NarrativeScore {
+  const rels = state.characterRelationship.relationships
+  const health = rels.length > 0 ? Math.round(rels.reduce((s, r) => s + r.health, 0) / rels.length) : 100
   return {
     category: 'character',
-    score: Math.round(state.characterRelationship.relationships.reduce((s, r) => s + Math.abs(r.health), 0) / Math.max(1, state.characterRelationship.relationships.length)),
+    score: Math.abs(health),
     label: 'Relationship Health',
     detail: state.characterRelationship.characters.size + ' characters tracked',
   }
@@ -109,21 +110,22 @@ function getVoiceScore(state: NarrativeIntelligenceState): NarrativeScore {
 }
 
 function getEmotionScore(state: NarrativeIntelligenceState): NarrativeScore {
+  const arcEntries = Array.from(state.emotionalArc.arcs.values())
+  const arcStability = arcEntries.length > 0
+    ? Math.round(arcEntries.reduce((s, a) => s + a.arcStability, 0) / arcEntries.length)
+    : 100
   return {
     category: 'emotion',
-    score: Math.round(state.emotionalArc.characters.reduce((s, c) => s + c.arcStability, 0) / Math.max(1, state.emotionalArc.characters.length)),
+    score: arcStability,
     label: 'Emotional Arc Stability',
-    detail: state.emotionalArc.characters.length + ' characters tracked',
+    detail: arcEntries.length + ' characters tracked',
   }
 }
 
 function getAnalyticsScore(state: NarrativeIntelligenceState): NarrativeScore {
-  const score = state.writingAnalytics.sessions.length > 0
-    ? Math.round(state.writingAnalytics.sessions.reduce((s, sess) => s + s.qualityScore, 0) / state.writingAnalytics.sessions.length)
-    : 0
   return {
     category: 'analytics',
-    score,
+    score: state.writingAnalytics.averageQuality,
     label: 'Writing Quality',
     detail: state.writingAnalytics.sessions.length + ' sessions tracked',
   }
@@ -163,14 +165,12 @@ export function getAllNarrativeScores(state: NarrativeIntelligenceState): Narrat
 
 export function getOverallNarrativeHealth(state: NarrativeIntelligenceState): number {
   const scores = getAllNarrativeScores(state)
-  const validScores = scores.filter(s => s.score > 0 || s.category === 'conflict')
-  return Math.round(validScores.reduce((s, ns) => s + ns.score, 0) / validScores.length)
+  return Math.round(scores.reduce((s, ns) => s + ns.score, 0) / scores.length)
 }
 
 export function formatNarrativeSummary(state: NarrativeIntelligenceState): string {
   const health = getOverallNarrativeHealth(state)
   const scores = getAllNarrativeScores(state)
-
   let s = "=== Narrative Intelligence Summary ===" + "\n"
   s += "Chapter: " + state.currentChapter + "\n"
   s += "Overall Health: " + health + "\n"
@@ -184,23 +184,19 @@ export function formatNarrativeSummary(state: NarrativeIntelligenceState): strin
 export function formatNarrativeDashboard(state: NarrativeIntelligenceState): string {
   const health = getOverallNarrativeHealth(state)
   const scores = getAllNarrativeScores(state)
-
   let s = "=== Narrative Intelligence Dashboard ===" + "\n"
   s += "Chapter: " + state.currentChapter + " | Overall Health: " + health + "\n"
-
   s += "\n--- Top Scores ---" + "\n"
   const sorted = [...scores].sort((a, b) => b.score - a.score).slice(0, 5)
   for (const score of sorted) {
     const bar = '█'.repeat(Math.floor(score.score / 20)) + '░'.repeat(5 - Math.floor(score.score / 20))
     s += "  " + score.label + " [" + bar + "] " + score.score + "\n"
   }
-
   s += "\n--- Bottom Scores ---" + "\n"
   const bottom = [...scores].sort((a, b) => a.score - b.score).slice(0, 3)
   for (const score of bottom) {
     s += "  " + score.label + ": " + score.score + " - " + score.detail + "\n"
   }
-
   return s
 }
 
