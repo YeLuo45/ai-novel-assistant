@@ -89,19 +89,27 @@ export function optimizeBeatOrder(
   const climax = sorted.find(b => b.type === 'climax')
   const resolution = sorted.find(b => b.type === 'resolution')
   
-  // Extract special beats
-  let ordered: StoryBeat[] = sorted.filter(b => b.type !== 'hook' && b.type !== 'climax' && b.type !== 'resolution')
+  // Extract special beats and remaining
+  const complications = sorted.filter(b => b.type !== 'hook' && b.type !== 'climax' && b.type !== 'resolution')
+  const n = complications.length
   
-  // Place hook first
-  if (hook) ordered.unshift(hook)
+  // Place in order: hook -> complications -> climax -> resolution
+  const ordered: StoryBeat[] = []
   
-  // Place climax at 75% position
-  if (climax) {
-    const climaxIdx = Math.floor(ordered.length * 0.75)
-    ordered.splice(climaxIdx, 0, climax)
+  if (hook) ordered.push(hook)
+  
+  const climaxIdx = Math.floor((n + 1) * 0.75)  // +1 for hook
+  for (let i = 0; i <= n; i++) {
+    if (i === climaxIdx && climax) {
+      ordered.push(climax)
+    } else {
+      const srcIdx = i < climaxIdx ? i : i - 1
+      if (srcIdx < complications.length) {
+        ordered.push(complications[srcIdx])
+      }
+    }
   }
   
-  // Place resolution last
   if (resolution) ordered.push(resolution)
   
   // Calculate pacing score based on type distribution
