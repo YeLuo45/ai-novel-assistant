@@ -1,363 +1,233 @@
 /**
- * StoryBeatOptimizer — V325
- * Optimal beat sequencing, scene ordering, dramatic structure optimization.
- * Inspired by: thunderbolt (pipeline optimization), ruflo (hierarchical decomposition)
+ * StoryBeatOptimizer — V345
+ * Optimal story beat sequencing, narrative structure analysis,
+ * beat type recommendations, and story rhythm optimization.
+ * Inspired by: thunderbolt (feedback loops), ruflo (hierarchical decomposition), chatdev (role analysis)
  */
 
+export type BeatType = 'hook' | 'setup' | 'rising_action' | 'climax' | 'falling_action' | 'resolution' | 'turning_point'
+
 export interface StoryBeat {
-  beatId: string
-  type: 'hook' | 'setup' | 'complication' | 'crisis' | 'climax' | 'falling_action' | 'resolution' | 'subplot'
-  importance: number      // 1-10
-  durationEstimate: number // words/pages
-  emotionalTone: 'joy' | 'sorrow' | 'tension' | 'fear' | 'anticipation' | 'neutral'
-  characters: string[]
-  sceneId: string
+  id: string
+  type: BeatType
+  description: string
+  priority: number
+  estimatedLength: number
+  emotionalTone?: string
+  characters?: string[]
+  chapterId?: string
+  position?: number
 }
 
 export interface BeatSequence {
+  id: string
   beats: StoryBeat[]
-  totalDuration: number   // estimated total words
-  pacingScore: number    // 0-100 how well the sequence flows
-  tensionArc: number[]   // tension level at each beat position
+  totalEstimatedWords: number
+  rhythmScore: number
+  structureType: 'three_act' | 'five_act' | 'hero_journey' | 'freytag'
 }
 
-export interface OptimizationConstraint {
-  type: 'min_gap' | 'max_gap' | 'required_sequence' | 'forbidden_sequence' | 'emotional_balance' | 'character_presence'
-  params: Record<string, unknown>
-}
-
-export interface StoryBeatOptimizerState {
-  currentSequence: BeatSequence | null
-  beatLibrary: Map<string, StoryBeat>
-  constraints: OptimizationConstraint[]
-  optimizationHistory: { timestamp: number; scoreBefore: number; scoreAfter: number }[]
+export interface BeatOptimizerState {
+  beats: StoryBeat[]
+  sequences: BeatSequence[]
+  currentSequenceId: string | null
+  beatLibrary: Record<string, StoryBeat>
   typeAlias: Record<string, unknown>
 }
 
-export function createEmptyState(): StoryBeatOptimizerState {
+export function createEmptyState(): BeatOptimizerState {
   return {
-    currentSequence: null,
-    beatLibrary: new Map(),
-    constraints: [],
-    optimizationHistory: [],
+    beats: [],
+    sequences: [],
+    currentSequenceId: null,
+    beatLibrary: {},
     typeAlias: {},
   }
 }
 
-// Add a beat to the library
-export function addBeat(
-  state: StoryBeatOptimizerState,
-  beat: StoryBeat
-): StoryBeatOptimizerState {
-  const newLibrary = new Map(state.beatLibrary)
-  newLibrary.set(beat.beatId, beat)
-  return { ...state, beatLibrary: newLibrary }
+export function addBeat(state: BeatOptimizerState, beat: Omit<StoryBeat, 'id'>): BeatOptimizerState {
+  const id = `beat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const newBeat: StoryBeat = { ...beat, id }
+  return {
+    ...state,
+    beats: [...state.beats, newBeat],
+    beatLibrary: { ...state.beatLibrary, [id]: newBeat },
+  }
 }
 
-// Create a beat sequence from a list of beat IDs
-export function createSequence(
-  state: StoryBeatOptimizerState,
-  beatIds: string[]
-): BeatSequence | null {
-  const beats: StoryBeat[] = []
-  for (const id of beatIds) {
-    const beat = state.beatLibrary.get(id)
-    if (!beat) return null
-    beats.push(beat)
+export function createSequence(state: BeatOptimizerState, structureType: BeatSequence['structureType']): BeatOptimizerState {
+  const id = `seq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const sequence: BeatSequence = {
+    id,
+    beats: [],
+    totalEstimatedWords: 0,
+    rhythmScore: 0,
+    structureType,
   }
-  return { beats, totalDuration: 0, pacingScore: 0, tensionArc: [] }
+  return {
+    ...state,
+    sequences: [...state.sequences, sequence],
+    currentSequenceId: id,
+  }
 }
 
-// Optimize beat ordering for dramatic impact
-export function optimizeBeatOrder(
-  state: StoryBeatOptimizerState,
-  beatIds: string[],
-  targetPacing: 'slow' | 'medium' | 'fast' = 'medium'
-): { sequence: BeatSequence; improvements: string[] } {
-  const beats: StoryBeat[] = beatIds.map(id => state.beatLibrary.get(id)).filter((b): b is StoryBeat => !!b)
-  
-  if (beats.length === 0) {
-    return { 
-      sequence: { beats: [], totalDuration: 0, pacingScore: 0, tensionArc: [] }, 
-      improvements: ['No beats available for optimization'] 
-    }
+export function addBeatToSequence(state: BeatOptimizerState, beatId: string): BeatOptimizerState {
+  const beat = state.beatLibrary[beatId]
+  if (!beat) return state
+  if (!state.currentSequenceId) return state
+  const seqIdx = state.sequences.findIndex(s => s.id === state.currentSequenceId)
+  if (seqIdx === -1) return state
+  const seq = state.sequences[seqIdx]
+  const updatedSeq: BeatSequence = {
+    ...seq,
+    beats: [...seq.beats, beat],
+    totalEstimatedWords: seq.totalEstimatedWords + beat.estimatedLength,
   }
-
-  // Sort beats: hook first, climax in ~75% position, resolution last
-  const sorted = [...beats]
-  const hook = sorted.find(b => b.type === 'hook')
-  const climax = sorted.find(b => b.type === 'climax')
-  const resolution = sorted.find(b => b.type === 'resolution')
-  
-  // Extract special beats and remaining
-  const complications = sorted.filter(b => b.type !== 'hook' && b.type !== 'climax' && b.type !== 'resolution')
-  const n = complications.length
-  
-  // Place in order: hook -> complications -> climax -> resolution
-  const ordered: StoryBeat[] = []
-  
-  if (hook) ordered.push(hook)
-  
-  const climaxIdx = Math.floor((n + 1) * 0.75)  // +1 for hook
-  for (let i = 0; i <= n; i++) {
-    if (i === climaxIdx && climax) {
-      ordered.push(climax)
-    } else {
-      const srcIdx = i < climaxIdx ? i : i - 1
-      if (srcIdx < complications.length) {
-        ordered.push(complications[srcIdx])
-      }
-    }
-  }
-  
-  if (resolution) ordered.push(resolution)
-  
-  // Calculate pacing score based on type distribution
-  const typeOrder: StoryBeat['type'][] = ['hook', 'setup', 'complication', 'crisis', 'climax', 'falling_action', 'resolution', 'subplot']
-  let pacingScore = 60
-  
-  // Bonus for proper dramatic structure
-  const hasAllCoreTypes = ['hook', 'climax', 'resolution'].every(t => ordered.some(b => b.type === t))
-  if (hasAllCoreTypes) pacingScore += 15
-  
-  // Penalty for too many subplots
-  const subplotCount = ordered.filter(b => b.type === 'subplot').length
-  if (subplotCount > ordered.length * 0.3) pacingScore -= 10
-  
-  // Calculate tension arc
-  const tensionArc = ordered.map((beat, idx) => {
-    const positionRatio = idx / Math.max(1, ordered.length - 1)
-    let baseTension: number
-    switch (beat.type) {
-      case 'hook': baseTension = 30; break
-      case 'setup': baseTension = 25; break
-      case 'complication': baseTension = 50; break
-      case 'crisis': baseTension = 75; break
-      case 'climax': baseTension = 95; break
-      case 'falling_action': baseTension = 60; break
-      case 'resolution': baseTension = 20; break
-      case 'subplot': baseTension = 40; break
-    }
-    return Math.round(baseTension * (1 + (beat.importance / 20)))
-  })
-
-  const totalDuration = ordered.reduce((s, b) => s + b.durationEstimate, 0)
-
-  const improvements: string[] = []
-  if (!hasAllCoreTypes) improvements.push('Missing core story beats (hook/climax/resolution)')
-  if (subplotCount > ordered.length * 0.3) improvements.push(`Too many subplots (${subplotCount}/${ordered.length}) - may dilute main plot`)
-  if (ordered.length > 15) improvements.push(`Long sequence (${ordered.length} beats) - consider splitting`)
-  if (pacingScore >= 75) improvements.push('Strong dramatic structure detected')
-
-  const sequence: BeatSequence = { beats: ordered, totalDuration, pacingScore, tensionArc }
-  return { sequence, improvements }
+  const sequences = [...state.sequences]
+  sequences[seqIdx] = updatedSeq
+  return { ...state, sequences }
 }
 
-// Calculate pacing score for a sequence
-export function calculatePacingScore(seq: BeatSequence): number {
-  if (seq.beats.length === 0) return 0
-  
-  let score = 50
-  const types = seq.beats.map(b => b.type)
-  
-  // Check for proper beat type distribution
-  const hasHook = types.includes('hook')
-  const hasClimax = types.includes('climax')
-  const hasResolution = types.includes('resolution')
-  if (hasHook && hasClimax && hasResolution) score += 20
-  
-  // Check tension arc shape (should rise then fall)
-  if (seq.tensionArc.length >= 3) {
-    const mid = Math.floor(seq.tensionArc.length / 2)
-    const firstHalfAvg = seq.tensionArc.slice(0, mid).reduce((s, v) => s + v, 0) / mid
-    const secondHalfAvg = seq.tensionArc.slice(mid).reduce((s, v) => s + v, 0) / (seq.tensionArc.length - mid)
-    if (secondHalfAvg > firstHalfAvg + 10) score += 15  // proper rise
-    if (seq.tensionArc[0] > seq.tensionArc[mid]) score -= 10  // starts high
-    if (seq.tensionArc[seq.tensionArc.length - 1] > 40) score -= 10  // doesn't resolve
+export function calculateRhythmScore(beats: StoryBeat[]): number {
+  if (beats.length < 3) return 50
+  const typeOrder: Record<BeatType, number> = {
+    hook: 0, setup: 1, rising_action: 2, turning_point: 3,
+    climax: 4, falling_action: 5, resolution: 6,
   }
-  
-  // Importance variance (good sequences have varied importance)
-  const importances = seq.beats.map(b => b.importance)
-  const avgImp = importances.reduce((s, v) => s + v, 0) / importances.length
-  const variance = importances.reduce((s, v) => s + Math.abs(v - avgImp), 0) / importances.length
-  if (variance > 2) score += 10  // good variation
-  if (variance < 1) score -= 5   // too uniform
-  
+  let score = 70
+  if (beats[0].type !== 'hook') score -= 15
+  if (beats.some(b => b.type === 'climax')) score += 10
+  if (!beats.some(b => b.type === 'resolution')) score -= 10
+  for (let i = 1; i < beats.length; i++) {
+    const prevOrder = typeOrder[beats[i - 1].type]
+    const currOrder = typeOrder[beats[i].type]
+    if (currOrder < prevOrder && beats[i].type !== 'turning_point') score -= 3
+  }
+  for (let i = 1; i < beats.length; i++) {
+    if (beats[i].type === beats[i - 1].type) score -= 5
+  }
   return Math.max(0, Math.min(100, score))
 }
 
-// Find optimal beat placement for maximum tension
-export function findOptimalBeatPlacement(
-  state: StoryBeatOptimizerState,
-  beatId: string,
-  currentSequence: BeatSequence
-): { position: number; reason: string } {
-  const beat = state.beatLibrary.get(beatId)
-  if (!beat) return { position: -1, reason: 'Beat not found' }
-
-  // Find best position based on beat type
-  let position: number
-  let reason: string
-
-  switch (beat.type) {
-    case 'hook':
-      position = 0
-      reason = 'Hooks belong at the beginning'
-      break
-    case 'climax':
-      // Place at ~75% of sequence
-      position = Math.floor(currentSequence.beats.length * 0.75)
-      reason = 'Climax placed at dramatic peak position'
-      break
-    case 'resolution':
-      position = currentSequence.beats.length
-      reason = 'Resolutions belong at the end'
-      break
-    case 'crisis':
-      // Place just before climax
-      const climaxIdx = currentSequence.beats.findIndex(b => b.type === 'climax')
-      position = climaxIdx > 0 ? climaxIdx : Math.floor(currentSequence.beats.length * 0.7)
-      reason = 'Crisis should precede climax'
-      break
-    case 'complication':
-      // Place in middle third
-      position = Math.floor(currentSequence.beats.length / 3) + Math.floor(Math.random() * (currentSequence.beats.length / 3))
-      reason = 'Complications fit in middle section'
-      break
-    default:
-      // Find position with lowest adjacent importance
-      let bestPos = currentSequence.beats.length
-      let lowestImpact = Infinity
-      for (let i = 0; i <= currentSequence.beats.length; i++) {
-        const beforeImp = i > 0 ? currentSequence.beats[i - 1].importance : 0
-        const afterImp = i < currentSequence.beats.length ? currentSequence.beats[i].importance : 0
-        const impact = Math.abs(beforeImp - afterImp)
-        if (impact < lowestImpact) {
-          lowestImpact = impact
-          bestPos = i
-        }
-      }
-      position = bestPos
-      reason = 'Placed at position with minimal adjacent disruption'
-  }
-
-  return { position, reason }
+export function optimizeBeatOrder(state: BeatOptimizerState, sequenceId: string): BeatOptimizerState {
+  const seqIdx = state.sequences.findIndex(s => s.id === sequenceId)
+  if (seqIdx === -1) return state
+  const seq = state.sequences[seqIdx]
+  const hook = seq.beats.filter(b => b.type === 'hook')
+  const others = seq.beats.filter(b => b.type !== 'hook')
+  others.sort((a, b) => b.priority - a.priority)
+  const sorted = [...hook, ...others]
+  const rhythmScore = calculateRhythmScore(sorted)
+  const updatedSeq: BeatSequence = { ...seq, beats: sorted, rhythmScore }
+  const sequences = [...state.sequences]
+  sequences[seqIdx] = updatedSeq
+  return { ...state, sequences }
 }
 
-// Balance emotional tone across sequence
-export function balanceEmotionalTone(
-  seq: BeatSequence,
-  targetRatio: Map<StoryBeat['emotionalTone'], number> = new Map([
-    ['tension', 0.3],
-    ['anticipation', 0.2],
-    ['neutral', 0.2],
-    ['joy', 0.15],
-    ['fear', 0.1],
-    ['sorrow', 0.05],
-  ])
-): { balanced: boolean; suggestions: string[] } {
-  if (seq.beats.length === 0) return { balanced: true, suggestions: [] }
-
-  const actualCounts = new Map<string, number>()
-  for (const beat of seq.beats) {
-    actualCounts.set(beat.emotionalTone, (actualCounts.get(beat.emotionalTone) || 0) + 1)
+export function getBeatTypeDistribution(state: BeatOptimizerState, sequenceId: string): Record<BeatType, number> {
+  const seq = state.sequences.find(s => s.id === sequenceId)
+  if (!seq) return {} as Record<BeatType, number>
+  const distribution: Record<BeatType, number> = {
+    hook: 0, setup: 0, rising_action: 0, turning_point: 0,
+    climax: 0, falling_action: 0, resolution: 0,
   }
-
-  const suggestions: string[] = []
-  const total = seq.beats.length
-  let balanced = true
-
-  for (const [tone, targetRatio] of targetRatio.entries()) {
-    const actual = (actualCounts.get(tone) || 0) / total
-    const diff = Math.abs(actual - targetRatio)
-    if (diff > 0.15) {
-      balanced = false
-      if (actual < targetRatio) {
-        suggestions.push(`More ${tone} beats needed (${Math.round(actual * 100)}% vs ${Math.round(targetRatio * 100)}% target)`)
-      } else {
-        suggestions.push(`Too many ${tone} beats (${Math.round(actual * 100)}% vs ${Math.round(targetRatio * 100)}% target)`)
-      }
-    }
-  }
-
-  return { balanced, suggestions }
+  for (const beat of seq.beats) distribution[beat.type]++
+  return distribution
 }
 
-// Validate sequence structure
-export function validateSequence(seq: BeatSequence): {
-  valid: boolean
-  errors: string[]
-  warnings: string[]
-} {
-  const errors: string[] = []
-  const warnings: string[] = []
-
-  if (seq.beats.length === 0) {
-    errors.push('Empty sequence')
-    return { valid: false, errors, warnings }
+export function getMissingBeatTypes(state: BeatOptimizerState, sequenceId: string): BeatType[] {
+  const seq = state.sequences.find(s => s.id === sequenceId)
+  if (!seq) return []
+  const presentTypes = new Set(seq.beats.map(b => b.type))
+  const requiredByStructure: Record<BeatSequence['structureType'], BeatType[]> = {
+    three_act: ['hook', 'rising_action', 'climax', 'resolution'],
+    five_act: ['hook', 'setup', 'rising_action', 'turning_point', 'climax', 'resolution'],
+    hero_journey: ['hook', 'setup', 'rising_action', 'climax', 'falling_action', 'resolution'],
+    freytag: ['hook', 'rising_action', 'climax', 'falling_action', 'resolution'],
   }
-
-  // Check for required beats
-  const types = seq.beats.map(b => b.type)
-  if (!types.includes('hook')) warnings.push('No hook beat - may struggle to capture reader attention')
-  if (!types.includes('climax')) errors.push('No climax - story needs a peak moment')
-  if (!types.includes('resolution')) warnings.push('No resolution - story may feel incomplete')
-
-  // Check for pacing issues
-  if (seq.beats.length > 20) warnings.push('Very long sequence - reader fatigue possible')
-  if (seq.beats.length < 5) warnings.push('Very short sequence - may lack development')
-
-  // Check beat spacing
-  const avgDuration = seq.totalDuration / seq.beats.length
-  for (let i = 1; i < seq.beats.length; i++) {
-    const gap = seq.beats[i].durationEstimate / avgDuration
-    if (gap > 3) warnings.push(`Beat ${i} has unusual duration (${Math.round(gap * 100)}% of average)`)
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  }
+  const required = requiredByStructure[seq.structureType] || []
+  return required.filter(t => !presentTypes.has(t))
 }
 
-// Get sequence summary
-export function getSequenceSummary(seq: BeatSequence): {
-  beatCount: number
-  totalDuration: number
-  pacingScore: number
-  structureQuality: string
-  tensionShape: string
-} {
-  const types = seq.beats.map(b => b.type)
-  let structureQuality: string
-  if (types.includes('hook') && types.includes('climax') && types.includes('resolution')) {
-    structureQuality = 'complete'
-  } else if (types.includes('climax')) {
-    structureQuality = 'partial'
+export function recommendNextBeatType(state: BeatOptimizerState, sequenceId: string): BeatType | null {
+  const seq = state.sequences.find(s => s.id === sequenceId)
+  if (!seq) return null
+  const presentTypes = seq.beats.map(b => b.type)
+  if (!presentTypes.includes('hook')) return 'hook'
+  if (!presentTypes.includes('rising_action')) return 'rising_action'
+  if (!presentTypes.includes('climax')) return 'climax'
+  if (!presentTypes.includes('resolution')) return 'resolution'
+  return 'turning_point'
+}
+
+export function suggestBeatsForChapter(state: BeatOptimizerState, chapterId: string, chapterLength: number): StoryBeat[] {
+  const suggestions: StoryBeat[] = []
+  if (chapterLength < 1000) {
+    suggestions.push({
+      id: `sug_${Date.now()}`,
+      type: 'turning_point',
+      description: 'Brief turning point',
+      priority: 80,
+      estimatedLength: Math.floor(chapterLength * 0.3),
+      chapterId,
+    })
   } else {
-    structureQuality = 'minimal'
+    suggestions.push({
+      id: `sug_${Date.now()}`,
+      type: 'hook',
+      description: 'Chapter opening hook',
+      priority: 90,
+      estimatedLength: Math.floor(chapterLength * 0.15),
+      chapterId,
+    })
+    suggestions.push({
+      id: `sug_${Date.now()}_2`,
+      type: 'rising_action',
+      description: 'Main chapter conflict',
+      priority: 85,
+      estimatedLength: Math.floor(chapterLength * 0.5),
+      chapterId,
+    })
+    suggestions.push({
+      id: `sug_${Date.now()}_3`,
+      type: 'resolution',
+      description: 'Chapter resolution',
+      priority: 70,
+      estimatedLength: Math.floor(chapterLength * 0.2),
+      chapterId,
+    })
   }
+  return suggestions
+}
 
-  let tensionShape: string
-  if (seq.tensionArc.length >= 3) {
-    const rising = seq.tensionArc.slice(0, Math.floor(seq.tensionArc.length / 2))
-    const falling = seq.tensionArc.slice(Math.floor(seq.tensionArc.length / 2))
-    const risingAvg = rising.reduce((s, v) => s + v, 0) / rising.length
-    const fallingAvg = falling.reduce((s, v) => s + v, 0) / falling.length
-    if (fallingAvg > risingAvg + 20) tensionShape = 'proper arc'
-    else if (fallingAvg > risingAvg) tensionShape = 'gradual rise'
-    else if (fallingAvg < risingAvg - 10) tensionShape = 'inverted'
-    else tensionShape = 'flat'
-  } else {
-    tensionShape = 'insufficient data'
+export function analyzeBeatPacing(state: BeatOptimizerState, sequenceId: string): { balanced: boolean; issues: string[] } {
+  const seq = state.sequences.find(s => s.id === sequenceId)
+  if (!seq) return { balanced: false, issues: ['Sequence not found'] }
+  const issues: string[] = []
+  const beats = seq.beats
+  if (beats.filter(b => b.type === 'rising_action').length > beats.filter(b => b.type === 'falling_action').length + 2) {
+    issues.push('Too many rising action beats without balance')
   }
+  if (beats.filter(b => b.type === 'climax').length > 1) {
+    issues.push('Multiple climax points may dilute impact')
+  }
+  const avgLength = seq.totalEstimatedWords / (beats.length || 1)
+  if (beats.filter(b => b.estimatedLength > avgLength * 2).length > 2) {
+    issues.push('Several very long beats may disrupt pacing')
+  }
+  return { balanced: issues.length === 0, issues }
+}
 
+export function getBeatStatistics(state: BeatOptimizerState, sequenceId: string) {
+  const seq = state.sequences.find(s => s.id === sequenceId)
+  if (!seq) return null
+  const beats = seq.beats
   return {
-    beatCount: seq.beats.length,
-    totalDuration: seq.totalDuration,
-    pacingScore: seq.pacingScore,
-    structureQuality,
-    tensionShape,
+    totalBeats: beats.length,
+    totalWords: seq.totalEstimatedWords,
+    avgBeatLength: seq.totalEstimatedWords / (beats.length || 1),
+    rhythmScore: seq.rhythmScore,
+    typeDistribution: getBeatTypeDistribution(state, sequenceId),
+    missingTypes: getMissingBeatTypes(state, sequenceId),
   }
 }
