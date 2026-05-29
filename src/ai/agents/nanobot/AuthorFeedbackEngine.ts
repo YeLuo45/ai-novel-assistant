@@ -1,304 +1,287 @@
 /**
- * AuthorFeedbackEngine — V315
- * Explicit and implicit feedback capture, rating patterns, improvement signal extraction.
- * Inspired by: claude-code (feedback), thunderbolt (pipeline feedback loops)
+ * AuthorFeedbackEngine — V335
+ * Author Learning Loop: explicit/implicit feedback capture, rating patterns,
+ * improvement tracking, writing behavior analysis.
+ * Inspired by: thunderbolt (feedback pipeline), chatdev (analysis agents)
  */
 
-export interface FeedbackEvent {
+export interface FeedbackEntry {
   timestamp: number
-  type: 'rating' | 'correction' | 'skip' | 'revision' | 'highlight' | 'bookmark' | 'comment'
-  target?: string       // chapter/scene/paragraph ID
-  value: number         // 0-5 for ratings, 0-1 for binary feedback
-  context?: string       // narrative context
-  sessionId?: string
+  type: 'explicit' | 'implicit' | 'correction' | 'revision'
+  trigger: string
+  quality: number        // 0-100
+  delta: number         // change from previous
+  context: string
 }
 
-export interface FeedbackPattern {
-  patternType: 'improving' | 'declining' | 'stable' | 'oscillating'
-  confidence: number    // 0-1
-  evidence: string[]
-  trend: number         // slope of linear regression
-  recentStrength: number // last 5 events average
+export interface RatingPattern {
+  averageQuality: number
+  trend: 'improving' | 'stable' | 'declining'
+  variance: number
+  recentWindow: number  // avg of last 5
+  peakQuality: number
+  lowQuality: number
+}
+
+export interface ImprovementMetric {
+  dimension: string
+  beforeScore: number
+  afterScore: number
+  progress: number       // percentage
+  sessionsUsed: number
+}
+
+export interface WritingBehavior {
+  sessionFrequency: number   // sessions per day
+  avgSessionDuration: number // minutes
+  revisionRate: number      // revisions per session
+  correctionFrequency: number
+  preferredTimeSlot: string  // 'morning' | 'afternoon' | 'evening' | 'night'
+  avgQualityByTimeSlot: Record<string, number>
 }
 
 export interface AuthorFeedbackState {
-  feedbackHistory: FeedbackEvent[]
-  patterns: Map<string, FeedbackPattern>
-  sessionFeedback: Map<string, FeedbackEvent[]>
-  improvementSignals: Map<string, number> // feature → signal strength 0-1
+  entries: FeedbackEntry[]
+  ratingPattern: RatingPattern | null
+  improvements: ImprovementMetric[]
+  behavior: WritingBehavior | null
+  recentCorrections: string[]
   typeAlias: Record<string, unknown>
 }
 
 export function createEmptyState(): AuthorFeedbackState {
   return {
-    feedbackHistory: [],
-    patterns: new Map(),
-    sessionFeedback: new Map(),
-    improvementSignals: new Map(),
+    entries: [],
+    ratingPattern: null,
+    improvements: [],
+    behavior: null,
+    recentCorrections: [],
     typeAlias: {},
   }
 }
 
-// Capture explicit feedback (ratings, comments)
-export function captureExplicitFeedback(
+// Record feedback entry
+export function recordFeedback(
   state: AuthorFeedbackState,
-  type: FeedbackEvent['type'],
-  value: number,
-  context?: string,
-  sessionId?: string
+  type: FeedbackEntry['type'],
+  trigger: string,
+  quality: number,
+  context: string = ''
 ): AuthorFeedbackState {
-  const event: FeedbackEvent = {
+  const prev = state.entries.length > 0 ? state.entries[state.entries.length - 1].quality : quality
+  const entry: FeedbackEntry = {
     timestamp: Date.now(),
     type,
-    value,
+    trigger,
+    quality,
+    delta: quality - prev,
     context,
-    sessionId,
   }
-  return {
-    ...state,
-    feedbackHistory: [...state.feedbackHistory, event],
-    sessionFeedback: sessionId
-      ? (() => {
-          const existing = state.sessionFeedback.get(sessionId) || []
-          const updated = new Map(state.sessionFeedback)
-          updated.set(sessionId, [...existing, event])
-          return updated
-        })()
-      : state.sessionFeedback,
-  }
+  return { ...state, entries: [...state.entries, entry] }
 }
 
-// Capture implicit feedback (behavior patterns)
-export function captureImplicitFeedback(
+// Record correction
+export function recordCorrection(
   state: AuthorFeedbackState,
-  type: FeedbackEvent['type'],
-  context?: string,
-  sessionId?: string
+  correction: string
 ): AuthorFeedbackState {
-  // Implicit feedback gets value 0.5 (neutral) or inferred value
-  return captureExplicitFeedback(state, type, 0.5, context, sessionId)
+  const recent = [...state.recentCorrections, correction].slice(-20)
+  return { ...state, recentCorrections: recent }
 }
 
-// Detect feedback patterns for a specific feedback type
-export function detectFeedbackPattern(
-  state: AuthorFeedbackState,
-  feedbackType: FeedbackEvent['type']
-): FeedbackPattern | null {
-  const events = state.feedbackHistory.filter(e => e.type === feedbackType)
-  if (events.length < 3) return null
+// Compute rating pattern
+export function computeRatingPattern(state: AuthorFeedbackState): AuthorFeedbackState {
+  if (state.entries.length === 0) return state
 
-  const values = events.map(e => e.value)
-  const recent = values.slice(-5)
-  const recentStrength = recent.reduce((s, v) => s + v, 0) / recent.length
+  const qualities = state.entries.map(e => e.quality)
+  const avg = qualities.reduce((a, b) => a + b, 0) / qualities.length
+  const variance = qualities.reduce((s, q) => s + (q - avg) ** 2, 0) / qualities.length
 
-  // Linear regression for trend
-  const n = values.length
-  const indices = values.map((_, i) => i)
-  const sumX = indices.reduce((s, x) => s + x, 0)
-  const sumY = values.reduce((s, y) => s + y, 0)
-  const sumXY = indices.reduce((s, x, i) => s + x * values[i], 0)
-  const sumXX = indices.reduce((s, x) => s + x * x, 0)
-  const denom = n * sumXX - sumX * sumX
-  const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0
-
-  // Pattern classification
-  let patternType: FeedbackPattern['patternType'] = 'stable'
-  const absSlope = Math.abs(slope)
-  const avg = sumY / n
-
-  if (slope > 0.05) {
-    patternType = absSlope > 0.15 ? 'improving' : 'stable'
-  } else if (slope < -0.05) {
-    patternType = absSlope > 0.15 ? 'declining' : 'stable'
+  let trend: 'improving' | 'stable' | 'declining' = 'stable'
+  if (qualities.length >= 5) {
+    const first = qualities.slice(0, Math.floor(qualities.length / 2))
+    const second = qualities.slice(Math.floor(qualities.length / 2))
+    const firstAvg = first.reduce((a, b) => a + b, 0) / first.length
+    const secondAvg = second.reduce((a, b) => a + b, 0) / second.length
+    if (secondAvg - firstAvg > 5) trend = 'improving'
+    else if (firstAvg - secondAvg > 5) trend = 'declining'
   }
 
-  // Detect oscillation
-  let oscillations = 0
-  for (let i = 1; i < recent.length; i++) {
-    if ((recent[i] > avg && recent[i - 1] <= avg) ||
-        (recent[i] < avg && recent[i - 1] >= avg)) {
-      oscillations++
-    }
-  }
-  if (oscillations >= 3) patternType = 'oscillating'
+  const recentWindow = qualities.slice(-5).reduce((a, b) => a + b, 0) / Math.min(5, qualities.length)
 
-  const evidence: string[] = []
-  if (patternType === 'improving') {
-    evidence.push(`Trend slope: +${slope.toFixed(3)}`)
-    evidence.push(`Recent avg: ${recentStrength.toFixed(2)} vs overall ${avg.toFixed(2)}`)
-  } else if (patternType === 'declining') {
-    evidence.push(`Trend slope: ${slope.toFixed(3)}`)
-    evidence.push(`Recent avg: ${recentStrength.toFixed(2)} vs overall ${avg.toFixed(2)}`)
-  } else if (patternType === 'oscillating') {
-    evidence.push(`${oscillations} direction changes in recent events`)
+  const pattern: RatingPattern = {
+    averageQuality: Math.round(avg * 10) / 10,
+    trend,
+    variance: Math.round(variance * 10) / 10,
+    recentWindow: Math.round(recentWindow * 10) / 10,
+    peakQuality: Math.max(...qualities),
+    lowQuality: Math.min(...qualities),
   }
 
-  return {
-    patternType,
-    confidence: Math.min(1, events.length / 10),
-    evidence,
-    trend: slope,
-    recentStrength,
-  }
+  return { ...state, ratingPattern: pattern }
 }
 
-// Extract improvement signals from feedback
-export function extractImprovementSignals(
+// Track improvement
+export function trackImprovement(
   state: AuthorFeedbackState,
-  featureScope: string = 'general'
-): Map<string, number> {
-  const signals = new Map<string, number>()
-
-  const feedbackTypes: FeedbackEvent['type'][] = [
-    'rating', 'correction', 'revision', 'highlight'
-  ]
-
-  for (const ftype of feedbackTypes) {
-    const pattern = detectFeedbackPattern(state, ftype)
-    if (pattern) {
-      // Signal strength based on confidence and trend direction
-      const baseStrength = pattern.confidence
-      const trendBonus = pattern.patternType === 'improving'
-        ? 0.2
-        : pattern.patternType === 'declining'
-          ? -0.2
-          : 0
-      const signal = Math.max(0, Math.min(1, baseStrength + trendBonus))
-      signals.set(`${featureScope}.${ftype}`, signal)
-    }
+  dimension: string,
+  beforeScore: number,
+  afterScore: number
+): AuthorFeedbackState {
+  const existing = state.improvements.findIndex(i => i.dimension === dimension)
+  const metric: ImprovementMetric = {
+    dimension,
+    beforeScore,
+    afterScore,
+    progress: beforeScore > 0 ? Math.round(((afterScore - beforeScore) / beforeScore) * 100) : 0,
+    sessionsUsed: 1,
   }
 
-  return signals
-}
-
-// Get improvement recommendations based on feedback patterns
-export function getImprovementRecommendations(
-  state: AuthorFeedbackState,
-  topK: number = 3
-): string[] {
-  const recommendations: { feature: string; signal: number }[] = []
-
-  for (const [feature, signal] of Array.from(state.improvementSignals.entries())) {
-    if (signal < 0.6) {
-      recommendations.push({ feature, signal })
-    }
+  const improvements = [...state.improvements]
+  if (existing >= 0) {
+    const prev = improvements[existing]
+    metric.sessionsUsed = prev.sessionsUsed + 1
+    metric.progress = prev.beforeScore > 0
+      ? Math.round(((afterScore - prev.beforeScore) / prev.beforeScore) * 100)
+      : 0
+    improvements[existing] = metric
+  } else {
+    improvements.push(metric)
   }
 
-  recommendations.sort((a, b) => a.signal - b.signal)
-  return recommendations.slice(0, topK).map(r => r.feature)
+  return { ...state, improvements }
 }
 
-// Get feedback summary for a session
-export function getSessionFeedbackSummary(
-  state: AuthorFeedbackState,
-  sessionId: string
-): {
-  totalEvents: number
-  averageValue: number
-  dominantType: FeedbackEvent['type'] | null
-  patterns: string[]
+// Analyze writing behavior
+export function analyzeWritingBehavior(state: AuthorFeedbackState): AuthorFeedbackState {
+  if (state.entries.length === 0) return state
+
+  // Group by time slots (simplified: use hour of day)
+  const byHour: Record<number, number[]> = {}
+  for (const entry of state.entries) {
+    const hour = new Date(entry.timestamp).getHours()
+    if (!byHour[hour]) byHour[hour] = []
+    byHour[hour].push(entry.quality)
+  }
+
+  const avgBySlot: Record<string, number> = {}
+  const slotMap: Record<number, string> = {}
+  for (const h of Object.keys(byHour)) {
+    const hour = parseInt(h)
+    const slot = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night'
+    slotMap[hour] = slot
+    if (!avgBySlot[slot]) avgBySlot[slot] = []
+    avgBySlot[slot].push(...byHour[hour])
+  }
+
+  const finalAvgBySlot: Record<string, number> = {}
+  for (const slot of Object.keys(avgBySlot)) {
+    const vals = avgBySlot[slot]
+    finalAvgBySlot[slot] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+  }
+
+  const revisionCount = state.entries.filter(e => e.type === 'revision').length
+  const correctionCount = state.entries.filter(e => e.type === 'correction').length
+
+  const behavior: WritingBehavior = {
+    sessionFrequency: Math.round((state.entries.length / 7) * 10) / 10, // per day
+    avgSessionDuration: 30, // placeholder
+    revisionRate: Math.round((revisionCount / Math.max(1, state.entries.length)) * 100) / 100,
+    correctionFrequency: correctionCount,
+    preferredTimeSlot: Object.entries(finalAvgBySlot).sort((a, b) => b[1] - a[1])[0]?.[0] || 'evening',
+    avgQualityByTimeSlot: finalAvgBySlot,
+  }
+
+  return { ...state, behavior }
+}
+
+// Get improvement summary
+export function getImprovementSummary(state: AuthorFeedbackState): {
+  totalDimensions: number
+  improving: number
+  declining: number
+  bestDimension: string | null
+  worstDimension: string | null
 } {
-  const events = state.sessionFeedback.get(sessionId) || []
-  if (events.length === 0) {
-    return { totalEvents: 0, averageValue: 0, dominantType: null, patterns: [] }
-  }
+  const improving = state.improvements.filter(i => i.progress > 0).length
+  const declining = state.improvements.filter(i => i.progress < 0).length
 
-  const averageValue = events.reduce((s, e) => s + e.value, 0) / events.length
-
-  const typeCounts = new Map<FeedbackEvent['type'], number>()
-  for (const e of events) {
-    typeCounts.set(e.type, (typeCounts.get(e.type) || 0) + 1)
-  }
-  let dominantType: FeedbackEvent['type'] | null = null
-  let maxCount = 0
-  for (const [t, count] of typeCounts.entries()) {
-    if (count > maxCount) {
-      maxCount = count
-      dominantType = t
-    }
-  }
-
-  const patterns: string[] = []
-  const pattern = detectFeedbackPattern(state, dominantType || 'rating')
-  if (pattern) {
-    patterns.push(`${pattern.patternType} (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`)
+  let best: string | null = null
+  let worst: string | null = null
+  if (state.improvements.length > 0) {
+    const sorted = [...state.improvements].sort((a, b) => b.progress - a.progress)
+    best = sorted[0].dimension
+    worst = sorted[sorted.length - 1].dimension
   }
 
   return {
-    totalEvents: events.length,
-    averageValue,
-    dominantType,
-    patterns,
+    totalDimensions: state.improvements.length,
+    improving,
+    declining,
+    bestDimension: best,
+    worstDimension: worst,
   }
 }
 
-// Calculate feedback quality score
-export function calculateFeedbackQuality(
-  state: AuthorFeedbackState,
-  recentN: number = 20
-): number {
-  const recent = state.feedbackHistory.slice(-recentN)
-  if (recent.length === 0) return 0
+// Detect quality anomalies
+export function detectQualityAnomalies(state: AuthorFeedbackState): {
+  suddenDrop: boolean
+  suddenRise: boolean
+  persistentDecline: boolean
+} {
+  const qualities = state.entries.map(e => e.quality)
 
-  // Quality based on: diversity of feedback types, consistency, recency
-  const typeSet = new Set(recent.map(e => e.type))
-  const diversity = typeSet.size / 6 // 6 types max
+  let suddenDrop = false
+  let suddenRise = false
+  let persistentDecline = false
 
-  // Variance in values
-  const avg = recent.reduce((s, e) => s + e.value, 0) / recent.length
-  const variance = recent.reduce((s, e) => s + Math.pow(e.value - avg, 2), 0) / recent.length
-  const consistency = 1 - Math.min(1, Math.sqrt(variance) / 2)
+  if (qualities.length >= 3) {
+    const recent = qualities.slice(-3)
+    const first = qualities[0]
+    // Sudden drop: last is much lower than previous
+    if (qualities.length >= 2 && recent[2] < recent[1] - 15) suddenDrop = true
+    if (qualities.length >= 2 && recent[2] > recent[1] + 15) suddenRise = true
+    // Persistent: all last 3 below average
+    const avg = qualities.reduce((a, b) => a + b, 0) / qualities.length
+    if (recent.every(q => q < avg - 10)) persistentDecline = true
+  }
 
-  // Recency weight (more recent = higher quality signal)
-  const now = Date.now()
-  const avgAge = recent.reduce((s, e) => s + (now - e.timestamp), 0) / recent.length
-  const recency = Math.max(0, 1 - avgAge / (7 * 24 * 60 * 60 * 1000)) // 7 day window
-
-  return Math.round((diversity * 0.3 + consistency * 0.4 + recency * 0.3) * 100)
+  return { suddenDrop, suddenRise, persistentDecline }
 }
 
-// Update patterns for all feedback types
-export function updatePatterns(state: AuthorFeedbackState): AuthorFeedbackState {
-  const feedbackTypes: FeedbackEvent['type'][] = [
-    'rating', 'correction', 'skip', 'revision', 'highlight', 'bookmark', 'comment'
-  ]
+// Generate feedback recommendations
+export function generateFeedbackRecommendations(state: AuthorFeedbackState): string[] {
+  const recommendations: string[] = []
 
-  const newPatterns = new Map(state.patterns)
-  for (const ftype of feedbackTypes) {
-    const pattern = detectFeedbackPattern(state, ftype)
-    if (pattern) {
-      newPatterns.set(ftype, pattern)
+  if (!state.ratingPattern) return recommendations
+
+  if (state.ratingPattern.trend === 'declining') {
+    recommendations.push('Quality trend declining — consider reviewing your recent writing approach')
+    recommendations.push('Take a break and return with fresh perspective')
+  }
+
+  if (state.ratingPattern.variance > 200) {
+    recommendations.push('High quality variance — focus on consistency in your writing sessions')
+  }
+
+  const anomalies = detectQualityAnomalies(state)
+  if (anomalies.suddenDrop) {
+    recommendations.push('Sudden quality drop detected — identify what changed in your process')
+  }
+  if (anomalies.persistentDecline) {
+    recommendations.push('Persistent decline — consider seeking feedback from readers')
+  }
+
+  if (state.improvements.length > 0) {
+    const summary = getImprovementSummary(state)
+    if (summary.worstDimension) {
+      recommendations.push(`Focus on improving: ${summary.worstDimension}`)
     }
   }
 
-  return { ...state, patterns: newPatterns }
-}
-
-// Merge feedback from multiple sessions
-export function mergeSessionFeedback(
-  targetState: AuthorFeedbackState,
-  sourceStates: AuthorFeedbackState[]
-): AuthorFeedbackState {
-  let merged = { ...targetState }
-
-  for (const src of sourceStates) {
-    merged = {
-      ...merged,
-      feedbackHistory: [...merged.feedbackHistory, ...src.feedbackHistory],
-    }
+  if (state.entries.length < 5) {
+    recommendations.push('Keep writing — need more data for personalized feedback')
   }
 
-  // Rebuild session feedback maps
-  const sessionFeedback = new Map<string, FeedbackEvent[]>()
-  for (const src of sourceStates) {
-    for (const [sid, events] of Array.from(src.sessionFeedback.entries())) {
-      const existing = sessionFeedback.get(sid) || []
-      sessionFeedback.set(sid, [...existing, ...events])
-    }
-  }
-
-  return {
-    ...merged,
-    sessionFeedback: new Map([...Array.from(merged.sessionFeedback.entries()), ...Array.from(sessionFeedback.entries())]),
-  }
+  return recommendations
 }
