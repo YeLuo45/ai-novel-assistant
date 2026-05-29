@@ -1,216 +1,250 @@
 import { describe, it, expect } from 'vitest'
 import {
   createEmptyState,
-  updateContext,
-  addMessage,
-  createTask,
-  updateTask,
-  completeTask,
-  getBlockedTasks,
-  unblockTasks,
-  getConversationSummary,
-  detectContextSwitch,
-  recordContextSwitch,
-  getTaskProgress,
-  searchHistory,
-  getMessagesByRole,
-  pruneMessages,
+  recordToolCall,
+  detectStagnation,
+  updateQualityScore,
+  flagExcessiveToolCalls,
+  getSessionDuration,
+  getToolCallFrequency,
+  getSuccessfulCallRate,
+  getContextRelevance,
+  getSessionQualityTrend,
+  addActiveThread,
+  pushContextWindow,
+  getSessionStatistics,
+  shouldSuggestBreak,
+  endSession,
 } from './WritingSessionManager'
 
 describe('createEmptyState', () => {
-  it('should create empty state', () => {
-    const state = createEmptyState('proj1')
-    expect(state.context.projectId).toBe('proj1')
-    expect(state.conversationHistory.length).toBe(0)
-    expect(state.activeTasks.size).toBe(0)
-    expect(state.typeAlias).toEqual({})
+  it('should create empty session state', () => {
+    const s = createEmptyState()
+    expect(s.sessionId).toBeTruthy()
+    expect(s.toolCalls).toEqual([])
+    expect(s.stagnationCount).toBe(0)
+    expect(s.typeAlias).toEqual({})
+  })
+
+  it('should accept custom session id', () => {
+    const s = createEmptyState('my-session')
+    expect(s.sessionId).toBe('my-session')
   })
 })
 
-describe('updateContext', () => {
-  it('should update context fields', () => {
-    let state = createEmptyState()
-    state = updateContext(state, { currentChapter: 5, sceneFocus: 'battle' })
-    expect(state.context.currentChapter).toBe(5)
-    expect(state.context.sceneFocus).toBe('battle')
-  })
-})
-
-describe('addMessage', () => {
-  it('should add user message', () => {
-    let state = createEmptyState()
-    state = addMessage(state, 'user', 'Hello')
-    expect(state.conversationHistory.length).toBe(1)
-    expect(state.conversationHistory[0].role).toBe('user')
-    expect(state.sessionMetrics.totalMessages).toBe(1)
+describe('recordToolCall', () => {
+  it('should add tool call to history', () => {
+    let s = createEmptyState()
+    s = recordToolCall(s, 'write', true, { text: 'hello' })
+    expect(s.toolCalls.length).toBe(1)
+    expect(s.recentToolCalls.length).toBe(1)
+    expect(s.toolCalls[0].tool).toBe('write')
   })
 
-  it('should capture context snapshot', () => {
-    let state = createEmptyState('proj1')
-    state = updateContext(state, { currentChapter: 3 })
-    state = addMessage(state, 'assistant', 'What next?')
-    expect(state.conversationHistory[0].contextSnapshot?.currentChapter).toBe(3)
-  })
-})
-
-describe('createTask', () => {
-  it('should create pending task', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Write chapter 1')
-    expect(state.activeTasks.get('t1')!.status).toBe('pending')
-    expect(state.activeTasks.get('t1')!.description).toBe('Write chapter 1')
-  })
-
-  it('should create blocked task', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Write chapter 1', ['t0'])
-    expect(state.activeTasks.get('t1')!.status).toBe('blocked')
-    expect(state.activeTasks.get('t1')!.blockedBy).toContain('t0')
-  })
-})
-
-describe('updateTask', () => {
-  it('should update task fields', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Write chapter 1')
-    state = updateTask(state, 't1', { status: 'in_progress', progress: 50 })
-    const task = state.activeTasks.get('t1')
-    expect(task!.status).toBe('in_progress')
-    expect(task!.progress).toBe(50)
-  })
-})
-
-describe('completeTask', () => {
-  it('should remove from active and add to completed', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Write chapter 1')
-    state = completeTask(state, 't1', 'Done')
-    expect(state.activeTasks.has('t1')).toBe(false)
-    expect(state.completedTaskIds).toContain('t1')
-    expect(state.sessionMetrics.tasksCompleted).toBe(1)
-  })
-})
-
-describe('getBlockedTasks', () => {
-  it('should find tasks blocked by given task', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Write chapter 1')
-    state = createTask(state, 't2', 'Edit chapter 1', ['t1'])
-    const blocked = getBlockedTasks(state, 't1')
-    expect(blocked).toContain('t2')
-  })
-})
-
-describe('unblockTasks', () => {
-  it('should unblock tasks when blocker completes', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Write chapter 1')
-    state = createTask(state, 't2', 'Edit chapter 1', ['t1'])
-    state = completeTask(state, 't1')
-    state = unblockTasks(state, 't1')
-    expect(state.activeTasks.get('t2')!.status).toBe('pending')
-  })
-})
-
-describe('getConversationSummary', () => {
-  it('should return conversation summary', () => {
-    let state = createEmptyState()
-    state = updateContext(state, { currentChapter: 5, sceneFocus: 'battle' })
-    state = addMessage(state, 'user', 'Hello')
-    state = addMessage(state, 'assistant', 'Hi')
-    const summary = getConversationSummary(state, 5)
-    expect(summary.recentMessages.length).toBe(2)
-    expect(summary.activeTasksCount).toBe(0)
-    expect(summary.currentChapter).toBe(5)
-  })
-})
-
-describe('detectContextSwitch', () => {
-  it('should detect chapter change', () => {
-    const state = createEmptyState()
-    expect(detectContextSwitch(state, 2, '')).toBe(true)
-  })
-
-  it('should detect scene change', () => {
-    let state = createEmptyState()
-    state = updateContext(state, { sceneFocus: 'battle' })
-    expect(detectContextSwitch(state, 1, 'dialogue')).toBe(true)
-  })
-
-  it('should not detect when unchanged', () => {
-    const state = createEmptyState()
-    expect(detectContextSwitch(state, 1, '')).toBe(false)
-  })
-})
-
-describe('recordContextSwitch', () => {
-  it('should update context and increment switch count', () => {
-    let state = createEmptyState()
-    state = recordContextSwitch(state, { currentChapter: 3, sceneFocus: 'battle' })
-    expect(state.context.currentChapter).toBe(3)
-    expect(state.sessionMetrics.contextSwitches).toBe(1)
-  })
-})
-
-describe('getTaskProgress', () => {
-  it('should return task progress summary', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Task 1')
-    state = createTask(state, 't2', 'Task 2')
-    state = updateTask(state, 't1', { status: 'in_progress' })
-    state = completeTask(state, 't1')
-    const progress = getTaskProgress(state)
-    expect(progress.pending).toBe(1)  // t2 is still pending
-    expect(progress.inProgress).toBe(0)  // t1 completed and removed
-    expect(progress.completed).toBe(1)  // t1 in completedTaskIds
-  })
-
-  it('should calculate overall progress', () => {
-    let state = createEmptyState()
-    state = createTask(state, 't1', 'Task 1')
-    state = updateTask(state, 't1', { status: 'in_progress', progress: 50 })
-    const progress = getTaskProgress(state)
-    expect(progress.overallProgress).toBeGreaterThan(0)
-  })
-})
-
-describe('searchHistory', () => {
-  it('should find messages by keyword', () => {
-    let state = createEmptyState()
-    state = addMessage(state, 'user', 'Write about dragons')
-    state = addMessage(state, 'assistant', 'Dragons are great')
-    state = addMessage(state, 'user', 'What about magic?')
-    const results = searchHistory(state, 'dragons', 5)
-    expect(results.length).toBe(2)
-  })
-})
-
-describe('getMessagesByRole', () => {
-  it('should filter messages by role', () => {
-    let state = createEmptyState()
-    state = addMessage(state, 'user', 'Hello')
-    state = addMessage(state, 'assistant', 'Hi')
-    state = addMessage(state, 'user', 'Again')
-    const userMsgs = getMessagesByRole(state, 'user')
-    expect(userMsgs.length).toBe(2)
-  })
-})
-
-describe('pruneMessages', () => {
-  it('should prune old messages beyond limit', () => {
-    let state = createEmptyState()
-    for (let i = 0; i < 120; i++) {
-      state = addMessage(state, 'user', `Message ${i}`)
+  it('should track recent calls', () => {
+    let s = createEmptyState()
+    for (let i = 0; i < 25; i++) {
+      s = recordToolCall(s, `tool${i}`, true)
     }
-    state = pruneMessages(state, 50)
-    expect(state.conversationHistory.length).toBe(50)
+    expect(s.recentToolCalls.length).toBe(20)
+    expect(s.toolCalls.length).toBe(25)
+  })
+})
+
+describe('detectStagnation', () => {
+  it('should return false for insufficient data', () => {
+    const s = createEmptyState()
+    expect(detectStagnation(s)).toBe(false)
   })
 
-  it('should not prune when under limit', () => {
-    let state = createEmptyState()
-    state = addMessage(state, 'user', 'Hello')
-    state = addMessage(state, 'user', 'Again')
-    const pruned = pruneMessages(state, 50)
-    expect(pruned.conversationHistory.length).toBe(2)
+  it('should detect low quality streak', () => {
+    let s = createEmptyState()
+    s = updateQualityScore(s, 0.3)
+    s = updateQualityScore(s, 0.3)
+    s = updateQualityScore(s, 0.3)
+    expect(detectStagnation(s)).toBe(true)
+  })
+
+  it('should not trigger on improving quality', () => {
+    let s = createEmptyState()
+    s = updateQualityScore(s, 0.8)
+    s = updateQualityScore(s, 0.85)
+    s = updateQualityScore(s, 0.9)
+    expect(detectStagnation(s)).toBe(false)
+  })
+})
+
+describe('updateQualityScore', () => {
+  it('should update last score and history', () => {
+    let s = createEmptyState()
+    s = updateQualityScore(s, 0.75)
+    expect(s.lastQualityScore).toBe(0.75)
+    expect(s.qualityHistory.length).toBe(1)
+  })
+
+  it('should increment stagnation count on stagnation', () => {
+    let s = createEmptyState()
+    s = updateQualityScore(s, 0.3)
+    s = updateQualityScore(s, 0.3)
+    s = updateQualityScore(s, 0.3)
+    expect(s.stagnationCount).toBe(1)
+  })
+})
+
+describe('flagExcessiveToolCalls', () => {
+  it('should return false for low call count', () => {
+    const s = createEmptyState()
+    expect(flagExcessiveToolCalls(s)).toBe(false)
+  })
+
+  it('should not flag under threshold', () => {
+    let s = createEmptyState()
+    for (let i = 0; i < 5; i++) {
+      s = recordToolCall(s, 'tool', true)
+    }
+    expect(flagExcessiveToolCalls(s)).toBe(false)
+  })
+})
+
+describe('getSessionDuration', () => {
+  it('should return elapsed time', () => {
+    let s = createEmptyState()
+    s = { ...s, startTime: Date.now() - 60000 }
+    expect(getSessionDuration(s)).toBeGreaterThanOrEqual(59000)
+  })
+
+  it('should use endTime when set', () => {
+    let s = createEmptyState()
+    s = { ...s, startTime: Date.now() - 120000, endTime: Date.now() - 60000 }
+    expect(getSessionDuration(s)).toBe(60000)
+  })
+})
+
+describe('getToolCallFrequency', () => {
+  it('should return calls per minute', () => {
+    let s = createEmptyState()
+    s = { ...s, startTime: Date.now() - 60000 }
+    s = recordToolCall(s, 'tool', true)
+    s = recordToolCall(s, 'tool', true)
+    const freq = getToolCallFrequency(s)
+    expect(freq).toBeGreaterThan(0)
+  })
+})
+
+describe('getSuccessfulCallRate', () => {
+  it('should return 0 for empty session', () => {
+    const s = createEmptyState()
+    expect(getSuccessfulCallRate(s)).toBe(0)
+  })
+
+  it('should calculate success rate', () => {
+    let s = createEmptyState()
+    s = recordToolCall(s, 'tool', true)
+    s = recordToolCall(s, 'tool', false)
+    s = recordToolCall(s, 'tool', true)
+    expect(getSuccessfulCallRate(s)).toBeCloseTo(0.667, 1)
+  })
+})
+
+describe('getContextRelevance', () => {
+  it('should return 0 for unknown thread', () => {
+    const s = createEmptyState()
+    expect(getContextRelevance(s, 'unknown')).toBe(0)
+  })
+
+  it('should return stored relevance', () => {
+    let s = createEmptyState()
+    s = pushContextWindow(s, 'thread1', ['context'], 0.85)
+    expect(getContextRelevance(s, 'thread1')).toBe(0.85)
+  })
+})
+
+describe('getSessionQualityTrend', () => {
+  it('should return stable for insufficient data', () => {
+    const s = createEmptyState()
+    expect(getSessionQualityTrend(s)).toBe('stable')
+  })
+
+  it('should detect improving trend', () => {
+    let s = createEmptyState()
+    for (const q of [0.5, 0.52, 0.6, 0.68, 0.75, 0.82]) {
+      s = updateQualityScore(s, q)
+    }
+    expect(getSessionQualityTrend(s)).toBe('improving')
+  })
+
+  it('should detect declining trend', () => {
+    let s = createEmptyState()
+    for (const q of [0.8, 0.75, 0.7, 0.65, 0.55, 0.45]) {
+      s = updateQualityScore(s, q)
+    }
+    expect(getSessionQualityTrend(s)).toBe('declining')
+  })
+})
+
+describe('addActiveThread', () => {
+  it('should add new thread', () => {
+    let s = createEmptyState()
+    s = addActiveThread(s, 'thread1')
+    expect(s.activeThreads).toContain('thread1')
+  })
+
+  it('should not add duplicate', () => {
+    let s = createEmptyState()
+    s = addActiveThread(s, 'thread1')
+    s = addActiveThread(s, 'thread1')
+    expect(s.activeThreads.length).toBe(1)
+  })
+})
+
+describe('pushContextWindow', () => {
+  it('should add context window', () => {
+    let s = createEmptyState()
+    s = pushContextWindow(s, 'thread1', ['ctx1', 'ctx2'], 0.8)
+    expect(s.contextWindows.length).toBe(1)
+    expect(s.contextWindows[0].relevanceScore).toBe(0.8)
+  })
+
+  it('should limit window count', () => {
+    let s = createEmptyState()
+    for (let i = 0; i < 55; i++) {
+      s = pushContextWindow(s, `thread${i}`, [`ctx${i}`], 0.7)
+    }
+    expect(s.contextWindows.length).toBe(50)
+  })
+})
+
+describe('getSessionStatistics', () => {
+  it('should return comprehensive stats', () => {
+    let s = createEmptyState()
+    s = recordToolCall(s, 'tool', true)
+    s = updateQualityScore(s, 0.8)
+    const stats = getSessionStatistics(s)
+    expect(stats.totalCalls).toBe(1)
+    expect(stats.successRate).toBe(1)
+  })
+})
+
+describe('shouldSuggestBreak', () => {
+  it('should not suggest break for healthy session', () => {
+    let s = createEmptyState()
+    expect(shouldSuggestBreak(s)).toBe(false)
+  })
+
+  it('should suggest break after stagnation', () => {
+    let s = createEmptyState()
+    // 4 updates with consecutive low scores triggers stagnationCount >= 1
+    for (let i = 0; i < 5; i++) {
+      s = updateQualityScore(s, 0.3)
+    }
+    expect(shouldSuggestBreak(s)).toBe(true)
+  })
+})
+
+describe('endSession', () => {
+  it('should set endTime', () => {
+    let s = createEmptyState()
+    s = endSession(s)
+    expect(s.endTime).toBeTruthy()
   })
 })
