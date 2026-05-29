@@ -2,196 +2,156 @@ import { describe, it, expect } from 'vitest'
 import {
   createEmptyState,
   registerSceneConnection,
-  calculateSmoothness,
-  analyzeTransition,
-  findOptimalSceneOrder,
-  validateTransition,
-  addConstraint,
-  getTransitionSummary,
-  suggestTransitionType,
+  calculateTransitionQuality,
+  getRecommendedTransitionType,
+  getTransitionSuggestions,
+  smoothTemporalGaps,
+  getCharacterContinuityScore,
+  getTransitionStatistics,
+  optimizeTransitionOrder,
 } from './SceneTransitionOptimizer'
-import type { TransitionEdge } from './SceneTransitionOptimizer'
 
 describe('createEmptyState', () => {
-  it('should create empty state', () => {
-    const state = createEmptyState()
-    expect(state.sceneConnections.size).toBe(0)
-    expect(state.constraints.length).toBe(0)
-    expect(state.recommendedOrder.length).toBe(0)
-    expect(state.typeAlias).toEqual({})
+  it('should create empty scene optimizer state', () => {
+    const s = createEmptyState()
+    expect(s.connections).toEqual([])
+    expect(s.avgTransitionQuality).toBe(0)
+    expect(s.smoothnessTrend).toBe('stable')
+    expect(s.typeAlias).toEqual({})
   })
 })
 
 describe('registerSceneConnection', () => {
-  it('should register scene connection', () => {
-    let state = createEmptyState()
-    state = registerSceneConnection(state, 's1', 's2', ['char1'], ['loc1'], 2)
-    const key = 's1->s2'
-    expect(state.sceneConnections.has(key)).toBe(true)
-    expect(state.sceneConnections.get(key)!.sharedCharacters).toContain('char1')
+  it('should register a connection', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 'scene1', 'scene2', 'cut', ['alice', 'bob'], 3600)
+    expect(s.connections.length).toBe(1)
+    expect(s.connections[0].transitionType).toBe('cut')
+  })
+
+  it('should track average quality', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 's1', 's2', 'cut', [], 3600)
+    s = registerSceneConnection(s, 's2', 's3', 'match_cut', ['alice'], 30)
+    expect(s.avgTransitionQuality).toBeGreaterThan(0)
+  })
+
+  it('should record transition type in history', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 's1', 's2', 'dissolve', [], 60)
+    expect(s.transitionHistory).toContain('dissolve')
   })
 })
 
-describe('calculateSmoothness', () => {
-  it('should score high for shared characters and locations', () => {
-    const edge: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'dissolve', smoothness: 0, continuityScore: 0, recommended: false }
-    const score = calculateSmoothness(edge, ['c1', 'c2'], ['l1'], 1)
-    expect(score).toBeGreaterThan(60)
+describe('calculateTransitionQuality', () => {
+  it('should score match_cut high with shared characters', () => {
+    const s = createEmptyState()
+    const q = calculateTransitionQuality('match_cut', ['alice', 'bob'], 30, s)
+    expect(q).toBeGreaterThan(70)
   })
 
-  it('should penalize temporal jumps', () => {
-    const edge: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'cut', smoothness: 0, continuityScore: 0, recommended: false }
-    const score = calculateSmoothness(edge, [], [], 60)
-    expect(score).toBeLessThan(40)
+  it('should penalize large temporal jumps', () => {
+    const s = createEmptyState()
+    const q = calculateTransitionQuality('cut', [], 86400 * 60, s)
+    expect(q).toBeLessThan(30)
   })
 
-  it('should prefer match_cut over emporal_jump', () => {
-    const edge1: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'match_cut', smoothness: 0, continuityScore: 0, recommended: false }
-    const edge2: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'emporal_jump', smoothness: 0, continuityScore: 0, recommended: false }
-    const score1 = calculateSmoothness(edge1, ['c1'], ['l1'], 0)
-    const score2 = calculateSmoothness(edge2, ['c1'], ['l1'], 0)
-    expect(score1).toBeGreaterThan(score2)
+  it('should penalize flashback/dream', () => {
+    const s = createEmptyState()
+    const q = calculateTransitionQuality('flashback', [], 0, s)
+    expect(q).toBeLessThan(50)
   })
 })
 
-describe('analyzeTransition', () => {
-  it('should return all transition types', () => {
-    const state = createEmptyState()
-    const edges = analyzeTransition(state, 's1', 's2', ['c1'], ['l1'], 2)
-    expect(edges.length).toBe(5)
-    const types = edges.map(e => e.transitionType)
-    expect(types).toContain('cut')
-    expect(types).toContain('match_cut')
+describe('getRecommendedTransitionType', () => {
+  it('should recommend match_cut for shared characters', () => {
+    const s = createEmptyState()
+    const rec = getRecommendedTransitionType(s, ['alice', 'bob', 'charlie'], 30)
+    expect(rec).toBe('match_cut')
   })
 
-  it('should recommend the smoothest transition', () => {
-    const state = createEmptyState()
-    const edges = analyzeTransition(state, 's1', 's2', ['c1', 'c2'], ['l1'], 1)
-    const recommended = edges.find(e => e.recommended)
-    expect(recommended).not.toBeUndefined()
-    expect(recommended!.transitionType).toBeTruthy()
-  })
-})
-
-describe('findOptimalSceneOrder', () => {
-  it('should return empty for empty input', () => {
-    const state = createEmptyState()
-    const result = findOptimalSceneOrder(state, [])
-    expect(result.orderedScenes).toEqual([])
+  it('should recommend fade for long temporal jumps', () => {
+    const s = createEmptyState()
+    const rec = getRecommendedTransitionType(s, [], 86400 * 60)
+    expect(rec).toBe('fade')
   })
 
-  it('should order scenes by connection strength', () => {
-    const state = createEmptyState()
-    const charMap = new Map([
-      ['s1->s2', ['c1']],
-      ['s2->s3', ['c1']],
-      ['s1->s3', []],
-    ])
-    const result = findOptimalSceneOrder(state, ['s1', 's2', 's3'], charMap, new Map())
-    expect(result.orderedScenes.length).toBe(3)
-    // s1->s2->s3 should be preferred (s1->s2 shares char, s2->s3 shares char)
-    const idx1 = result.orderedScenes.indexOf('s1')
-    const idx2 = result.orderedScenes.indexOf('s2')
-    const idx3 = result.orderedScenes.indexOf('s3')
-    expect(idx1).toBeLessThan(idx2)
-    expect(idx2).toBeLessThan(idx3)
-  })
-
-  it('should calculate average smoothness', () => {
-    const state = createEmptyState()
-    const charMap = new Map([['s1->s2', ['c1']]])
-    const result = findOptimalSceneOrder(state, ['s1', 's2'], charMap, new Map())
-    expect(result.totalSmoothness).toBeGreaterThan(0)
-    expect(result.transitions.length).toBe(1)
+  it('should recommend cut for immediate transitions', () => {
+    const s = createEmptyState()
+    const rec = getRecommendedTransitionType(s, [], 30)
+    expect(rec).toBe('cut')
   })
 })
 
-describe('validateTransition', () => {
-  it('should pass valid transition', () => {
-    let state = createEmptyState()
-    state = addConstraint(state, { type: 'no_direct_cut', scenes: ['s1', 's2'] })
-    const edge: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'dissolve', smoothness: 70, continuityScore: 80, recommended: true }
-    const result = validateTransition(state, edge)
-    expect(result.valid).toBe(true)
+describe('getTransitionSuggestions', () => {
+  it('should return suggestions for declining trend', () => {
+    let s = createEmptyState()
+    // Need 4+ connections for trend detection; register 6 with worsening quality
+    s = registerSceneConnection(s, 's0', 's1', 'match_cut', [], 30)   // q=75
+    s = registerSceneConnection(s, 's1', 's2', 'dissolve', [], 30)   // q=60
+    s = registerSceneConnection(s, 's2', 's3', 'cut', [], 3600)      // q=45
+    s = registerSceneConnection(s, 's3', 's4', 'cut', [], 3600 * 2)  // q=40
+    s = registerSceneConnection(s, 's4', 's5', 'flashback', [], 0)   // q=30
+    s = registerSceneConnection(s, 's5', 's6', 'dream_sequence', [], 0) // q=20
+    const suggestions = getTransitionSuggestions(s)
+    expect(suggestions.some(sug => sug.toLowerCase().includes('match') || sug.toLowerCase().includes('quality'))).toBe(true)
   })
 
-  it('should fail when no_direct_cut violated', () => {
-    let state = createEmptyState()
-    state = addConstraint(state, { type: 'no_direct_cut', scenes: ['s1', 's2'] })
-    const edge: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'cut', smoothness: 50, continuityScore: 50, recommended: false }
-    const result = validateTransition(state, edge)
-    expect(result.valid).toBe(false)
-    expect(result.violations.length).toBeGreaterThan(0)
-  })
-
-  it('should fail when require_fade violated', () => {
-    let state = createEmptyState()
-    state = addConstraint(state, { type: 'require_fade', scenes: ['s1', 's2'] })
-    const edge: TransitionEdge = { fromScene: 's1', toScene: 's2', transitionType: 'cut', smoothness: 50, continuityScore: 50, recommended: false }
-    const result = validateTransition(state, edge)
-    expect(result.valid).toBe(false)
+  it('should warn about too many hard cuts', () => {
+    let s = createEmptyState()
+    for (let i = 0; i < 8; i++) {
+      s = registerSceneConnection(s, `s${i}`, `s${i + 1}`, 'cut', [], 3600)
+    }
+    const suggestions = getTransitionSuggestions(s)
+    expect(suggestions.some(s => s.toLowerCase().includes('cut'))).toBe(true)
   })
 })
 
-describe('addConstraint', () => {
-  it('should add constraint to state', () => {
-    let state = createEmptyState()
-    state = addConstraint(state, { type: 'no_direct_cut', scenes: ['s1', 's2'] })
-    expect(state.constraints.length).toBe(1)
-    expect(state.constraints[0].type).toBe('no_direct_cut')
+describe('smoothTemporalGaps', () => {
+  it('should filter by max gap', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 's1', 's2', 'cut', [], 3600)
+    s = registerSceneConnection(s, 's2', 's3', 'dissolve', [], 86400 * 60)
+    const smoothed = smoothTemporalGaps(s, 7200)
+    expect(smoothed.length).toBe(1)
+    expect(smoothed[0].temporalJump).toBeLessThanOrEqual(7200)
   })
 })
 
-describe('getTransitionSummary', () => {
-  it('should return excellent for empty transitions', () => {
-    const summary = getTransitionSummary([])
-    expect(summary.overallQuality).toBe('excellent')
+describe('getCharacterContinuityScore', () => {
+  it('should return 0 for unknown character', () => {
+    const s = createEmptyState()
+    expect(getCharacterContinuityScore(s, 'unknown')).toBe(0)
   })
 
-  it('should calculate average smoothness', () => {
-    const transitions: TransitionEdge[] = [
-      { fromScene: 's1', toScene: 's2', transitionType: 'dissolve', smoothness: 80, continuityScore: 80, recommended: true },
-      { fromScene: 's2', toScene: 's3', transitionType: 'cut', smoothness: 40, continuityScore: 50, recommended: false },
-    ]
-    const summary = getTransitionSummary(transitions)
-    expect(summary.avgSmoothness).toBe(60)
-    expect(summary.recommendedCount).toBe(1)
-    expect(summary.problematicTransitions.length).toBe(0)  // 40 is not < 40
-  })
-
-  it('should rate overall quality', () => {
-    const transitions: TransitionEdge[] = [
-      { fromScene: 's1', toScene: 's2', transitionType: 'match_cut', smoothness: 90, continuityScore: 90, recommended: true },
-      { fromScene: 's2', toScene: 's3', transitionType: 'dissolve', smoothness: 85, continuityScore: 80, recommended: true },
-    ]
-    const summary = getTransitionSummary(transitions)
-    expect(summary.overallQuality).toBe('excellent')
+  it('should calculate score for known character', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 's1', 's2', 'cut', ['alice'], 3600)
+    s = registerSceneConnection(s, 's2', 's3', 'match_cut', ['alice'], 60)
+    const score = getCharacterContinuityScore(s, 'alice')
+    expect(score).toBeGreaterThan(0)
   })
 })
 
-describe('suggestTransitionType', () => {
-  it('should suggest match_cut for strong continuity', () => {
-    const result = suggestTransitionType(['c1', 'c2', 'c3'], ['l1'], 1)
-    expect(result.type).toBe('match_cut')
+describe('getTransitionStatistics', () => {
+  it('should return comprehensive stats', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 's1', 's2', 'cut', [], 3600)
+    s = registerSceneConnection(s, 's2', 's3', 'dissolve', ['alice'], 60)
+    const stats = getTransitionStatistics(s)
+    expect(stats.totalTransitions).toBe(2)
+    expect(stats.avgQuality).toBeGreaterThan(0)
+    expect(stats.typeDistribution.cut).toBe(1)
+    expect(stats.typeDistribution.dissolve).toBe(1)
   })
+})
 
-  it('should suggest dissolve for some continuity', () => {
-    const result = suggestTransitionType(['c1'], [], 5)
-    expect(result.type).toBe('dissolve')
-  })
-
-  it('should suggest fade for same location after time gap', () => {
-    const result = suggestTransitionType([], ['l1'], 14)
-    expect(result.type).toBe('fade')
-  })
-
-  it('should suggest emporal_jump for large gap', () => {
-    const result = suggestTransitionType([], [], 60)
-    expect(result.type).toBe('emporal_jump')
-  })
-
-  it('should default to cut for standard case', () => {
-    const result = suggestTransitionType(['c1'], [], 3)
-    expect(result.type).toBe('dissolve')  // shared chars with small gap
+describe('optimizeTransitionOrder', () => {
+  it('should return scene order', () => {
+    let s = createEmptyState()
+    s = registerSceneConnection(s, 's1', 's2', 'cut', [], 3600)
+    s = registerSceneConnection(s, 's2', 's3', 'dissolve', [], 60)
+    const order = optimizeTransitionOrder(s)
+    expect(order.length).toBeGreaterThan(0)
   })
 })
