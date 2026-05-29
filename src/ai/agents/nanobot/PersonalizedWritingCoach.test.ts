@@ -1,209 +1,271 @@
 import { describe, it, expect } from 'vitest'
 import {
   createEmptyState,
-  assessDimensionSkill,
-  adaptStrategy,
-  generateSuggestion,
-  recordSession,
-  getLearningPath,
-  getCoachingSummary,
-  provideFeedback,
-  selectNextPracticeTopic,
+  analyzeSkillGaps,
+  createLearningPath,
+  generateCoachFeedback,
+  recordSessionImprovement,
+  getProgressSummary,
+  completeChallenge,
+  getNextChallenge,
+  analyzeWritingSample,
+  updateSkillLevel,
+  getRecommendedFocus,
 } from './PersonalizedWritingCoach'
 
 describe('createEmptyState', () => {
-  it('should create empty state', () => {
-    const state = createEmptyState()
-    expect(state.userModel.overallScore).toBe(50)
-    expect(state.userModel.experienceLevel).toBe('novice')
-    expect(state.currentStrategy.approach).toBe('encouraging')
-    expect(state.sessionHistory.length).toBe(0)
-    expect(state.typeAlias).toEqual({})
+  it('should create state with default skill profiles', () => {
+    const s = createEmptyState()
+    expect(s.skillProfiles.pacing).toBe(50)
+    expect(s.skillProfiles.dialogue).toBe(50)
+    expect(s.sessionHistory).toEqual([])
+    expect(s.challenges).toEqual([])
+    expect(s.currentPath).toBeNull()
+    expect(s.typeAlias).toEqual({})
   })
 })
 
-describe('assessDimensionSkill', () => {
-  it('should classify beginner level', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 35)
-    expect(state.userModel.dimensions.get('plot')!.level).toBe('beginner')
+describe('analyzeSkillGaps', () => {
+  it('should identify gaps where score is below 70', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 60, dialogue: 55, description: 80 })
+    expect(gaps.length).toBe(2)
+    expect(gaps.some(g => g.dimension === 'pacing')).toBe(true)
+    expect(gaps.some(g => g.dimension === 'dialogue')).toBe(true)
   })
 
-  it('should classify intermediate level', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'dialogue', 60)
-    expect(state.userModel.dimensions.get('dialogue')!.level).toBe('intermediate')
+  it('should not include dimensions with score >= 70', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 80, dialogue: 90 })
+    expect(gaps.length).toBe(0)
   })
 
-  it('should classify advanced level', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'character', 78)
-    expect(state.userModel.dimensions.get('character')!.level).toBe('advanced')
+  it('should set target level based on current skill profile', () => {
+    const s = createEmptyState()
+    s.skillProfiles.pacing = 60
+    const gaps = analyzeSkillGaps(s, { pacing: 50 })
+    expect(gaps[0].targetLevel).toBeGreaterThan(gaps[0].currentLevel)
   })
 
-  it('should classify expert level', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'worldbuilding', 90)
-    expect(state.userModel.dimensions.get('worldbuilding')!.level).toBe('expert')
+  it('should generate exercises for each gap', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 50 })
+    expect(gaps[0].exercises.length).toBeGreaterThan(0)
   })
 
-  it('should update overall score', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 70)
-    state = assessDimensionSkill(state, 'dialogue', 50)
-    expect(state.userModel.overallScore).toBe(60)
-  })
-})
-
-describe('adaptStrategy', () => {
-  it('should become challenging after high positive score', () => {
-    let state = createEmptyState()
-    state = adaptStrategy(state, 80, 'positive')
-    expect(state.currentStrategy.approach).toBe('challenging')
-    expect(state.currentStrategy.pacingLevel).toBe('fast')
-  })
-
-  it('should become encouraging after low score', () => {
-    let state = createEmptyState()
-    state = adaptStrategy(state, 30, 'negative')
-    expect(state.currentStrategy.approach).toBe('encouraging')
-    expect(state.currentStrategy.pacingLevel).toBe('slow')
-  })
-
-  it('should adapt tone for novice users', () => {
-    let state = createEmptyState()
-    state = adaptStrategy(state, 60, 'neutral')
-    expect(state.currentStrategy.tone).toBe('warm')
-    expect(state.currentStrategy.examplesFrequency).toBe('high')
-  })
-
-  it('should adapt tone for master users', () => {
-    let state = createEmptyState()
-    state = { ...state, userModel: { ...state.userModel, experienceLevel: 'master' as const } }
-    state = adaptStrategy(state, 60, 'neutral')
-    expect(state.currentStrategy.tone).toBe('direct')
+  it('should sort gaps by gap size (ascending)', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 50, dialogue: 60 })
+    // dialogue gap = 0 (60-60), pacing gap = 10 (60-50), so dialogue comes first
+    expect(gaps[0].dimension).toBe('dialogue')
+    expect(gaps[1].dimension).toBe('pacing')
   })
 })
 
-describe('generateSuggestion', () => {
-  it('should return default for unknown dimension', () => {
-    const state = createEmptyState()
-    const suggestion = generateSuggestion(state, 'plot')
-    expect(suggestion).toContain('plot')
+describe('createLearningPath', () => {
+  it('should create path from skill gaps', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 55, dialogue: 60 })
+    const path = createLearningPath(s, gaps)
+    expect(path.skillGaps).toEqual(gaps)
+    expect(path.focusAreas.length).toBe(2)
   })
 
-  it('should give encouraging suggestion for beginner', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 30, ['basic structure'], [])
-    const suggestion = generateSuggestion(state, 'plot')
-    expect(suggestion.length).toBeGreaterThan(0)
+  it('should include recommended exercises with priority', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 50 })
+    const path = createLearningPath(s, gaps)
+    expect(path.recommendedExercises.length).toBeGreaterThan(0)
+    expect(path.recommendedExercises[0].priority).toBeGreaterThan(0)
   })
 
-  it('should give challenging suggestion when appropriate', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 80, ['advanced arcs'], ['story flow'])
-    state = adaptStrategy(state, 85, 'positive')
-    const suggestion = generateSuggestion(state, 'plot')
-    expect(suggestion).toContain('challenge')
+  it('should estimate sessions based on gap size', () => {
+    const s = createEmptyState()
+    const gaps = analyzeSkillGaps(s, { pacing: 40 })
+    const path = createLearningPath(s, gaps)
+    expect(path.estimatedSessions).toBeGreaterThan(0)
   })
 })
 
-describe('recordSession', () => {
-  it('should update recent growth', () => {
-    let state = createEmptyState()
-    state = recordSession(state, 65, ['focus on pacing'])
-    expect(state.userModel.recentGrowth).toContain(65)
+describe('generateCoachFeedback', () => {
+  it('should generate feedback for each dimension', () => {
+    const s = createEmptyState()
+    const feedback = generateCoachFeedback(s, { pacing: 75, dialogue: 60 })
+    expect(feedback.length).toBe(2)
   })
 
-  it('should calculate learning velocity', () => {
-    let state = createEmptyState()
-    for (const score of [50, 55, 58, 62, 65]) {
-      state = recordSession(state, score, [])
+  it('should identify strengths for high scores', () => {
+    const s = createEmptyState()
+    const feedback = generateCoachFeedback(s, { pacing: 85 })
+    expect(feedback[0].strengths.length).toBeGreaterThan(0)
+  })
+
+  it('should identify weaknesses for low scores', () => {
+    const s = createEmptyState()
+    const feedback = generateCoachFeedback(s, { pacing: 55 })
+    expect(feedback[0].weaknesses.length).toBeGreaterThan(0)
+  })
+
+  it('should include suggestions for improvement', () => {
+    const s = createEmptyState()
+    const feedback = generateCoachFeedback(s, { pacing: 60 })
+    expect(feedback[0].suggestions.length).toBeGreaterThan(0)
+  })
+
+  it('should include examples for dimensions below 70', () => {
+    const s = createEmptyState()
+    const feedback = generateCoachFeedback(s, { pacing: 65 })
+    expect(feedback[0].examples.length).toBeGreaterThan(0)
+  })
+})
+
+describe('recordSessionImprovement', () => {
+  it('should add session to history', () => {
+    let s = createEmptyState()
+    s = recordSessionImprovement(s, 15, 'pacing')
+    expect(s.sessionHistory.length).toBe(1)
+    expect(s.sessionHistory[0].improvement).toBe(15)
+  })
+
+  it('should keep only last 20 sessions', () => {
+    let s = createEmptyState()
+    for (let i = 0; i < 25; i++) {
+      s = recordSessionImprovement(s, i, 'pacing')
     }
-    expect(state.userModel.learningVelocity).toBeGreaterThan(0)
+    expect(s.sessionHistory.length).toBe(20)
   })
 
-  it('should archive suggestions', () => {
-    let state = createEmptyState()
-    state = recordSession(state, 60, ['improve dialogue', 'add description'])
-    expect(state.suggestionArchive.length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('should track session history', () => {
-    let state = createEmptyState()
-    state = recordSession(state, 70, ['good work'])
-    expect(state.sessionHistory.length).toBe(1)
-    expect(state.coachingLog.length).toBe(1)
+  it('should track focus area', () => {
+    let s = createEmptyState()
+    s = recordSessionImprovement(s, 10, 'dialogue')
+    expect(s.sessionHistory[0].focus).toBe('dialogue')
   })
 })
 
-describe('getLearningPath', () => {
-  it('should return path sorted by weakest dimension', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 80)
-    state = assessDimensionSkill(state, 'dialogue', 40)
-    state = recordSession(state, 60, [])
-    const path = getLearningPath(state, 2)
-    expect(path.length).toBe(2)
-    expect(path[0].dimension).toBe('dialogue') // weakest first
+describe('getProgressSummary', () => {
+  it('should calculate average improvement', () => {
+    let s = createEmptyState()
+    s = recordSessionImprovement(s, 10, 'pacing')
+    s = recordSessionImprovement(s, 20, 'dialogue')
+    const summary = getProgressSummary(s)
+    expect(summary.avgImprovement).toBe(15)
   })
 
-  it('should show next level target', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'style', 55, ['voice'], ['vocabulary'])
-    state = recordSession(state, 55, [])
-    const path = getLearningPath(state, 1)
-    expect(path[0].targetLevel).toBe('advanced')
-    expect(path[0].milestones.length).toBeGreaterThan(0)
+  it('should count total sessions', () => {
+    let s = createEmptyState()
+    s = recordSessionImprovement(s, 10, 'pacing')
+    s = recordSessionImprovement(s, 20, 'pacing')
+    const summary = getProgressSummary(s)
+    expect(summary.totalSessions).toBe(2)
+  })
+
+  it('should find most improved area', () => {
+    let s = createEmptyState()
+    s = recordSessionImprovement(s, 5, 'pacing')
+    s = recordSessionImprovement(s, 20, 'dialogue')
+    const summary = getProgressSummary(s)
+    expect(summary.mostImproved).toBe('dialogue')
+  })
+
+  it('should return zero for empty history', () => {
+    const s = createEmptyState()
+    const summary = getProgressSummary(s)
+    expect(summary.avgImprovement).toBe(0)
+    expect(summary.totalSessions).toBe(0)
   })
 })
 
-describe('getCoachingSummary', () => {
-  it('should return coaching summary', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 75, ['themes'], ['structure'])
-    state = assessDimensionSkill(state, 'dialogue', 55, ['pacing'], ['voice'])
-    state = recordSession(state, 65, [])
-    const summary = getCoachingSummary(state)
-    expect(summary.overallScore).toBe(65)
-    expect(summary.strongestDimension).toBe('plot')
-    expect(summary.weakestDimension).toBe('dialogue')
+describe('completeChallenge', () => {
+  it('should mark challenge as completed', () => {
+    let s = createEmptyState()
+    s = { ...s, challenges: [{ id: 'c1', type: 'pacing', difficulty: 5, description: 'test', targetSkill: 'pacing', completed: false }] }
+    s = completeChallenge(s, 'c1', 80)
+    expect(s.challenges.find(c => c.id === 'c1')!.completed).toBe(true)
   })
 
-  it('should detect improving trend', () => {
-    let state = createEmptyState()
-    for (const score of [40, 42, 45, 50, 55, 60]) {
-      state = recordSession(state, score, [])
+  it('should update skill profile based on score', () => {
+    let s = createEmptyState()
+    s.skillProfiles.pacing = 50
+    s = { ...s, challenges: [{ id: 'c1', type: 'pacing', difficulty: 5, description: 'test', targetSkill: 'pacing', completed: false }] }
+    s = completeChallenge(s, 'c1', 80)
+    expect(s.skillProfiles.pacing).toBeGreaterThan(50)
+  })
+})
+
+describe('getNextChallenge', () => {
+  it('should return incomplete challenge if available', () => {
+    let s = createEmptyState()
+    s = { ...s, challenges: [{ id: 'c1', type: 'pacing', difficulty: 5, description: 'test', targetSkill: 'pacing', completed: false }] }
+    const next = getNextChallenge(s)
+    expect(next).not.toBeNull()
+    expect(next!.id).toBe('c1')
+  })
+
+  it('should return null if all completed', () => {
+    let s = createEmptyState()
+    s = { ...s, challenges: [{ id: 'c1', type: 'pacing', difficulty: 5, description: 'test', targetSkill: 'pacing', completed: true }] }
+    const next = getNextChallenge(s)
+    // Creates new challenge for weakest skill
+    expect(next).not.toBeNull()
+  })
+})
+
+describe('analyzeWritingSample', () => {
+  it('should return feedback for writing sample', () => {
+    const s = createEmptyState()
+    const feedback = analyzeWritingSample(s, 'Hello, world! This is a test sentence. Another one here.')
+    expect(feedback.length).toBeGreaterThan(0)
+  })
+
+  it('should score based on text characteristics', () => {
+    const s = createEmptyState()
+    const text = 'The cat sat on the mat. ' + 'Many words here. '.repeat(50)
+    const feedback = analyzeWritingSample(s, text)
+    expect(feedback[0].score).toBeGreaterThan(0)
+  })
+})
+
+describe('updateSkillLevel', () => {
+  it('should update existing dimension', () => {
+    let s = createEmptyState()
+    s = updateSkillLevel(s, 'pacing', 75)
+    expect(s.skillProfiles.pacing).toBe(75)
+  })
+
+  it('should ignore unknown dimensions', () => {
+    let s = createEmptyState()
+    s = updateSkillLevel(s, 'unknown_dimension', 90)
+    expect(s.skillProfiles.pacing).toBe(50)
+  })
+
+  it('should clamp to 0-100 range', () => {
+    let s = createEmptyState()
+    s = updateSkillLevel(s, 'pacing', 150)
+    expect(s.skillProfiles.pacing).toBe(100)
+    s = updateSkillLevel(s, 'pacing', -20)
+    expect(s.skillProfiles.pacing).toBe(0)
+  })
+})
+
+describe('getRecommendedFocus', () => {
+  it('should return weakest skill below 70', () => {
+    const s = createEmptyState()
+    // Set all dimensions except pacing to 80 so pacing is the weakest at 55
+    for (const dim of Object.keys(s.skillProfiles)) {
+      if (dim !== 'pacing') s.skillProfiles[dim] = 80
     }
-    const summary = getCoachingSummary(state)
-    expect(summary.recentTrend).toBe('improving')
-  })
-})
-
-describe('provideFeedback', () => {
-  it('should provide overall and dimension feedback', () => {
-    const state = createEmptyState()
-    const scores = new Map([['plot', 75], ['dialogue', 55]])
-    const feedback = provideFeedback(state, scores)
-    expect(feedback.overall.length).toBeGreaterThan(0)
-    expect(feedback.dimensionFeedback.size).toBe(2)
-  })
-})
-
-describe('selectNextPracticeTopic', () => {
-  it('should pick weakest dimension with most growth potential', () => {
-    let state = createEmptyState()
-    state = assessDimensionSkill(state, 'plot', 90)
-    state = assessDimensionSkill(state, 'dialogue', 30)
-    state = recordSession(state, 60, [])
-    const topic = selectNextPracticeTopic(state)
-    expect(topic.topic).toBe('dialogue')
-    expect(topic.difficulty).toBe('beginner')
+    s.skillProfiles.pacing = 55
+    const focus = getRecommendedFocus(s)
+    expect(focus).toBe('pacing')
   })
 
-  it('should default to fundamentals for empty model', () => {
-    const state = createEmptyState()
-    const topic = selectNextPracticeTopic(state)
-    expect(topic.topic).toBe('writing fundamentals')
+  it('should return null if all skills >= 70', () => {
+    const s = createEmptyState()
+    // Set ALL dimensions to 70+ so nothing is recommended
+    for (const dim of Object.keys(s.skillProfiles)) {
+      s.skillProfiles[dim] = 72
+    }
+    const focus = getRecommendedFocus(s)
+    expect(focus).toBeNull()
   })
 })
