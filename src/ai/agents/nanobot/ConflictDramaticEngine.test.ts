@@ -1,180 +1,104 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createEmptyConflictDramaticState,
-  createConflict,
-  escalateConflict,
-  resolveConflict,
-  recordTensionPoint,
-  getActiveConflicts,
-  getConflictById,
-  formatConflictSummary,
-  formatConflictDashboard,
+  createEmptyEmotionWheelState,
+  addEmotionPoint,
+  getEmotionsByChapter,
+  getDominantEmotion,
+  getEmotionFrequency,
+  formatEmotionWheelSummary,
+  formatEmotionWheelDashboard,
 } from './ConflictDramaticEngine'
 
-describe('createEmptyConflictDramaticState', () => {
+describe('createEmptyEmotionWheelState', () => {
   it('should create empty state', () => {
-    const state = createEmptyConflictDramaticState()
-    expect(state.conflicts.length).toBe(0)
-    expect(state.tensionCurve.length).toBe(0)
-    expect(state.resolvedCount).toBe(0)
+    const state = createEmptyEmotionWheelState()
+    expect(state.emotionPoints.length).toBe(0)
+    expect(state.dominantEmotion).toBeNull()
   })
 })
 
-describe('createConflict', () => {
-  it('should create conflict', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'internal', 'Inner turmoil', ['Protagonist'])
-    expect(state.conflicts.length).toBe(1)
-    expect(state.conflicts[0].type).toBe('internal')
+describe('addEmotionPoint', () => {
+  it('should add first emotion point', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'joy', 80)
+    expect(state.emotionPoints.length).toBe(1)
+    expect(state.emotionPoints[0].primary).toBe('joy')
   })
 
-  it('should set conflict status to building', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', ' lovers', ['Alice', 'Bob'])
-    expect(state.conflicts[0].status).toBe('building')
+  it('should update histogram', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'joy', 80)
+    state = addEmotionPoint(state, 2, 'joy', 60)
+    expect(getEmotionFrequency(state, 'joy')).toBe(2)
   })
 
-  it('should calculate average intensity', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', ' lovers', ['Alice', 'Bob'])
-    expect(state.averageIntensity).toBe(30)
-  })
-})
-
-describe('escalateConflict', () => {
-  it('should increase intensity', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    state = escalateConflict(state, conflictId, 20)
-    expect(state.conflicts[0].intensity).toBe(50)
-  })
-
-  it('should cap at 100', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    state = escalateConflict(state, conflictId, 80)
-    expect(state.conflicts[0].intensity).toBe(100)
-  })
-
-  it('should set status to active', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    state = escalateConflict(state, conflictId, 10)
-    expect(state.conflicts[0].status).toBe('active')
+  it('should track emotional range', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'joy', 80)
+    state = addEmotionPoint(state, 2, 'sadness', 20)
+    expect(state.emotionalRange).toBe(60)
   })
 })
 
-describe('resolveConflict', () => {
-  it('should change status to resolved', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    state = resolveConflict(state, conflictId)
-    expect(state.conflicts[0].status).toBe('resolved')
-  })
-
-  it('should increment resolved count', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    state = resolveConflict(state, conflictId)
-    expect(state.resolvedCount).toBe(1)
+describe('getEmotionsByChapter', () => {
+  it('should filter by chapter', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 3, 'joy', 80)
+    state = addEmotionPoint(state, 5, 'anger', 80)
+    const ch3 = getEmotionsByChapter(state, 3)
+    expect(ch3.length).toBe(1)
   })
 })
 
-describe('recordTensionPoint', () => {
-  it('should add tension point', () => {
-    let state = createEmptyConflictDramaticState()
-    state = recordTensionPoint(state, 1, 80, 'Major confrontation')
-    expect(state.tensionCurve.length).toBe(1)
-    expect(state.tensionCurve[0].tension).toBe(80)
+describe('getDominantEmotion', () => {
+  it('should return null for empty state', () => {
+    const state = createEmptyEmotionWheelState()
+    expect(getDominantEmotion(state)).toBeNull()
   })
 
-  it('should sort by chapter', () => {
-    let state = createEmptyConflictDramaticState()
-    state = recordTensionPoint(state, 3, 60, 'Point 3')
-    state = recordTensionPoint(state, 1, 30, 'Point 1')
-    state = recordTensionPoint(state, 2, 45, 'Point 2')
-    expect(state.tensionCurve[0].chapter).toBe(1)
-    expect(state.tensionCurve[1].chapter).toBe(2)
-    expect(state.tensionCurve[2].chapter).toBe(3)
-  })
-
-  it('should clamp tension value', () => {
-    let state = createEmptyConflictDramaticState()
-    state = recordTensionPoint(state, 1, 150, 'Too high')
-    expect(state.tensionCurve[0].tension).toBe(100)
-  })
-
-  it('should update current chapter', () => {
-    let state = createEmptyConflictDramaticState()
-    state = recordTensionPoint(state, 5, 70, 'Point')
-    expect(state.currentChapter).toBe(5)
+  it('should return highest intensity emotion', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'joy', 60)
+    state = addEmotionPoint(state, 2, 'anger', 90)
+    expect(getDominantEmotion(state)).toBe('anger')
   })
 })
 
-describe('getActiveConflicts', () => {
-  it('should return active and building conflicts', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict 1', ['A', 'B'])
-    state = createConflict(state, 'interpersonal', 'Conflict 2', ['C', 'D'])
-    const conflictId = state.conflicts[0].conflictId
-    state = resolveConflict(state, conflictId)
-    expect(getActiveConflicts(state).length).toBe(1)
+describe('getEmotionFrequency', () => {
+  it('should return 0 for unknown emotion', () => {
+    const state = createEmptyEmotionWheelState()
+    expect(getEmotionFrequency(state, 'joy')).toBe(0)
   })
 })
 
-describe('getConflictById', () => {
-  it('should return null for unknown id', () => {
-    const state = createEmptyConflictDramaticState()
-    expect(getConflictById(state, 'unknown')).toBeNull()
+describe('formatEmotionWheelSummary', () => {
+  it('should show point count', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'joy', 80)
+    const summary = formatEmotionWheelSummary(state)
+    expect(summary).toContain('Emotion Points: 1')
   })
 
-  it('should return conflict by id', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    const conflict = getConflictById(state, conflictId)
-    expect(conflict).not.toBeNull()
-    expect(conflict?.type).toBe('interpersonal')
-  })
-})
-
-describe('formatConflictSummary', () => {
-  it('should show conflict count', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    state = createConflict(state, 'internal', 'Inner conflict', ['Hero'])
-    const summary = formatConflictSummary(state)
-    expect(summary).toContain('Conflicts: 2')
-  })
-
-  it('should show resolved count', () => {
-    let state = createEmptyConflictDramaticState()
-    state = createConflict(state, 'interpersonal', 'Conflict', ['Alice', 'Bob'])
-    const conflictId = state.conflicts[0].conflictId
-    state = resolveConflict(state, conflictId)
-    const summary = formatConflictSummary(state)
-    expect(summary).toContain('Resolved: 1')
+  it('should show dominant emotion', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'fear', 80)
+    const summary = formatEmotionWheelSummary(state)
+    expect(summary).toContain('fear')
   })
 })
 
-describe('formatConflictDashboard', () => {
-  it('should show chapter', () => {
-    let state = createEmptyConflictDramaticState()
-    state = recordTensionPoint(state, 3, 60, 'Point')
-    const dashboard = formatConflictDashboard(state)
-    expect(dashboard).toContain('Chapter: 3')
+describe('formatEmotionWheelDashboard', () => {
+  it('should show points count', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'joy', 80)
+    const dash = formatEmotionWheelDashboard(state)
+    expect(dash).toContain('Points: 1')
   })
 
-  it('should show tension trend', () => {
-    let state = createEmptyConflictDramaticState()
-    state = recordTensionPoint(state, 1, 30, 'Low')
-    state = recordTensionPoint(state, 2, 50, 'Medium')
-    const dashboard = formatConflictDashboard(state)
-    expect(dashboard).toContain('Tension Trend')
+  it('should show dominant', () => {
+    let state = createEmptyEmotionWheelState()
+    state = addEmotionPoint(state, 1, 'anticipation', 80)
+    const dash = formatEmotionWheelDashboard(state)
+    expect(dash).toContain('anticipation')
   })
 })
