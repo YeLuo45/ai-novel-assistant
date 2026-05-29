@@ -50,7 +50,11 @@ export function defineRelationship(
     charId1, charId2, type, strength,
     history: [],
   }
-  return { ...state, relationships: { ...state.relationships, [key]: rel } }
+  const currentTensions = { ...state.currentTensions }
+  if (strength < 0) {
+    currentTensions[key] = Math.abs(strength)
+  }
+  return { ...state, relationships: { ...state.relationships, [key]: rel }, currentTensions }
 }
 
 export function recordInteraction(
