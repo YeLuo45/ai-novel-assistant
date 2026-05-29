@@ -97,18 +97,17 @@ export function addTimelineEvent(
 export function verifyLoreConsistency(state: WorldBuildingState, loreId: string): WorldBuildingState {
   const lore = state.lore[loreId]
   if (!lore) return state
-  
+
   let consistencyStatus: LoreEntry['consistencyStatus'] = 'verified'
   const relatedRules = lore.relatedRules.filter(rid => state.rules[rid])
-  
-  // Check if any related rules are violated
+
   for (const ruleId of relatedRules) {
     if (state.rules[ruleId].violationCount > 0) {
       consistencyStatus = 'violated'
       break
     }
   }
-  
+
   return {
     ...state,
     lore: { ...state.lore, [loreId]: { ...lore, consistencyStatus } },
@@ -118,12 +117,12 @@ export function verifyLoreConsistency(state: WorldBuildingState, loreId: string)
 export function checkRuleViolation(
   state: WorldBuildingState,
   ruleId: string,
-  context: string
+  _context: string
 ): WorldBuildingState {
   if (!state.rules[ruleId]) return state
   const rule = state.rules[ruleId]
   if (rule.flexibility === 'breakable') return state
-  
+
   const updatedRule = { ...rule, violationCount: rule.violationCount + 1 }
   return { ...state, rules: { ...state.rules, [ruleId]: updatedRule } }
 }
@@ -132,33 +131,30 @@ export function generateConsistencyReport(state: WorldBuildingState): WorldConsi
   const rules = Object.values(state.rules)
   const lore = Object.values(state.lore)
   const timeline = state.timeline
-  
+
   const violatedRules = rules.filter(r => r.violationCount > 0).length
   const pendingLore = lore.filter(l => l.consistencyStatus === 'pending' || l.consistencyStatus === 'unknown').length
-  
-  // Find timeline gaps (years with no events)
+
   const years = timeline.map(t => t.year).sort((a, b) => a - b)
   let timelineGaps = 0
   for (let i = 1; i < years.length; i++) {
     if (years[i] - years[i - 1] > 10) timelineGaps++
   }
-  
+
   const criticalIssues: string[] = []
   if (violatedRules > 0) criticalIssues.push(`${violatedRules} world rules violated`)
   if (pendingLore > lore.length * 0.5) criticalIssues.push('Too many unverified lore entries')
   if (timelineGaps > years.length * 0.3) criticalIssues.push('Frequent timeline gaps may affect coherence')
-  
+
   const overallCoherence = Math.max(0, 100 - (violatedRules * 15 + pendingLore * 3 + timelineGaps * 5))
-  
+
   const recommendations: string[] = []
   if (violatedRules > 0) recommendations.push('Address world rule violations before continuing')
   if (pendingLore > 0) recommendations.push(`Verify ${pendingLore} pending lore entries`)
   if (overallCoherence > 80) recommendations.push('World consistency is strong')
   if (rules.length < 5) recommendations.push('Add more world rules to define your world')
-  
-  const report: WorldConsistencyReport = { totalRules: rules.length, violatedRules, pendingLore, timelineGaps, overallCoherence, criticalIssues, recommendations }
-  
-  return { ...state, consistencyReport: report }
+
+  return { totalRules: rules.length, violatedRules, pendingLore, timelineGaps, overallCoherence, criticalIssues, recommendations }
 }
 
 export function getRuleSummary(state: WorldBuildingState, ruleId: string): WorldRule | null {
@@ -174,7 +170,7 @@ export function compareEraConsistency(state: WorldBuildingState, era1: string, e
   const rules2 = Object.values(state.rules).filter(r => r.affectedElements.some(e => e.includes(era2)))
   const violations1 = rules1.reduce((s, r) => s + r.violationCount, 0)
   const violations2 = rules2.reduce((s, r) => s + r.violationCount, 0)
-  
+
   return {
     moreCoherent: violations1 < violations2 ? era1 : era2,
     ruleCountDiff: Math.abs(rules1.length - rules2.length),
