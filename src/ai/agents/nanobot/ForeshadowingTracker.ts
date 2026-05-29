@@ -158,7 +158,8 @@ export function formatForeshadowingDashboard(state: ForeshadowingState): string 
   if (pending.length > 0) {
     s += "\n--- Pending Foreshadowing ---" + "\n"
     for (const e of pending.slice(-4)) {
-      s += "  Ch" + e.setupChapter + " "" + e.setupText.slice(0, 30) + "..." hints=" + e.hintsCount + "\n"
+      const preview = e.setupText.length > 25 ? e.setupText.slice(0, 25) + "..." : e.setupText
+      s += "  Ch" + e.setupChapter + " " + preview + " hints=" + e.hintsCount + "\n"
     }
   }
 
