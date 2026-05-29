@@ -1,18 +1,16 @@
 /**
- * AuthorSkillGraph — V321
- * Author skill taxonomy, strengths/weaknesses mapping, growth tracking.
- * Inspired by: ruflo (hierarchical decomposition), thunderbolt (feedback loops)
+ * AuthorSkillGraph — V341
+ * Author skill knowledge graph with node relationships, skill progression,
+ * learning recommendations, and skill dependency analysis.
+ * Inspired by: ruflo (hierarchical decomposition), nanobot (distributed mesh)
  */
 
 export interface SkillNode {
-  skillId: string
+  id: string
   name: string
-  category: 'plot' | 'dialogue' | 'character' | 'worldbuilding' | 'style' | 'pacing' | 'research' | 'revision'
   level: number        // 0-100
-  parentSkillId?: string
-  childSkillIds: string[]
-  dependencies: string[]
-  masteryScore: number  // 0-1 how well this skill is internalized
+  connections: string[]  // IDs of connected skill nodes
+  category: 'foundation' | 'intermediate' | 'advanced' | 'expert'
   lastPracticed: number
   practiceCount: number
 }
@@ -20,279 +18,186 @@ export interface SkillNode {
 export interface SkillEdge {
   from: string
   to: string
-  relationship: 'prereq' | 'enhances' | 'conflicts'
-  strength: number // 0-1
+  weight: number      // dependency strength 0-1
+  type: 'prerequisite' | 'enhances' | 'related'
 }
 
-export interface AuthorSkillGraphState {
-  nodes: Map<string, SkillNode>
+export interface SkillGraphState {
+  nodes: Record<string, SkillNode>
   edges: SkillEdge[]
-  strengths: string[]     // skill IDs
-  weaknesses: string[]    // skill IDs
-  growthHistory: { timestamp: number; skills: Map<string, number> }[]
+  totalPracticeMinutes: number
+  focusTime: Record<string, number>  // dimension -> minutes
   typeAlias: Record<string, unknown>
 }
 
-export function createEmptyState(): AuthorSkillGraphState {
+export function createEmptyState(): SkillGraphState {
   return {
-    nodes: new Map(),
+    nodes: {},
     edges: [],
-    strengths: [],
-    weaknesses: [],
-    growthHistory: [],
+    totalPracticeMinutes: 0,
+    focusTime: {},
     typeAlias: {},
   }
 }
 
-// Register a skill in the graph
-export function registerSkill(
-  state: AuthorSkillGraphState,
-  skillId: string,
-  name: string,
-  category: SkillNode['category'],
-  parentSkillId?: string,
-  dependencies: string[] = []
-): AuthorSkillGraphState {
-  const newNodes = new Map(state.nodes)
-  newNodes.set(skillId, {
-    skillId,
+// Add or update a skill node
+export function addSkillNode(state: SkillGraphState, id: string, name: string, level: number, category: SkillNode['category']): SkillGraphState {
+  const node: SkillNode = {
+    id,
     name,
+    level,
+    connections: [],
     category,
-    level: 0,
-    parentSkillId,
-    childSkillIds: [],
-    dependencies,
-    masteryScore: 0,
-    lastPracticed: 0,
-    practiceCount: 0,
-  })
-
-  // Update parent's childSkillIds
-  if (parentSkillId) {
-    const parent = newNodes.get(parentSkillId)
-    if (parent) {
-      newNodes.set(parentSkillId, {
-        ...parent,
-        childSkillIds: [...parent.childSkillIds, skillId],
-      })
-    }
+    lastPracticed: Date.now(),
+    practiceCount: state.nodes[id]?.practiceCount ?? 0,
   }
-
-  return { ...state, nodes: newNodes }
+  return { ...state, nodes: { ...state.nodes, [id]: node } }
 }
 
-// Update skill level after practice
-export function updateSkillLevel(
-  state: AuthorSkillGraphState,
-  skillId: string,
-  newLevel: number,
-  masteryGain: number = 0.05
-): AuthorSkillGraphState {
-  const node = state.nodes.get(skillId)
-  if (!node) return state
+// Connect two skill nodes
+export function connectSkills(state: SkillGraphState, fromId: string, toId: string, weight: number, type: SkillEdge['type']): SkillGraphState {
+  if (!state.nodes[fromId] || !state.nodes[toId]) return state
+  if (state.nodes[fromId].connections.includes(toId)) return state
+  const fromNode = { ...state.nodes[fromId], connections: [...state.nodes[fromId].connections, toId] }
+  const newEdges = [...state.edges, { from: fromId, to: toId, weight, type }]
+  return { ...state, nodes: { ...state.nodes, [fromId]: fromNode }, edges: newEdges }
+}
 
-  const newNodes = new Map(state.nodes)
+// Practice a skill and update level
+export function practiceSkill(state: SkillGraphState, skillId: string, minutes: number, improvement: number): SkillGraphState {
+  if (!state.nodes[skillId]) return state
+  const node = state.nodes[skillId]
+  const newLevel = Math.min(100, node.level + improvement)
   const updatedNode: SkillNode = {
     ...node,
-    level: Math.min(100, newLevel),
-    masteryScore: Math.min(1, node.masteryScore + masteryGain),
+    level: newLevel,
     lastPracticed: Date.now(),
     practiceCount: node.practiceCount + 1,
   }
-  newNodes.set(skillId, updatedNode)
+  const totalMinutes = state.totalPracticeMinutes + minutes
+  const focusTime = { ...state.focusTime, [skillId]: (state.focusTime[skillId] || 0) + minutes }
+  return { ...state, nodes: { ...state.nodes, [skillId]: updatedNode }, totalPracticeMinutes: totalMinutes, focusTime }
+}
 
-  // Update growth history
-  const latestEntry = state.growthHistory[state.growthHistory.length - 1]
-  const now = Date.now()
-  const updatedHistory = [...state.growthHistory]
-  
-  if (!latestEntry || now - latestEntry.timestamp > 24 * 60 * 60 * 1000) {
-    // New day entry
-    const skillLevels = new Map<string, number>()
-    for (const [id, n] of newNodes.entries()) {
-      skillLevels.set(id, n.level)
+// Get skill prerequisites (skills that must be learned first)
+export function getPrerequisites(state: SkillGraphState, skillId: string): SkillNode[] {
+  const prereqs = state.edges.filter(e => e.to === skillId && e.type === 'prerequisite')
+  return prereqs.map(e => state.nodes[e.from]).filter(Boolean)
+}
+
+// Get skill dependents (skills that depend on this skill)
+export function getDependents(state: SkillGraphState, skillId: string): SkillNode[] {
+  const dependents = state.edges.filter(e => e.from === skillId && e.type === 'prerequisite')
+  return dependents.map(e => state.nodes[e.to]).filter(Boolean)
+}
+
+// Get skill learning path (ordered list of prerequisites)
+export function getSkillLearningPath(state: SkillGraphState, targetSkillId: string): SkillNode[] {
+  const path: SkillNode[] = []
+  const visited = new Set<string>()
+  function visit(skillId: string) {
+    if (visited.has(skillId)) return
+    visited.add(skillId)
+    const prereqs = getPrerequisites(state, skillId)
+    for (const p of prereqs) visit(p.id)
+    const node = state.nodes[skillId]
+    if (node) path.push(node)
+  }
+  visit(targetSkillId)
+  return path
+}
+
+// Calculate overall skill level (average of all skills)
+export function getOverallSkillLevel(state: SkillGraphState): number {
+  const nodes = Object.values(state.nodes)
+  if (nodes.length === 0) return 0
+  return nodes.reduce((sum, n) => sum + n.level, 0) / nodes.length
+}
+
+// Get skills by category
+export function getSkillsByCategory(state: SkillGraphState, category: SkillNode['category']): SkillNode[] {
+  return Object.values(state.nodes).filter(n => n.category === category)
+}
+
+// Get weakest skills (below threshold)
+export function getWeakestSkills(state: SkillGraphState, threshold: number = 60): SkillNode[] {
+  return Object.values(state.nodes).filter(n => n.level < threshold).sort((a, b) => a.level - b.level)
+}
+
+// Get strongest skills
+export function getStrongestSkills(state: SkillGraphState, count: number = 5): SkillNode[] {
+  return Object.values(state.nodes).sort((a, b) => b.level - a.level).slice(0, count)
+}
+
+// Recommend next skill to learn
+export function recommendNextSkill(state: SkillGraphState): SkillNode | null {
+  const weakest = getWeakestSkills(state, 80)
+  for (const skill of weakest) {
+    const prereqs = getPrerequisites(state, skill.id)
+    const allPrereqsMet = prereqs.every(p => p.level >= 60)
+    if (allPrereqsMet || prereqs.length === 0) return skill
+  }
+  return weakest[0] || null
+}
+
+// Analyze skill clusters (connected groups of skills)
+export function getSkillClusters(state: SkillGraphState): SkillNode[][] {
+  const clusters: SkillNode[][] = []
+  const visited = new Set<string>()
+  for (const node of Object.values(state.nodes)) {
+    if (visited.has(node.id)) continue
+    const cluster: SkillNode[] = []
+    function bfs(id: string) {
+      if (visited.has(id)) return
+      visited.add(id)
+      const n = state.nodes[id]
+      if (n) { cluster.push(n); for (const connId of n.connections) bfs(connId) }
     }
-    updatedHistory.push({ timestamp: now, skills: skillLevels })
-  } else {
-    // Update today's entry
-    const skills = new Map(latestEntry.skills)
-    skills.set(skillId, newLevel)
-    updatedHistory[updatedHistory.length - 1] = { ...latestEntry, skills }
+    bfs(node.id)
+    clusters.push(cluster)
   }
-
-  return { ...state, nodes: newNodes, growthHistory: updatedHistory }
+  return clusters
 }
 
-// Add edge between skills
-export function addSkillEdge(
-  state: AuthorSkillGraphState,
-  from: string,
-  to: string,
-  relationship: SkillEdge['relationship'],
-  strength: number = 0.5
-): AuthorSkillGraphState {
-  const edge: SkillEdge = { from, to, relationship, strength }
-  return { ...state, edges: [...state.edges, edge] }
-}
-
-// Compute strengths (top skills by level)
-export function computeStrengths(
-  state: AuthorSkillGraphState,
-  topK: number = 3
-): string[] {
-  return Array.from(state.nodes.values())
-    .sort((a, b) => b.level - a.level)
-    .slice(0, topK)
-    .map(n => n.skillId)
-}
-
-// Compute weaknesses (lowest skills that have been practiced)
-export function computeWeaknesses(
-  state: AuthorSkillGraphState,
-  bottomK: number = 3
-): string[] {
-  return Array.from(state.nodes.values())
-    .filter(n => n.practiceCount > 0)
-    .sort((a, b) => a.level - b.level)
-    .slice(0, bottomK)
-    .map(n => n.skillId)
-}
-
-// Get skill subtree (all descendants)
-export function getSkillSubtree(
-  state: AuthorSkillGraphState,
-  skillId: string
-): string[] {
-  const node = state.nodes.get(skillId)
-  if (!node) return []
-  
-  const result: string[] = [skillId]
-  for (const childId of node.childSkillIds) {
-    result.push(...getSkillSubtree(state, childId))
+// Get practice summary
+export function getPracticeSummary(state: SkillGraphState) {
+  const nodes = Object.values(state.nodes)
+  const totalSkills = nodes.length
+  const avgLevel = nodes.length > 0 ? nodes.reduce((s, n) => s + n.level, 0) / nodes.length : 0
+  const strongest = getStrongestSkills(state, 3)
+  const weakest = getWeakestSkills(state, 60)
+  const mostPracticed = Object.entries(state.focusTime).sort((a, b) => b[1] - a[1])[0]
+  return {
+    totalSkills,
+    avgLevel: Math.round(avgLevel * 10) / 10,
+    strongest: strongest.map(n => ({ id: n.id, name: n.name, level: n.level })),
+    weakestCount: weakest.length,
+    mostPracticedSkill: mostPracticed ? state.nodes[mostPracticed[0]]?.name : null,
+    mostPracticedMinutes: mostPracticed ? mostPracticed[1] : 0,
+    totalPracticeMinutes: state.totalPracticeMinutes,
   }
-  return result
 }
 
-// Get skill ancestors (all prerequisites path to root)
-export function getSkillAncestors(
-  state: AuthorSkillGraphState,
-  skillId: string
-): string[] {
-  const result: string[] = []
-  let current = state.nodes.get(skillId)
-  
-  while (current?.parentSkillId) {
-    result.push(current.parentSkillId)
-    current = state.nodes.get(current.parentSkillId)
-  }
-  
-  return result
+// Check if skill is ready for advancement
+export function isSkillReadyForAdvancement(state: SkillGraphState, skillId: string): boolean {
+  const node = state.nodes[skillId]
+  if (!node) return false
+  const prereqs = getPrerequisites(state, skillId)
+  return node.level >= 70 && prereqs.every(p => p.level >= 70)
 }
 
-// Calculate skill gap (what needs to be learned before target skill)
-export function calculateSkillGap(
-  state: AuthorSkillGraphState,
-  targetSkillId: string,
-  currentSkillId: string
-): { missing: string[]; weak: string[] } {
-  const ancestors = getSkillAncestors(state, targetSkillId)
-  const targetAncestors = new Set(ancestors)
-  
-  const missing: string[] = []
-  const weak: string[] = []
-  
-  for (const ancId of targetAncestors) {
-    if (ancId === targetSkillId || ancId === currentSkillId) continue
-    const node = state.nodes.get(ancId)
-    if (!node) {
-      missing.push(ancId)
-    } else if (node.level < 50) {
-      weak.push(ancId)
-    }
-  }
-  
-  return { missing, weak }
-}
-
-// Get growth rate for a skill
-export function getSkillGrowthRate(
-  state: AuthorSkillGraphState,
-  skillId: string,
-  days: number = 7
-): number {
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
-  const relevantHistory = state.growthHistory.filter(h => h.timestamp >= cutoff)
-  
-  if (relevantHistory.length < 2) return 0
-  
-  const first = relevantHistory[0].skills.get(skillId) || 0
-  const last = relevantHistory[relevantHistory.length - 1].skills.get(skillId) || 0
-  
-  return (last - first) / days
-}
-
-// Get skill radar data for visualization
-export function getSkillRadarData(
-  state: AuthorSkillGraphState
-): { category: string; level: number; categoryAvg: number }[] {
-  const categories: SkillNode['category'][] = ['plot', 'dialogue', 'character', 'worldbuilding', 'style', 'pacing']
-  const result: { category: string; level: number; categoryAvg: number }[] = []
-  
-  for (const cat of categories) {
-    const catNodes = Array.from(state.nodes.values()).filter(n => n.category === cat)
-    if (catNodes.length > 0) {
-      const avg = catNodes.reduce((s, n) => s + n.level, 0) / catNodes.length
-      result.push({ category: cat, level: Math.round(avg), categoryAvg: avg })
-    }
-  }
-  
-  return result
-}
-
-// Find skill transfer opportunities (high-level skills that can apply to weak areas)
-export function findTransferOpportunities(
-  state: AuthorSkillGraphState
-): { from: string; to: string; reason: string }[] {
-  const opportunities: { from: string; to: string; reason: string }[] = []
-  
-  for (const strengthId of state.strengths) {
-    const strengthNode = state.nodes.get(strengthId)
-    if (!strengthNode) continue
-    
-    for (const weaknessId of state.weaknesses) {
-      const weaknessNode = state.nodes.get(weaknessId)
-      if (!weaknessNode) continue
-      
-      // Check if skills are related (same category or share a parent)
-      const strengthAncestors = new Set(getSkillAncestors(state, strengthId))
-      const weaknessAncestors = new Set(getSkillAncestors(state, weaknessId))
-      
-      if (strengthNode.category === weaknessNode.category) {
-        opportunities.push({
-          from: strengthId,
-          to: weaknessId,
-          reason: `${strengthNode.name} techniques can help improve ${weaknessNode.name}`,
-        })
-      } else if (strengthAncestors.has(weaknessId) || weaknessAncestors.has(strengthId)) {
-        opportunities.push({
-          from: strengthId,
-          to: weaknessId,
-          reason: `Foundational skill overlap between ${strengthNode.name} and ${weaknessNode.name}`,
-        })
+// Get recommended focus based on time investment
+export function getTimeInvestmentRecommendation(state: SkillGraphState): { skillId: string; reason: string }[] {
+  const recommendations: { skillId: string; reason: string }[] = []
+  // Find skills with low practice but high dependency
+  for (const [skillId, minutes] of Object.entries(state.focusTime)) {
+    if (minutes < 30) {
+      const dependents = getDependents(state, skillId)
+      if (dependents.length > 0) {
+        recommendations.push({ skillId, reason: `Low practice (${minutes}m) but ${dependents.length} skills depend on it` })
       }
     }
   }
-  
-  return opportunities.slice(0, 5)
-}
-
-// Get overall skill health score
-export function getSkillHealthScore(state: AuthorSkillGraphState): number {
-  const nodes = Array.from(state.nodes.values()).filter(n => n.practiceCount > 0)
-  if (nodes.length === 0) return 0
-  
-  const avgLevel = nodes.reduce((s, n) => s + n.level, 0) / nodes.length
-  const avgMastery = nodes.reduce((s, n) => s + n.masteryScore, 0) / nodes.length
-  
-  return Math.round((avgLevel * 0.6 + avgMastery * 100 * 0.4))
+  // Sort by dependent count
+  return recommendations.sort((a, b) => getDependents(state, a.skillId).length - getDependents(state, b.skillId).length)
 }
