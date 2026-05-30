@@ -1,0 +1,481 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/ai/agents/nanobot/NarrativeTransitionMaster.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">src/ai/agents/nanobot</a> NarrativeTransitionMaster.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/78</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/78</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
+ * NarrativeTransitionMaster — V453
+ * Scene transition types, transition quality analysis, chapter flow optimization for seamless reading.
+ * Inspired by: ruflo (hierarchical flow), thunderbolt (feedback loops), chatdev (continuity)
+ */
+&nbsp;
+export type TransitionType = 'time_jump' | 'scene_cut' | 'parallel' | 'montage' | 'cliffhanger' | 'mirror' | 'sensory'
+export type TransitionQuality = 'abrupt' | 'functional' | 'smooth' | 'exemplary'
+&nbsp;
+export interface TransitionLink {
+  id: string
+  fromChapter: number
+  toChapter: number
+  transitionType: TransitionType
+  quality: TransitionQuality
+  smoothnessScore: number  // 0-100
+  paragraphCount: number  // transition paragraph length
+  callback: string | null  // echo to earlier scene
+}
+&nbsp;
+export interface TransitionReport {
+  totalLinks: number
+  qualityDistribution: Record&lt;TransitionQuality, number&gt;
+  avgSmoothness: number
+  problemTransitions: number
+  recommendations: string[]
+}
+&nbsp;
+export interface NarrativeTransitionState {
+  links: TransitionLink[]
+  report: TransitionReport | null
+  typeAlias: Record&lt;string, unknown&gt;
+}
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function createEmptyState(): NarrativeTransitionState {</span>
+<span class="cstat-no" title="statement not covered" >  return { links: [], report: null, typeAlias: {} }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >function assessQuality(smoothness: number): TransitionQuality {</span>
+<span class="cstat-no" title="statement not covered" >  if (smoothness &lt; 40) return 'abrupt'</span>
+<span class="cstat-no" title="statement not covered" >  if (smoothness &lt; 65) return 'functional'</span>
+<span class="cstat-no" title="statement not covered" >  if (smoothness &lt; 85) return 'smooth'</span>
+<span class="cstat-no" title="statement not covered" >  return 'exemplary'</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function addTransitionLink(</span>
+<span class="cstat-no" title="statement not covered" >  state: NarrativeTransitionState,</span>
+<span class="cstat-no" title="statement not covered" >  fromChapter: number,</span>
+<span class="cstat-no" title="statement not covered" >  toChapter: number,</span>
+<span class="cstat-no" title="statement not covered" >  transitionType: TransitionType,</span>
+<span class="cstat-no" title="statement not covered" >  paragraphCount: number,</span>
+<span class="cstat-no" title="statement not covered" >  callback: string | null = null</span>
+<span class="cstat-no" title="statement not covered" >): NarrativeTransitionState {</span>
+<span class="cstat-no" title="statement not covered" >  const id = `trans_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`</span>
+  
+  // Calculate smoothness: longer transitions are smoother, time jumps and cliffhangers are harder
+<span class="cstat-no" title="statement not covered" >  let smoothness = 60</span>
+<span class="cstat-no" title="statement not covered" >  if (transitionType === 'parallel') smoothness = 85</span>
+<span class="cstat-no" title="statement not covered" >  else if (transitionType === 'sensory') smoothness = 80</span>
+<span class="cstat-no" title="statement not covered" >  else if (transitionType === 'mirror') smoothness = 75</span>
+<span class="cstat-no" title="statement not covered" >  else if (transitionType === 'montage') smoothness = 70</span>
+<span class="cstat-no" title="statement not covered" >  else if (transitionType === 'scene_cut') smoothness = 65</span>
+<span class="cstat-no" title="statement not covered" >  else if (transitionType === 'time_jump') smoothness = 50</span>
+<span class="cstat-no" title="statement not covered" >  else if (transitionType === 'cliffhanger') smoothness = 45</span>
+  
+<span class="cstat-no" title="statement not covered" >  smoothness += Math.min(15, paragraphCount * 3)  // longer = smoother</span>
+<span class="cstat-no" title="statement not covered" >  if (callback) smoothness += 10</span>
+<span class="cstat-no" title="statement not covered" >  smoothness = Math.max(0, Math.min(100, smoothness))</span>
+  
+<span class="cstat-no" title="statement not covered" >  const link: TransitionLink = { id, fromChapter, toChapter, transitionType, quality: assessQuality(smoothness), smoothnessScore: smoothness, paragraphCount, callback }</span>
+  
+<span class="cstat-no" title="statement not covered" >  const links = state.links.filter(l =&gt; !(l.fromChapter === fromChapter &amp;&amp; l.toChapter === toChapter))</span>
+<span class="cstat-no" title="statement not covered" >  links.push(link)</span>
+<span class="cstat-no" title="statement not covered" >  links.sort((a, b) =&gt; a.fromChapter - b.fromChapter)</span>
+  
+<span class="cstat-no" title="statement not covered" >  return { ...state, links }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function generateTransitionReport(state: NarrativeTransitionState): TransitionReport {</span>
+<span class="cstat-no" title="statement not covered" >  if (state.links.length === 0) {</span>
+<span class="cstat-no" title="statement not covered" >    return { totalLinks: 0, qualityDistribution: { abrupt: 0, functional: 0, smooth: 0, exemplary: 0 }, avgSmoothness: 0, problemTransitions: 0, recommendations: [] }</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+  
+<span class="cstat-no" title="statement not covered" >  const qualityDistribution: Record&lt;TransitionQuality, number&gt; = { abrupt: 0, functional: 0, smooth: 0, exemplary: 0 }</span>
+<span class="cstat-no" title="statement not covered" >  let totalSmoothness = 0</span>
+<span class="cstat-no" title="statement not covered" >  let problemTransitions = 0</span>
+  
+<span class="cstat-no" title="statement not covered" >  for (const link of state.links) {</span>
+<span class="cstat-no" title="statement not covered" >    qualityDistribution[link.quality]++</span>
+<span class="cstat-no" title="statement not covered" >    totalSmoothness += link.smoothnessScore</span>
+<span class="cstat-no" title="statement not covered" >    if (link.quality === 'abrupt') problemTransitions++</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+  
+<span class="cstat-no" title="statement not covered" >  const avgSmoothness = Math.round(totalSmoothness / state.links.length)</span>
+  
+<span class="cstat-no" title="statement not covered" >  const recommendations: string[] = []</span>
+<span class="cstat-no" title="statement not covered" >  if (problemTransitions &gt; state.links.length * 0.2) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push(`${problemTransitions} abrupt transitions - smooth them out`)</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (avgSmoothness &lt; 60) recommendations.push('Overall transition quality low - aim for smooth/exemplary')</span>
+<span class="cstat-no" title="statement not covered" >  if (qualityDistribution['exemplary'] === 0 &amp;&amp; state.links.length &gt; 5) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push('No exemplary transitions - create memorable scene changes')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (state.links.some(l =&gt; l.transitionType === 'cliffhanger' &amp;&amp; l.quality === 'abrupt')) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push('Cliffhangers are abrupt by nature - ensure next chapter opens with impact')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (state.links.filter(l =&gt; l.transitionType === 'time_jump').length &gt; state.links.length * 0.4) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push('Many time jumps - use transitional scenes instead')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (avgSmoothness &gt; 80) recommendations.push('Excellent transition quality - seamless reading flow')</span>
+  
+<span class="cstat-no" title="statement not covered" >  return { totalLinks: state.links.length, qualityDistribution, avgSmoothness, problemTransitions, recommendations }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function getTransitionBetween(state: NarrativeTransitionState, fromChapter: number, toChapter: number): TransitionLink | null {</span>
+<span class="cstat-no" title="statement not covered" >  return state.links.find(l =&gt; l.fromChapter === fromChapter &amp;&amp; l.toChapter === toChapter) || null</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function getChapterTransitions(state: NarrativeTransitionState, chapter: number): TransitionLink[] {</span>
+<span class="cstat-no" title="statement not covered" >  return state.links.filter(l =&gt; l.fromChapter === chapter || l.toChapter === chapter)</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function compareTransitionQuality(state: NarrativeTransitionState, from1: number, to1: number, from2: number, to2: number): {</span>
+  smoother: string
+  score1: number
+  score2: number
+<span class="cstat-no" title="statement not covered" >} {</span>
+<span class="cstat-no" title="statement not covered" >  const t1 = state.links.find(l =&gt; l.fromChapter === from1 &amp;&amp; l.toChapter === to1)</span>
+<span class="cstat-no" title="statement not covered" >  const t2 = state.links.find(l =&gt; l.fromChapter === from2 &amp;&amp; l.toChapter === to2)</span>
+<span class="cstat-no" title="statement not covered" >  if (!t1 || !t2) return { smoother: `${from1}-${to1}`, score1: 0, score2: 0 }</span>
+<span class="cstat-no" title="statement not covered" >  return { smoother: t1.smoothnessScore &gt; t2.smoothnessScore ? `${from1}-${to1}` : `${from2}-${to2}`, score1: t1.smoothnessScore, score2: t2.smoothnessScore }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-05-30T18:46:58.536Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

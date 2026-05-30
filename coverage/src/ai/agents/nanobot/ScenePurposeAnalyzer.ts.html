@@ -1,0 +1,484 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/ai/agents/nanobot/ScenePurposeAnalyzer.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">src/ai/agents/nanobot</a> ScenePurposeAnalyzer.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/88</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/88</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
+ * ScenePurposeAnalyzer — V411
+ * Scene purpose validation, filler detection, narrative necessity scoring across chapters.
+ * Inspired by: thunderbolt (feedback loops), generic-agent (optimization), ruflo (hierarchical decomposition)
+ */
+&nbsp;
+export type ScenePurpose = 'character_development' | 'plot_advancement' | 'world_building' | 'theme_expression' | 'tension_build' | 'resolution' | 'transition' | 'foreshadowing' | 'emotional_anchor' | 'filler'
+&nbsp;
+export interface SceneAnalysis {
+  chapterId: string
+  purpose: ScenePurpose
+  necessity: number  // 0-100 (how necessary)
+  wordCount: number
+  contributionScore: number  // overall contribution to narrative
+  issues: string[]
+}
+&nbsp;
+export interface PurposeDistributionReport {
+  totalScenes: number
+  purposeCounts: Record&lt;ScenePurpose, number&gt;
+  avgNecessity: number
+  fillerScenes: string[]
+  recommendations: string[]
+}
+&nbsp;
+export interface ScenePurposeState {
+  analyses: SceneAnalysis[]
+  report: PurposeDistributionReport | null
+  typeAlias: Record&lt;string, unknown&gt;
+}
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function createEmptyState(): ScenePurposeState {</span>
+<span class="cstat-no" title="statement not covered" >  return {</span>
+<span class="cstat-no" title="statement not covered" >    analyses: [],</span>
+<span class="cstat-no" title="statement not covered" >    report: null,</span>
+<span class="cstat-no" title="statement not covered" >    typeAlias: {},</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >function calculateNecessity(purpose: ScenePurpose, wordCount: number, hasDialogue: boolean, hasConflict: boolean): number {</span>
+<span class="cstat-no" title="statement not covered" >  let base = 50</span>
+<span class="cstat-no" title="statement not covered" >  switch (purpose) {</span>
+<span class="cstat-no" title="statement not covered" >    case 'character_development': base = 75; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'plot_advancement': base = 85; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'tension_build': base = 80; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'resolution': base = 90; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'foreshadowing': base = 70; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'emotional_anchor': base = 70; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'world_building': base = 60; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'theme_expression': base = 65; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'transition': base = 40; break</span>
+<span class="cstat-no" title="statement not covered" >    case 'filler': base = 10; break</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (wordCount &lt; 200) base -= 10</span>
+<span class="cstat-no" title="statement not covered" >  if (wordCount &gt; 3000) base -= 5</span>
+<span class="cstat-no" title="statement not covered" >  if (hasDialogue) base += 5</span>
+<span class="cstat-no" title="statement not covered" >  if (hasConflict) base += 10</span>
+<span class="cstat-no" title="statement not covered" >  return Math.max(0, Math.min(100, base))</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function analyzeScene(</span>
+<span class="cstat-no" title="statement not covered" >  state: ScenePurposeState,</span>
+<span class="cstat-no" title="statement not covered" >  chapterId: string,</span>
+<span class="cstat-no" title="statement not covered" >  purpose: ScenePurpose,</span>
+<span class="cstat-no" title="statement not covered" >  wordCount: number,</span>
+<span class="cstat-no" title="statement not covered" >  hasDialogue: boolean = false,</span>
+<span class="cstat-no" title="statement not covered" >  hasConflict: boolean = false</span>
+<span class="cstat-no" title="statement not covered" >): ScenePurposeState {</span>
+<span class="cstat-no" title="statement not covered" >  const necessity = calculateNecessity(purpose, wordCount, hasDialogue, hasConflict)</span>
+<span class="cstat-no" title="statement not covered" >  const contributionScore = Math.round((necessity * 0.7 + (wordCount &gt; 500 ? 30 : wordCount / 20)) * 100) / 100</span>
+  
+<span class="cstat-no" title="statement not covered" >  const issues: string[] = []</span>
+<span class="cstat-no" title="statement not covered" >  if (purpose === 'filler' &amp;&amp; wordCount &gt; 500) issues.push('Long filler scene - consider cutting')</span>
+<span class="cstat-no" title="statement not covered" >  if (wordCount &lt; 150 &amp;&amp; purpose !== 'transition') issues.push('Very short scene - expand or merge')</span>
+<span class="cstat-no" title="statement not covered" >  if (wordCount &gt; 2500 &amp;&amp; purpose !== 'plot_advancement' &amp;&amp; purpose !== 'resolution') {</span>
+<span class="cstat-no" title="statement not covered" >    issues.push('Very long scene for its purpose - consider trimming')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (!hasDialogue &amp;&amp; !hasConflict &amp;&amp; wordCount &gt; 1000) issues.push('Long scene without dialogue or conflict - add tension')</span>
+  
+<span class="cstat-no" title="statement not covered" >  const analysis: SceneAnalysis = { chapterId, purpose, necessity, wordCount, contributionScore, issues }</span>
+<span class="cstat-no" title="statement not covered" >  const analyses = [...state.analyses.filter(a =&gt; !(a.chapterId === chapterId &amp;&amp; a.purpose === purpose)), analysis]</span>
+  
+<span class="cstat-no" title="statement not covered" >  return { ...state, analyses }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function generatePurposeReport(state: ScenePurposeState): PurposeDistributionReport {</span>
+<span class="cstat-no" title="statement not covered" >  if (state.analyses.length === 0) {</span>
+<span class="cstat-no" title="statement not covered" >    return { totalScenes: 0, purposeCounts: { character_development: 0, plot_advancement: 0, world_building: 0, theme_expression: 0, tension_build: 0, resolution: 0, transition: 0, foreshadowing: 0, emotional_anchor: 0, filler: 0 }, avgNecessity: 0, fillerScenes: [], recommendations: [] }</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+  
+<span class="cstat-no" title="statement not covered" >  const purposeCounts: Record&lt;ScenePurpose, number&gt; = {</span>
+<span class="cstat-no" title="statement not covered" >    character_development: 0, plot_advancement: 0, world_building: 0, theme_expression: 0,</span>
+<span class="cstat-no" title="statement not covered" >    tension_build: 0, resolution: 0, transition: 0, foreshadowing: 0, emotional_anchor: 0, filler: 0,</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  for (const a of state.analyses) purposeCounts[a.purpose]++</span>
+  
+<span class="cstat-no" title="statement not covered" >  const avgNecessity = Math.round(state.analyses.reduce((s, a) =&gt; s + a.necessity, 0) / state.analyses.length)</span>
+<span class="cstat-no" title="statement not covered" >  const fillerScenes = state.analyses.filter(a =&gt; a.purpose === 'filler' || a.necessity &lt; 30).map(a =&gt; a.chapterId)</span>
+  
+<span class="cstat-no" title="statement not covered" >  const recommendations: string[] = []</span>
+<span class="cstat-no" title="statement not covered" >  if (purposeCounts['filler'] &gt; state.analyses.length * 0.2) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push(`${purposeCounts['filler']} filler scenes - remove or repurpose`)</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (purposeCounts['plot_advancement'] &lt; state.analyses.length * 0.15) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push('Too few plot-advancing scenes - add narrative momentum')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (avgNecessity &lt; 50) recommendations.push('Overall scene necessity is low - revise weak scenes')</span>
+<span class="cstat-no" title="statement not covered" >  if (purposeCounts['transition'] &gt; state.analyses.length * 0.3) {</span>
+<span class="cstat-no" title="statement not covered" >    recommendations.push('Many transition scenes - condense or merge')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  if (fillerScenes.length &gt; 5) recommendations.push(`${fillerScenes.length} scenes need attention - revise or cut`)</span>
+<span class="cstat-no" title="statement not covered" >  if (avgNecessity &gt; 75) recommendations.push('Strong scene purpose - maintain this quality')</span>
+  
+<span class="cstat-no" title="statement not covered" >  return { totalScenes: state.analyses.length, purposeCounts, avgNecessity, fillerScenes, recommendations }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function getChapterContribution(state: ScenePurposeState, chapterId: string): number {</span>
+<span class="cstat-no" title="statement not covered" >  const chapterAnalyses = state.analyses.filter(a =&gt; a.chapterId === chapterId)</span>
+<span class="cstat-no" title="statement not covered" >  if (chapterAnalyses.length === 0) return 0</span>
+<span class="cstat-no" title="statement not covered" >  return Math.round(chapterAnalyses.reduce((s, a) =&gt; s + a.contributionScore, 0) / chapterAnalyses.length)</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >export function compareScenePurpose(state: ScenePurposeState, purpose1: ScenePurpose, purpose2: ScenePurpose): {</span>
+  moreCommon: ScenePurpose
+  countDiff: number
+<span class="cstat-no" title="statement not covered" >} {</span>
+<span class="cstat-no" title="statement not covered" >  const counts: Record&lt;ScenePurpose, number&gt; = {</span>
+<span class="cstat-no" title="statement not covered" >    character_development: 0, plot_advancement: 0, world_building: 0, theme_expression: 0,</span>
+<span class="cstat-no" title="statement not covered" >    tension_build: 0, resolution: 0, transition: 0, foreshadowing: 0, emotional_anchor: 0, filler: 0,</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >  for (const a of state.analyses) counts[a.purpose]++</span>
+<span class="cstat-no" title="statement not covered" >  return { moreCommon: counts[purpose1] &gt; counts[purpose2] ? purpose1 : purpose2, countDiff: Math.abs(counts[purpose1] - counts[purpose2]) }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-05-30T18:46:58.536Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    
