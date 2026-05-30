@@ -1,109 +1,154 @@
-export type SpeechPattern = 'formal' | 'casual' | 'regional' | 'formal_casual' | 'educated' | 'street'
+/**
+ * DialogueAuthenticityEngine — V413
+ * Dialogue authenticity analysis, character voice consistency, natural speech pattern detection.
+ * Inspired by: chatdev (character analysis), generic-agent (validation), thunderbolt (feedback loops)
+ */
 
-export interface DialogueEntry {
-  dialogueId: string
-  chapter: number
-  speaker: string
-  authenticityScore: number  // 0-100
-  hasSubtext: boolean
+export type SpeechPattern = 'formal' | 'casual' | 'regional' | 'educated' | 'traumatic' | 'powerful' | 'submissive' | 'cryptic'
+
+export interface DialogueMarker {
+  characterId: string
+  chapterId: string
+  avgSentenceLength: number  // words per line
+  formalityLevel: number  // 0-100
+  questionFrequency: number  // 0-100 (how often asks questions)
+  interruptionRate: number  // 0-100 (overlaps/abrupt endings)
   speechPattern: SpeechPattern
-  fillerWordCount: number
-  overlapWithOtherCharacters: number  // how many other characters share similar speech patterns
+  vocabularyComplexity: number  // 0-100
+  uniquePhrases: string[]  // character's catchphrases
+}
+
+export interface DialogueAuthenticityReport {
+  totalDialogueMarkers: number
+  charactersAnalyzed: number
+  inconsistentCharacters: string[]
+  avgAuthenticityScore: number
+  recommendations: string[]
 }
 
 export interface DialogueAuthenticityState {
-  entries: DialogueEntry[]
-  currentChapter: number
-  averageAuthenticity: number
-  dialoguesWithSubtext: number
-  authenticityScore: number  // overall 0-100
+  markers: DialogueMarker[]
+  report: DialogueAuthenticityReport | null
+  typeAlias: Record<string, unknown>
 }
 
-function createDialogueId(): string {
-  return 'diag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5)
-}
-
-export function createEmptyDialogueAuthenticityState(): DialogueAuthenticityState {
-  return { entries: [], currentChapter: 0, averageAuthenticity: 0, dialoguesWithSubtext: 0, authenticityScore: 100 }
+export function createEmptyState(): DialogueAuthenticityState {
+  return { markers: [], report: null, typeAlias: {} }
 }
 
 export function analyzeDialogue(
   state: DialogueAuthenticityState,
-  chapter: number,
-  speaker: string,
-  dialogueText: string,
-  speechPattern: SpeechPattern,
-  hasSubtext: boolean,
-  fillerWordCount: number
+  characterId: string,
+  chapterId: string,
+  lines: string[]
 ): DialogueAuthenticityState {
-  let authenticityScore = 70  // base score
-
-  // Filler words reduce authenticity
-  const fillerRatio = fillerWordCount / Math.max(1, dialogueText.split(' ').length)
-  authenticityScore -= Math.round(fillerRatio * 50)
-
-  // Subtext adds authenticity
-  if (hasSubtext) authenticityScore += 15
-
-  // Very short or very long dialogue reduces authenticity
-  const wordCount = dialogueText.split(' ').length
-  if (wordCount < 5 || wordCount > 400) authenticityScore -= 15
-
-  authenticityScore = Math.max(0, Math.min(100, authenticityScore))
-
-  const entry: DialogueEntry = {
-    dialogueId: createDialogueId(),
-    chapter,
-    speaker,
-    authenticityScore,
-    hasSubtext,
+  if (lines.length === 0) return state
+  
+  const avgSentenceLength = lines.reduce((s, l) => s + l.split(' ').length, 0) / lines.length
+  const questionCount = lines.filter(l => l.includes('?')).length
+  const questionFrequency = (questionCount / lines.length) * 100
+  
+  // Calculate formality based on vocabulary
+  const formalWords = ['therefore', 'however', 'moreover', 'consequently', 'nevertheless']
+  const formalCount = lines.reduce((s, l) => s + formalWords.filter(w => l.toLowerCase().includes(w)).length, 0)
+  const formalityLevel = Math.min(100, Math.max(0, 30 + formalCount * 15 + (avgSentenceLength - 5) * 5))
+  
+  // Vocabulary complexity
+  const allWords = lines.flatMap(l => l.split(' '))
+  const uniqueRatio = new Set(allWords).size / Math.max(1, allWords.length)
+  const vocabularyComplexity = Math.min(100, uniqueRatio * 150 + avgSentenceLength * 2)
+  
+  // Detect speech pattern
+  let speechPattern: SpeechPattern = 'casual'
+  if (formalityLevel > 70) speechPattern = 'formal'
+  else if (formalityLevel < 30) speechPattern = 'casual'
+  if (questionFrequency > 40) speechPattern = 'submissive'
+  if (lines.some(l => l.length > 60)) speechPattern = 'educated'
+  
+  const marker: DialogueMarker = {
+    characterId,
+    chapterId,
+    avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
+    formalityLevel: Math.round(formalityLevel),
+    questionFrequency: Math.round(questionFrequency),
+    interruptionRate: 20,
     speechPattern,
-    fillerWordCount,
-    overlapWithOtherCharacters: 0,
+    vocabularyComplexity: Math.round(vocabularyComplexity),
+    uniquePhrases: [],
   }
+  
+  const markers = [...state.markers.filter(m => !(m.characterId === characterId && m.chapterId === chapterId)), marker]
+  return { ...state, markers }
+}
 
-  const newEntries = [...state.entries, entry]
-  const totalAuth = newEntries.reduce((s, e) => s + e.authenticityScore, 0)
-  const averageAuthenticity = Math.round(totalAuth / newEntries.length)
-  const dialoguesWithSubtext = newEntries.filter(e => e.hasSubtext).length
+export function registerUniquePhrase(state: DialogueAuthenticityState, characterId: string, phrase: string): DialogueAuthenticityState {
+  const markers = state.markers.map(m => {
+    if (m.characterId === characterId && !m.uniquePhrases.includes(phrase)) {
+      return { ...m, uniquePhrases: [...m.uniquePhrases, phrase] }
+    }
+    return m
+  })
+  return { ...state, markers }
+}
 
-  return {
-    entries: newEntries,
-    currentChapter: chapter,
-    averageAuthenticity,
-    dialoguesWithSubtext,
-    authenticityScore: averageAuthenticity,
+export function generateDialogueReport(state: DialogueAuthenticityState): DialogueAuthenticityReport {
+  if (state.markers.length === 0) {
+    return { totalDialogueMarkers: 0, charactersAnalyzed: 0, inconsistentCharacters: [], avgAuthenticityScore: 0, recommendations: [] }
   }
-}
-
-export function getDialoguesBySpeaker(state: DialogueAuthenticityState, speaker: string): DialogueEntry[] {
-  return state.entries.filter(e => e.speaker === speaker)
-}
-
-export function getDialoguesWithSubtext(state: DialogueAuthenticityState): DialogueEntry[] {
-  return state.entries.filter(e => e.hasSubtext)
-}
-
-export function formatDialogueAuthenticitySummary(state: DialogueAuthenticityState): string {
-  let s = "=== Dialogue Authenticity Summary ===" + "\n"
-  s += "Total Dialogues: " + state.entries.length + "\n"
-  s += "Average Authenticity: " + state.averageAuthenticity + "\n"
-  s += "Dialogues with Subtext: " + state.dialoguesWithSubtext + "\n"
-  return s
-}
-
-export function formatDialogueAuthenticityDashboard(state: DialogueAuthenticityState): string {
-  let s = "=== Dialogue Authenticity Dashboard ===" + "\n"
-  s += "Chapter: " + state.currentChapter + " | Authenticity: " + state.authenticityScore + "\n"
-  s += "Total: " + state.entries.length + " | With Subtext: " + state.dialoguesWithSubtext + "\n"
-
-  if (state.entries.length > 0) {
-    s += "\n--- Recent Dialogues ---" + "\n"
-    for (const e of state.entries.slice(-4)) {
-      const subtextFlag = e.hasSubtext ? " [SUBTEXT]" : ""
-      s += "  Ch" + e.chapter + " " + e.speaker + " score=" + e.authenticityScore + " [" + e.speechPattern + "]" + subtextFlag + "\n"
+  
+  const characters = new Set(state.markers.map(m => m.characterId))
+  const charactersAnalyzed = characters.size
+  
+  // Find inconsistent characters (varying formality across chapters)
+  const inconsistentCharacters: string[] = []
+  for (const charId of characters) {
+    const charMarkers = state.markers.filter(m => m.characterId === charId)
+    if (charMarkers.length > 1) {
+      const formalities = charMarkers.map(m => m.formalityLevel)
+      const avg = formalities.reduce((a, b) => a + b, 0) / formalities.length
+      const variance = formalities.reduce((s, f) => s + Math.abs(f - avg), 0) / formalities.length
+      if (variance > 25) inconsistentCharacters.push(charId)
     }
   }
+  
+  // Authenticity score based on consistency and pattern clarity
+  let avgAuthenticityScore = 70
+  avgAuthenticityScore -= inconsistentCharacters.length * 5
+  avgAuthenticityScore += state.markers.filter(m => m.uniquePhrases.length > 0).length * 3
+  
+  const recommendations: string[] = []
+  if (inconsistentCharacters.length > 0) {
+    recommendations.push(`${inconsistentCharacters.length} characters have inconsistent dialogue voices`)
+  }
+  if (avgAuthenticityScore < 60) recommendations.push('Dialogue authenticity needs work - maintain consistent character voices')
+  if (state.markers.filter(m => m.questionFrequency > 50).length > charactersAnalyzed * 0.5) {
+    recommendations.push('Many characters ask too many questions - vary speech patterns')
+  }
+  if (avgAuthenticityScore > 80) recommendations.push('Strong dialogue authenticity - keep voices consistent')
+  if (charactersAnalyzed > 10) recommendations.push('Many characters - ensure each has distinct voice')
+  
+  return {
+    totalDialogueMarkers: state.markers.length,
+    charactersAnalyzed,
+    inconsistentCharacters,
+    avgAuthenticityScore: Math.max(0, Math.min(100, Math.round(avgAuthenticityScore))),
+    recommendations,
+  }
+}
 
-  return s
+export function getCharacterVoiceProfile(state: DialogueAuthenticityState, characterId: string): DialogueMarker | null {
+  const markers = state.markers.filter(m => m.characterId === characterId)
+  if (markers.length === 0) return null
+  
+  return {
+    characterId,
+    chapterId: 'aggregate',
+    avgSentenceLength: Math.round(markers.reduce((s, m) => s + m.avgSentenceLength, 0) / markers.length * 10) / 10,
+    formalityLevel: Math.round(markers.reduce((s, m) => s + m.formalityLevel, 0) / markers.length),
+    questionFrequency: Math.round(markers.reduce((s, m) => s + m.questionFrequency, 0) / markers.length),
+    interruptionRate: Math.round(markers.reduce((s, m) => s + m.interruptionRate, 0) / markers.length),
+    speechPattern: markers[0].speechPattern,
+    vocabularyComplexity: Math.round(markers.reduce((s, m) => s + m.vocabularyComplexity, 0) / markers.length),
+    uniquePhrases: [...new Set(markers.flatMap(m => m.uniquePhrases))],
+  }
 }
