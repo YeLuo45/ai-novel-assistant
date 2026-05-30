@@ -1,150 +1,129 @@
 /**
- * NarrativeVoiceAnalyzer — V373
- * Narrative voice consistency, tone coherence, style fingerprinting across chapters.
- * Inspired by: chatdev (style analysis), ruflo (hierarchical coherence), claude-code (feedback)
+ * NarrativeVoiceAnalyzer — V455
+ * Narrative voice consistency, authorial presence analysis, tone maintenance across chapters.
+ * Inspired by: chatdev (voice synthesis), thunderbolt (feedback loops), generic-agent (optimization)
  */
 
-export type VoiceDimension = 'formality' | 'sentenceComplexity' | 'vocabularyRichness' | 'emotionalTone' | 'pacing' | 'perspective'
+export type VoiceType = 'first_person' | 'third_limited' | 'third_omniscient' | 'second_person' | 'epistolary' | 'unreliable'
 
-export interface VoiceProfile {
-  avgSentenceLength: number
-  avgParagraphLength: number
-  formalityScore: number  // 0-100 (casual → formal)
-  vocabularyScore: number  // 0-100 (common → literary)
-  emotionalTone: number  // 0-100 (restrained → intense)
-  pacingScore: number  // 0-100 (slow → fast)
-  uniqueWordRatio: number  // 0-1
-  dialogueRatio: number  // 0-1
+export interface VoiceMarker {
+  id: string
+  chapterNumber: number
+  voiceType: VoiceType
+  sentenceCount: number
+  avgWordLength: number
+  passiveVoiceRatio: number  // 0-100
+  showDontTellRatio: number  // 0-100 (higher = more showing)
+  dialogueRatio: number  // 0-100
+  authorialIntrusion: number  // 0-100 (how much author comments)
+  voiceConsistency: number  // 0-100
 }
 
-export interface ChapterVoice {
-  chapterId: string
-  profile: VoiceProfile
-  consistencyScore: number  // 0-100 vs overall voice
-  deviantDimensions: VoiceDimension[]
+export interface VoiceReport {
+  totalMarkers: number
+  dominantVoice: VoiceType | null
+  avgConsistency: number
+  deviationChapters: number[]
+  recommendations: string[]
 }
 
 export interface NarrativeVoiceState {
-  overallProfile: VoiceProfile
-  chapterVoices: Record<string, ChapterVoice>
-  recentProfiles: VoiceProfile[]  // last 10 chapters
+  markers: VoiceMarker[]
+  report: VoiceReport | null
   typeAlias: Record<string, unknown>
 }
 
 export function createEmptyState(): NarrativeVoiceState {
-  return {
-    overallProfile: { avgSentenceLength: 15, avgParagraphLength: 100, formalityScore: 50, vocabularyScore: 50, emotionalTone: 50, pacingScore: 50, uniqueWordRatio: 0.4, dialogueRatio: 0.2 },
-    chapterVoices: {},
-    recentProfiles: [],
-    typeAlias: {},
-  }
+  return { markers: [], report: null, typeAlias: {} }
 }
 
-function analyzeText(text: string): VoiceProfile {
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
-  const paragraphs = text.split(/\n\n/).filter(p => p.trim().length > 0)
-  const words = text.split(/\s+/).filter(w => w.length > 0)
-  const uniqueWords = new Set(words.map(w => w.toLowerCase()))
-  const dialogueCount = (text.match(/"[^"]*"/g) || []).length
-  const totalLength = words.length
-  
-  const avgSentenceLength = sentences.length > 0 ? totalLength / sentences.length : totalLength
-  const avgParagraphLength = paragraphs.length > 0 ? totalLength / paragraphs.length : totalLength
-  const uniqueWordRatio = totalLength > 0 ? uniqueWords.size / totalLength : 0
-  const dialogueRatio = totalLength > 0 ? dialogueCount * 10 / totalLength : 0
-  
-  // Formality: long sentences + low dialogue = formal
-  const formalityScore = Math.min(100, Math.max(0, (avgSentenceLength / 30 * 50) + (1 - dialogueRatio) * 50))
-  // Vocabulary: high unique word ratio = rich vocabulary
-  const vocabularyScore = Math.min(100, uniqueWordRatio * 200)
-  // Emotional tone: punctuation density, exclamation, caps
-  const exclamationCount = (text.match(/!/g) || []).length
-  const capsRatio = words.filter(w => w === w.toUpperCase() && w.length > 1).length / totalLength
-  const emotionalTone = Math.min(100, (exclamationCount / Math.max(1, sentences.length) * 200) + capsRatio * 300)
-  // Pacing: short sentences + action words = fast pace
-  const actionWords = (text.match(/\b(ran|hit|shot|crashed|exploded|fell|rushed|broke)\b/gi) || []).length
-  const pacingScore = Math.min(100, (100 - avgSentenceLength / 2) + actionWords * 10)
-  
-  return {
-    avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
-    avgParagraphLength: Math.round(avgParagraphLength * 10) / 10,
-    formalityScore: Math.round(formalityScore),
-    vocabularyScore: Math.round(vocabularyScore),
-    emotionalTone: Math.round(emotionalTone),
-    pacingScore: Math.round(pacingScore),
-    uniqueWordRatio: Math.round(uniqueWordRatio * 1000) / 1000,
-    dialogueRatio: Math.round(Math.min(1, dialogueRatio) * 1000) / 1000,
-  }
-}
-
-export function analyzeChapterVoice(
+export function addVoiceMarker(
   state: NarrativeVoiceState,
-  chapterId: string,
-  text: string
+  chapterNumber: number,
+  voiceType: VoiceType,
+  sentenceCount: number,
+  avgWordLength: number,
+  passiveVoiceRatio: number,
+  showDontTellRatio: number,
+  dialogueRatio: number,
+  authorialIntrusion: number
 ): NarrativeVoiceState {
-  const profile = analyzeText(text)
+  const id = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
   
-  // Update overall profile with exponential moving average
-  const alpha = 0.2
-  const overall: VoiceProfile = {
-    avgSentenceLength: state.overallProfile.avgSentenceLength * (1 - alpha) + profile.avgSentenceLength * alpha,
-    avgParagraphLength: state.overallProfile.avgParagraphLength * (1 - alpha) + profile.avgParagraphLength * alpha,
-    formalityScore: state.overallProfile.formalityScore * (1 - alpha) + profile.formalityScore * alpha,
-    vocabularyScore: state.overallProfile.vocabularyScore * (1 - alpha) + profile.vocabularyScore * alpha,
-    emotionalTone: state.overallProfile.emotionalTone * (1 - alpha) + profile.emotionalTone * alpha,
-    pacingScore: state.overallProfile.pacingScore * (1 - alpha) + profile.pacingScore * alpha,
-    uniqueWordRatio: state.overallProfile.uniqueWordRatio * (1 - alpha) + profile.uniqueWordRatio * alpha,
-    dialogueRatio: state.overallProfile.dialogueRatio * (1 - alpha) + profile.dialogueRatio * alpha,
-  }
+  // Consistency decreases with: high passive, low show/tell, high authorial intrusion
+  let consistency = 80
+  if (passiveVoiceRatio > 30) consistency -= (passiveVoiceRatio - 30) * 0.5
+  if (showDontTellRatio < 40) consistency -= (40 - showDontTellRatio) * 0.3
+  if (authorialIntrusion > 40) consistency -= (authorialIntrusion - 40) * 0.4
+  if (dialogueRatio > 60) consistency -= (dialogueRatio - 60) * 0.2
+  if (sentenceCount < 5) consistency -= 10
+  consistency = Math.max(0, Math.min(100, consistency))
   
-  // Calculate consistency score
-  const dimensions: VoiceDimension[] = ['formality', 'sentenceComplexity', 'vocabularyRichness', 'emotionalTone', 'pacing', 'perspective']
-  const deviantDimensions: VoiceDimension[] = []
-  let consistencySum = 0
+  const marker: VoiceMarker = { id, chapterNumber, voiceType, sentenceCount, avgWordLength, passiveVoiceRatio, showDontTellRatio, dialogueRatio, authorialIntrusion, voiceConsistency: consistency }
   
-  const checks: [VoiceDimension, number, number][] = [
-    ['formality', overall.formalityScore, profile.formalityScore],
-    ['sentenceComplexity', overall.avgSentenceLength, profile.avgSentenceLength],
-    ['vocabularyRichness', overall.vocabularyScore, profile.vocabularyScore],
-    ['emotionalTone', overall.emotionalTone, profile.emotionalTone],
-    ['pacing', overall.pacingScore, profile.pacingScore],
-    ['perspective', overall.dialogueRatio * 100, profile.dialogueRatio * 100],
-  ]
+  const markers = state.markers.filter(m => m.chapterNumber !== chapterNumber)
+  markers.push(marker)
+  markers.sort((a, b) => a.chapterNumber - b.chapterNumber)
   
-  for (const [dim, overallVal, chapterVal] of checks) {
-    const diff = Math.abs(overallVal - chapterVal)
-    if (diff > 20) deviantDimensions.push(dim)
-    consistencySum += Math.max(0, 100 - diff)
-  }
-  
-  const consistencyScore = Math.round(consistencySum / checks.length)
-  
-  const chapterVoice: ChapterVoice = { chapterId, profile, consistencyScore, deviantDimensions }
-  const chapterVoices = { ...state.chapterVoices, [chapterId]: chapterVoice }
-  const recentProfiles = [...state.recentProfiles, profile].slice(-10)
-  
-  return { ...state, overallProfile: overall, chapterVoices, recentProfiles }
+  return { ...state, markers }
 }
 
-export function getVoiceConsistency(state: NarrativeVoiceState, chapterId: string): number {
-  return state.chapterVoices[chapterId]?.consistencyScore ?? 0
-}
-
-export function compareChapterVoices(state: NarrativeVoiceState, ch1: string, ch2: string) {
-  const v1 = state.chapterVoices[ch1]
-  const v2 = state.chapterVoices[ch2]
-  if (!v1 || !v2) return null
-  return {
-    moreFormal: v1.profile.formalityScore > v2.profile.formalityScore ? ch1 : ch2,
-    richerVocabulary: v1.profile.vocabularyScore > v2.profile.vocabularyScore ? ch1 : ch2,
-    moreIntense: v1.profile.emotionalTone > v2.profile.emotionalTone ? ch1 : ch2,
-    fasterPaced: v1.profile.pacingScore > v2.profile.pacingScore ? ch1 : ch2,
+export function detectDominantVoice(state: NarrativeVoiceState): VoiceType | null {
+  if (state.markers.length === 0) return null
+  const counts: Record<string, number> = {}
+  for (const m of state.markers) {
+    counts[m.voiceType] = (counts[m.voiceType] || 0) + 1
   }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0] as VoiceType || null
 }
 
-export function detectVoiceDrift(state: NarrativeVoiceState): { hasDrift: boolean; driftedChapters: string[] } {
-  const voices = Object.values(state.chapterVoices)
-  if (voices.length < 3) return { hasDrift: false, driftedChapters: [] }
-  const driftedChapters = voices.filter(v => v.consistencyScore < 70).map(v => v.chapterId)
-  return { hasDrift: driftedChapters.length > voices.length * 0.3, driftedChapters }
+export function findVoiceDeviations(state: NarrativeVoiceState): number[] {
+  if (state.markers.length < 2) return []
+  const dominated = detectDominantVoice(state)
+  if (!dominated) return []
+  return state.markers.filter(m => m.voiceType !== dominated && Math.abs(m.voiceConsistency - state.markers[0].voiceConsistency) > 20).map(m => m.chapterNumber)
+}
+
+export function generateVoiceReport(state: NarrativeVoiceState): VoiceReport {
+  if (state.markers.length === 0) {
+    return { totalMarkers: 0, dominantVoice: null, avgConsistency: 100, deviationChapters: [], recommendations: [] }
+  }
+  
+  const totalMarkers = state.markers.length
+  const dominantVoice = detectDominantVoice(state)
+  const avgConsistency = Math.round(state.markers.reduce((s, m) => s + m.voiceConsistency, 0) / totalMarkers)
+  const deviationChapters = findVoiceDeviations(state)
+  
+  const recommendations: string[] = []
+  if (deviationChapters.length > 0) {
+    recommendations.push(`${deviationChapters.length} chapters with voice deviation - review ${deviationChapters.join(', ')}`)
+  }
+  if (avgConsistency < 70) recommendations.push('Low voice consistency - maintain narrative voice throughout')
+  if (state.markers.some(m => m.passiveVoiceRatio > 40)) {
+    recommendations.push('High passive voice in some chapters - use active construction')
+  }
+  if (state.markers.some(m => m.showDontTellRatio < 30)) {
+    recommendations.push('Tell-dominant chapters detected - add more showing, less telling')
+  }
+  if (dominantVoice === 'unreliable' && state.markers.length > 5) {
+    recommendations.push('Unreliable narrator maintained well - ensure signals to reader')
+  }
+  if (avgConsistency > 90) recommendations.push('Excellent voice consistency - strong authorial presence')
+  
+  return { totalMarkers, dominantVoice, avgConsistency, deviationChapters, recommendations }
+}
+
+export function getChapterVoice(state: NarrativeVoiceState, chapter: number): VoiceMarker | null {
+  return state.markers.find(m => m.chapterNumber === chapter) || null
+}
+
+export function compareChapterVoice(state: NarrativeVoiceState, ch1: number, ch2: number): {
+  moreConsistent: number
+  score1: number
+  score2: number
+} {
+  const m1 = state.markers.find(m => m.chapterNumber === ch1)
+  const m2 = state.markers.find(m => m.chapterNumber === ch2)
+  if (!m1 || !m2) return { moreConsistent: ch1, score1: 0, score2: 0 }
+  return { moreConsistent: m1.voiceConsistency > m2.voiceConsistency ? ch1 : ch2, score1: m1.voiceConsistency, score2: m2.voiceConsistency }
 }
