@@ -233,7 +233,9 @@ export function getAvailableChoices(state: BranchState, nodeId: string, context:
     // Simple condition evaluation - check if context satisfies condition
     // Format: "engagementScore > 60" or "pacing == 'slow'"
     try {
-      const [key, op, val] = choice.condition.split(/([><=!]+)/)
+      const [rawKey, op, rawVal] = choice.condition.split(/([><=!]+)/)
+      const key = rawKey.trim()
+      const val = rawVal.trim()
       const ctxVal = context[key]
       if (op === '>' || op === '<' || op === '>=' || op === '<=') {
         return new Function(`return ${ctxVal} ${op} ${Number(val)}`)()
