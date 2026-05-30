@@ -236,7 +236,7 @@ export function getAvailableChoices(state: BranchState, nodeId: string, context:
       const [key, op, val] = choice.condition.split(/([><=!]+)/)
       const ctxVal = context[key]
       if (op === '>' || op === '<' || op === '>=' || op === '<=') {
-        return eval(`${ctxVal} ${op} ${val}`)
+        return new Function(`return ${ctxVal} ${op} ${Number(val)}`)()
       }
       if (op === '==' || op === '===') {
         return ctxVal == val.replace(/['"]/g, '')
