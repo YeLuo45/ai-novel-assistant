@@ -1,115 +1,82 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createEmptyDialogueAuthenticityState,
+  createEmptyState,
   analyzeDialogue,
-  getDialoguesBySpeaker,
-  getDialoguesWithSubtext,
-  formatDialogueAuthenticitySummary,
-  formatDialogueAuthenticityDashboard,
+  registerUniquePhrase,
+  generateDialogueReport,
+  getCharacterVoiceProfile,
 } from './DialogueAuthenticityEngine'
 
-describe('createEmptyDialogueAuthenticityState', () => {
-  it('should create empty state', () => {
-    const state = createEmptyDialogueAuthenticityState()
-    expect(state.entries.length).toBe(0)
-    expect(state.averageAuthenticity).toBe(0)
-    expect(state.authenticityScore).toBe(100)
+describe('createEmptyState', () => {
+  it('should create empty dialogue state', () => {
+    const s = createEmptyState()
+    expect(s.markers).toEqual([])
+    expect(s.typeAlias).toEqual({})
   })
 })
 
 describe('analyzeDialogue', () => {
-  it('should add dialogue entry', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello there', 'casual', false, 0)
-    expect(state.entries.length).toBe(1)
-    expect(state.currentChapter).toBe(1)
+  it('should analyze dialogue lines', () => {
+    let s = createEmptyState()
+    const lines = ['Hello there.', 'How are you?', 'I am fine.']
+    s = analyzeDialogue(s, 'hero', 'ch1', lines)
+    expect(s.markers.length).toBe(1)
+    expect(s.markers[0].characterId).toBe('hero')
   })
 
-  it('should boost authenticity for dialogues with subtext', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'I am fine', 'casual', false, 0)
-    const noSubtext = state.entries[0].authenticityScore
-    state = analyzeDialogue(state, 2, 'Jane', 'I am fine', 'casual', true, 0)
-    expect(state.entries[1].authenticityScore).toBeGreaterThan(noSubtext)
+  it('should detect question frequency', () => {
+    let s = createEmptyState()
+    const lines = ['Who are you?', 'What is this?', 'Where are we?']
+    s = analyzeDialogue(s, 'hero', 'ch1', lines)
+    expect(s.markers[0].questionFrequency).toBeGreaterThan(50)
   })
 
-  it('should penalize high filler word ratio', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'um like you know', 'casual', false, 3)
-    expect(state.entries[0].authenticityScore).toBeLessThan(70)
-  })
-
-  it('should update average authenticity', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
-    state = analyzeDialogue(state, 2, 'Jane', 'Hi there', 'casual', false, 0)
-    expect(state.averageAuthenticity).toBeGreaterThan(0)
-  })
-
-  it('should track subtext dialogue count', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
-    state = analyzeDialogue(state, 2, 'Jane', 'Hi', 'casual', false, 0)
-    expect(state.dialoguesWithSubtext).toBe(1)
+  it('should detect formal speech', () => {
+    let s = createEmptyState()
+    const lines = ['Therefore, we must proceed accordingly.', 'However, there are considerations.']
+    s = analyzeDialogue(s, 'mentor', 'ch1', lines)
+    expect(s.markers[0].formalityLevel).toBeGreaterThan(50)
   })
 })
 
-describe('getDialoguesBySpeaker', () => {
-  it('should return dialogues for specific speaker', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
-    state = analyzeDialogue(state, 2, 'Jane', 'Hi', 'casual', false, 0)
-    const johns = getDialoguesBySpeaker(state, 'John')
-    expect(johns.length).toBe(1)
-    expect(johns[0].speaker).toBe('John')
+describe('registerUniquePhrase', () => {
+  it('should register unique phrase', () => {
+    let s = createEmptyState()
+    s = analyzeDialogue(s, 'hero', 'ch1', ['Hello world'])
+    s = registerUniquePhrase(s, 'hero', 'May the force be with you')
+    expect(s.markers[0].uniquePhrases).toContain('May the force be with you')
   })
 })
 
-describe('getDialoguesWithSubtext', () => {
-  it('should return only dialogues with subtext', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
-    state = analyzeDialogue(state, 2, 'Jane', 'Hi', 'casual', false, 0)
-    const withSubtext = getDialoguesWithSubtext(state)
-    expect(withSubtext.length).toBe(1)
+describe('generateDialogueReport', () => {
+  it('should return empty report', () => {
+    const s = createEmptyState()
+    const report = generateDialogueReport(s)
+    expect(report.totalDialogueMarkers).toBe(0)
+    expect(report.avgAuthenticityScore).toBe(0)
+  })
+
+  it('should detect consistent dialogue', () => {
+    let s = createEmptyState()
+    s = analyzeDialogue(s, 'hero', 'ch1', ['Hello there.', 'How are you?'])
+    s = analyzeDialogue(s, 'hero', 'ch2', ['Greetings.', 'How do you do?'])
+    const report = generateDialogueReport(s)
+    expect(report.charactersAnalyzed).toBe(1)
   })
 })
 
-describe('formatDialogueAuthenticitySummary', () => {
-  it('should show dialogue count', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
-    const summary = formatDialogueAuthenticitySummary(state)
-    expect(summary).toContain('Total Dialogues: 1')
+describe('getCharacterVoiceProfile', () => {
+  it('should return null for unknown character', () => {
+    const s = createEmptyState()
+    expect(getCharacterVoiceProfile(s, 'unknown')).toBeNull()
   })
 
-  it('should show average authenticity', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', false, 0)
-    const summary = formatDialogueAuthenticitySummary(state)
-    expect(summary).toContain('Average Authenticity:')
-  })
-
-  it('should show subtext count', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
-    const summary = formatDialogueAuthenticitySummary(state)
-    expect(summary).toContain('Dialogues with Subtext: 1')
-  })
-})
-
-describe('formatDialogueAuthenticityDashboard', () => {
-  it('should show chapter', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 3, 'John', 'Hello', 'casual', false, 0)
-    const dashboard = formatDialogueAuthenticityDashboard(state)
-    expect(dashboard).toContain('Chapter: 3')
-  })
-
-  it('should show SUBTEXT flag', () => {
-    let state = createEmptyDialogueAuthenticityState()
-    state = analyzeDialogue(state, 1, 'John', 'Hello', 'casual', true, 0)
-    const dashboard = formatDialogueAuthenticityDashboard(state)
-    expect(dashboard).toContain('SUBTEXT')
+  it('should aggregate voice profile', () => {
+    let s = createEmptyState()
+    s = analyzeDialogue(s, 'hero', 'ch1', ['Hello there.'])
+    s = analyzeDialogue(s, 'hero', 'ch2', ['Greetings.'])
+    const profile = getCharacterVoiceProfile(s, 'hero')
+    expect(profile).not.toBeNull()
+    expect(profile!.characterId).toBe('hero')
   })
 })
