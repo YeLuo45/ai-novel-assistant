@@ -1,95 +1,115 @@
 import { describe, it, expect } from 'vitest'
 import {
   createEmptyState,
-  analyzeChapterVoice,
-  getVoiceConsistency,
-  compareChapterVoices,
-  detectVoiceDrift,
+  addVoiceMarker,
+  detectDominantVoice,
+  findVoiceDeviations,
+  generateVoiceReport,
+  getChapterVoice,
+  compareChapterVoice,
 } from './NarrativeVoiceAnalyzer'
 
 describe('createEmptyState', () => {
   it('should create empty voice state', () => {
     const s = createEmptyState()
-    expect(s.overallProfile.avgSentenceLength).toBe(15)
-    expect(s.chapterVoices).toEqual({})
+    expect(s.markers).toEqual([])
     expect(s.typeAlias).toEqual({})
   })
 })
 
-describe('analyzeChapterVoice', () => {
-  it('should analyze casual dialogue', () => {
+describe('addVoiceMarker', () => {
+  it('should add voice marker', () => {
     let s = createEmptyState()
-    s = analyzeChapterVoice(s, 'ch1', 'Hey! Are you coming?')
-    expect(s.chapterVoices['ch1']).toBeDefined()
-    expect(s.chapterVoices['ch1'].profile.formalityScore).toBeLessThan(60)
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    expect(s.markers.length).toBe(1)
+    expect(s.markers[0].voiceType).toBe('first_person')
+    expect(s.markers[0].voiceConsistency).toBeGreaterThan(50)
   })
 
-  it('should analyze formal prose', () => {
+  it('should reduce consistency for high passive', () => {
     let s = createEmptyState()
-    const formalText = 'The council convened at dawn. The ancient hall was illuminated by candlelight. Representatives from each province gathered in solemn silence.'
-    s = analyzeChapterVoice(s, 'ch1', formalText)
-    expect(s.chapterVoices['ch1'].profile.formalityScore).toBeGreaterThan(50)
-  })
-
-  it('should analyze action text', () => {
-    let s = createEmptyState()
-    const actionText = 'He ran. The building crashed. Glass exploded. People screamed.'
-    s = analyzeChapterVoice(s, 'ch1', actionText)
-    expect(s.chapterVoices['ch1'].profile.pacingScore).toBeGreaterThan(60)
-  })
-
-  it('should update overall profile', () => {
-    let s = createEmptyState()
-    s = analyzeChapterVoice(s, 'ch1', 'The hero walked through the dark forest.')
-    expect(s.overallProfile.avgSentenceLength).not.toBe(15)
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 50, 70, 30, 5)
+    // passive 50 > 30, reduces by 10
+    expect(s.markers[0].voiceConsistency).toBeLessThan(80)
   })
 })
 
-describe('getVoiceConsistency', () => {
-  it('should return 0 for unknown chapter', () => {
-    const s = createEmptyState()
-    expect(getVoiceConsistency(s, 'unknown')).toBe(0)
+describe('detectDominantVoice', () => {
+  it('should return null for empty', () => {
+    expect(detectDominantVoice(createEmptyState())).toBeNull()
   })
 
-  it('should return consistency score', () => {
+  it('should return most common voice', () => {
     let s = createEmptyState()
-    s = analyzeChapterVoice(s, 'ch1', 'A story begins with a hero.')
-    expect(getVoiceConsistency(s, 'ch1')).toBeGreaterThan(0)
+    s = addVoiceMarker(s, 1, 'third_limited', 20, 5.5, 15, 70, 30, 5)
+    s = addVoiceMarker(s, 2, 'third_limited', 20, 5.5, 15, 70, 30, 5)
+    s = addVoiceMarker(s, 3, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    expect(detectDominantVoice(s)).toBe('third_limited')
   })
 })
 
-describe('compareChapterVoices', () => {
-  it('should return null for unknown chapters', () => {
-    const s = createEmptyState()
-    expect(compareChapterVoices(s, 'ch1', 'ch2')).toBeNull()
+describe('findVoiceDeviations', () => {
+  it('should return empty for insufficient data', () => {
+    let s = createEmptyState()
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    expect(findVoiceDeviations(s)).toEqual([])
   })
 
-  it('should compare two chapters', () => {
+  it('should detect voice deviations', () => {
     let s = createEmptyState()
-    s = analyzeChapterVoice(s, 'ch1', 'A formal and literary text with long sentences and complex vocabulary.')
-    s = analyzeChapterVoice(s, 'ch2', 'Hey! Run! Fast!')
-    const result = compareChapterVoices(s, 'ch1', 'ch2')
-    expect(result).not.toBeNull()
-    expect(result!.moreFormal).toBe('ch1')
+    // ch1: first_person, intrusion 5 → consistency 80
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    // ch2: first_person, intrusion 5 → consistency 80
+    s = addVoiceMarker(s, 2, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    // ch3: third_omniscient, intrusion 90, dialogue 80 → consistency 52 (80-(90-40)*0.4-(80-60)*0.2=80-20-4=56)
+    s = addVoiceMarker(s, 3, 'third_omniscient', 20, 5.5, 15, 70, 80, 90)
+    // dominant is first_person (2 vs 1)
+    // ch3: |52-80|=28 > 20 → deviation
+    const deviations = findVoiceDeviations(s)
+    expect(deviations).toContain(3)
   })
 })
 
-describe('detectVoiceDrift', () => {
-  it('should return no drift for few chapters', () => {
+describe('generateVoiceReport', () => {
+  it('should return empty report', () => {
     const s = createEmptyState()
-    const result = detectVoiceDrift(s)
-    expect(result.hasDrift).toBe(false)
+    const report = generateVoiceReport(s)
+    expect(report.totalMarkers).toBe(0)
+    expect(report.avgConsistency).toBe(100)
   })
 
-  it('should detect voice drift', () => {
+  it('should calculate avg consistency', () => {
     let s = createEmptyState()
-    // First 3 chapters with similar voice
-    s = analyzeChapterVoice(s, 'ch1', 'A hero walked. He was brave.')
-    s = analyzeChapterVoice(s, 'ch2', 'The hero continued. He was strong.')
-    s = analyzeChapterVoice(s, 'ch3', 'The hero journeyed. He fought.')
-    // Ch4 with very different voice (very short = very fast pace)
-    s = analyzeChapterVoice(s, 'ch4', 'Boom! Crash! Bang!')
-    const result = detectVoiceDrift(s)
-    expect(result.driftedChapters.length).toBeGreaterThanOrEqual(0)
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    s = addVoiceMarker(s, 2, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    const report = generateVoiceReport(s)
+    expect(report.totalMarkers).toBe(2)
+    expect(report.avgConsistency).toBeGreaterThan(50)
+  })
+})
+
+describe('getChapterVoice', () => {
+  it('should return chapter voice', () => {
+    let s = createEmptyState()
+    s = addVoiceMarker(s, 5, 'third_limited', 20, 5.5, 15, 70, 30, 5)
+    const marker = getChapterVoice(s, 5)
+    expect(marker).not.toBeNull()
+    expect(marker!.voiceType).toBe('third_limited')
+  })
+
+  it('should return null for missing', () => {
+    let s = createEmptyState()
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 15, 70, 30, 5)
+    expect(getChapterVoice(s, 99)).toBeNull()
+  })
+})
+
+describe('compareChapterVoice', () => {
+  it('should compare consistency scores', () => {
+    let s = createEmptyState()
+    s = addVoiceMarker(s, 1, 'first_person', 20, 5.5, 50, 70, 30, 5)  // lower
+    s = addVoiceMarker(s, 2, 'first_person', 20, 5.5, 10, 70, 30, 5)  // higher
+    const result = compareChapterVoice(s, 1, 2)
+    expect(result.moreConsistent).toBe(2)
   })
 })
