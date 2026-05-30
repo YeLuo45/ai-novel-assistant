@@ -1,5 +1,0 @@
-export * from './types'
-export { MultiVersionGenerator, multiVersionGenerator } from './MultiVersionGenerator'
-export { VersionComparator, versionComparator } from './VersionComparator'
-export { VersionMerger, versionMerger } from './VersionMerger'
-export * from './versionConfig'
