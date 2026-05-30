@@ -1,175 +1,168 @@
 /**
- * NarrativeVoiceConsistencyEngine — V525
- * Maintains consistent narrative voice, style, and tone across all chapters.
- * Inspired by: claude-code (precise control) + chatdev (multi-agent voice)
+ * NarrativeVoiceConsistencyEngine — V393
+ * Narrative voice and tone consistency tracking across chapters, revision passes, and authorial intent.
+ * Inspired by: chatdev (multi-perspective), generic-agent (validation), thunderbolt (feedback loops)
  */
 
-export interface NarrativeVoice {
-  voiceId: string
-  name: string
-  perspective: 'first_person' | 'third_limited' | 'third_omniscient' | 'second_person'
-  toneProfile: Record<string, number>  // adjective -> intensity (0-100)
-  vocabularyLevel: number             // 1-10 (simple to literary)
-  sentenceComplexity: number          // 1-10 (simple to complex)
-  emotionalTemperature: number        // -100 (cold) to 100 (intense)
-  pacingPreference: number            // 0 (meditative) to 100 (fast-paced)
-  quirks: string[]                    // e.g., "uses metaphors", "short paragraphs"
+export type VoiceQuality = 'formal' | 'casual' | 'poetic' | 'sparse' | 'descriptive' | 'conversational' | 'mixed'
+
+export interface VoiceMarker {
+  chapterId: string
+  formalityLevel: number  // 0-100 (0=casual, 100=formal)
+  sentenceComplexity: number  // 0-100 (average sentence length)
+  vocabularyRichness: number  // 0-100
+  pacingTone: 'fast' | 'moderate' | 'slow'
+  emotionalTemperature: number  // 0-100 (how emotionally charged)
+  voiceQuality: VoiceQuality
 }
 
-export interface VoiceState {
-  voices: Record<string, NarrativeVoice>
-  activeVoice: string | null
-  voiceTransitions: Array<{ chapter: number, fromVoice: string, toVoice: string, reason: string }>
-  consistencyViolations: Array<{ chapter: number, page: number, description: string, severity: 'minor' | 'moderate' | 'major' }>
-  currentPerspective: NarrativeVoice['perspective'] | null
+export interface VoiceConsistencyReport {
+  overallConsistency: number  // 0-100
+  chaptersAnalyzed: number
+  inconsistentChapters: string[]
+  dominantFormality: number
+  dominantPacing: string
+  recommendations: string[]
 }
 
-export function createEmptyState(): VoiceState {
-  return {
-    voices: {},
-    activeVoice: null,
-    voiceTransitions: [],
-    consistencyViolations: [],
-    currentPerspective: null
-  }
+export interface NarrativeVoiceState {
+  markers: VoiceMarker[]
+  consistencyReport: VoiceConsistencyReport | null
+  targetVoice: VoiceMarker | null
+  typeAlias: Record<string, unknown>
 }
 
-export function registerNarrativeVoice(state: VoiceState, voiceId: string, name: string, perspective: NarrativeVoice['perspective'], toneProfile: Record<string, number>, vocabularyLevel: number, sentenceComplexity: number, emotionalTemperature: number, pacingPreference: number, quirks: string[]): VoiceState {
-  if (state.voices[voiceId]) return state
+export function createEmptyState(): NarrativeVoiceState {
+  return { markers: [], consistencyReport: null, targetVoice: null, typeAlias: {} }
+}
+
+function detectVoiceQuality(formality: number, complexity: number, richness: number, emotional: number): VoiceQuality {
+  if (formality > 70 && complexity > 60 && richness > 60) return 'formal'
+  if (formality < 40 && complexity < 40) return 'casual'
+  if (richness > 70 && emotional > 60) return 'poetic'
+  if (complexity < 30 && formality < 40) return 'sparse'
+  if (richness > 50 && complexity > 50) return 'descriptive'
+  if (formality < 30 && emotional > 40) return 'conversational'
+  return 'mixed'
+}
+
+export function analyzeVoice(
+  state: NarrativeVoiceState,
+  chapterId: string,
+  avgSentenceLength: number,
+  uniqueWordRatio: number,
+  emotionallyChargedWordCount: number,
+  totalWords: number
+): NarrativeVoiceState {
+  const formalityLevel = Math.min(100, Math.max(0, 50 + (avgSentenceLength - 15) * 3 + (uniqueWordRatio - 0.3) * 200))
+  const sentenceComplexity = Math.min(100, avgSentenceLength * 3)
+  const vocabularyRichness = Math.min(100, uniqueWordRatio * 150)
+  const emotionalTemperature = Math.min(100, (emotionallyChargedWordCount / Math.max(1, totalWords)) * 1000)
   
-  return {
-    ...state,
-    voices: {
-      ...state.voices,
-      [voiceId]: { voiceId, name, perspective, toneProfile, vocabularyLevel, sentenceComplexity, emotionalTemperature, pacingPreference, quirks }
+  const pacingTone: VoiceMarker['pacingTone'] = avgSentenceLength < 10 ? 'fast' : avgSentenceLength < 20 ? 'moderate' : 'slow'
+  
+  const voiceQuality = detectVoiceQuality(formalityLevel, sentenceComplexity, vocabularyRichness, emotionalTemperature)
+  
+  const marker: VoiceMarker = {
+    chapterId,
+    formalityLevel: Math.round(formalityLevel),
+    sentenceComplexity: Math.round(sentenceComplexity),
+    vocabularyRichness: Math.round(vocabularyRichness),
+    pacingTone,
+    emotionalTemperature: Math.round(emotionalTemperature),
+    voiceQuality,
+  }
+  
+  const markers = [...state.markers.filter(m => m.chapterId !== chapterId), marker]
+  
+  return { ...state, markers }
+}
+
+export function setTargetVoice(
+  state: NarrativeVoiceState,
+  formalityLevel: number,
+  sentenceComplexity: number,
+  vocabularyRichness: number,
+  pacingTone: VoiceMarker['pacingTone'],
+  emotionalTemperature: number
+): NarrativeVoiceState {
+  const voiceQuality = detectVoiceQuality(formalityLevel, sentenceComplexity, vocabularyRichness, emotionalTemperature)
+  const targetVoice: VoiceMarker = {
+    chapterId: '__target__',
+    formalityLevel,
+    sentenceComplexity,
+    vocabularyRichness,
+    pacingTone,
+    emotionalTemperature,
+    voiceQuality,
+  }
+  return { ...state, targetVoice }
+}
+
+export function generateConsistencyReport(state: NarrativeVoiceState): VoiceConsistencyReport {
+  if (state.markers.length === 0) {
+    return { overallConsistency: 100, chaptersAnalyzed: 0, inconsistentChapters: [], dominantFormality: 50, dominantPacing: 'moderate', recommendations: [] }
+  }
+  
+  const formalityValues = state.markers.map(m => m.formalityLevel)
+  const dominantFormality = Math.round(formalityValues.reduce((a, b) => a + b, 0) / formalityValues.length)
+  
+  const pacingCounts: Record<string, number> = { fast: 0, moderate: 0, slow: 0 }
+  for (const m of state.markers) pacingCounts[m.pacingTone]++
+  const dominantPacing = Object.entries(pacingCounts).sort((a, b) => b[1] - a[1])[0][0] as VoiceMarker['pacingTone']
+  
+  // Find inconsistent chapters
+  const inconsistentChapters: string[] = []
+  for (const marker of state.markers) {
+    if (state.targetVoice) {
+      const diff = Math.abs(marker.formalityLevel - state.targetVoice.formalityLevel)
+      if (diff > 25) inconsistentChapters.push(marker.chapterId)
     }
   }
-}
-
-export function activateVoice(state: VoiceState, voiceId: string): VoiceState {
-  if (!state.voices[voiceId]) return state
-  const prev = state.activeVoice
-  const transitions = prev && prev !== voiceId
-    ? [...state.voiceTransitions, { chapter: 0, fromVoice: prev, toVoice: voiceId, reason: 'switch' }]
-    : state.voiceTransitions
+  
+  const avgFormality = dominantFormality
+  let consistency = 100
+  for (const marker of state.markers) {
+    consistency -= Math.abs(marker.formalityLevel - avgFormality) * 0.5
+  }
+  if (state.targetVoice) {
+    for (const marker of state.markers) {
+      const targetDiff = Math.abs(marker.formalityLevel - state.targetVoice.formalityLevel) +
+        Math.abs(marker.sentenceComplexity - state.targetVoice.sentenceComplexity) +
+        Math.abs(marker.vocabularyRichness - state.targetVoice.vocabularyRichness)
+      consistency -= targetDiff * 0.1
+    }
+  }
+  
+  consistency = Math.max(0, Math.min(100, consistency))
+  
+  const recommendations: string[] = []
+  if (inconsistentChapters.length > 0) recommendations.push(`Revise voice in ${inconsistentChapters.length} inconsistent chapters`)
+  if (consistency < 70) recommendations.push('Consider establishing a more consistent narrative voice')
+  if (state.targetVoice && consistency > 85) recommendations.push('Voice consistency is strong - maintain current approach')
+  if (!state.targetVoice) recommendations.push('Set a target voice profile to track consistency')
   
   return {
-    ...state,
-    activeVoice: voiceId,
-    voiceTransitions: transitions,
-    currentPerspective: state.voices[voiceId].perspective
+    overallConsistency: Math.round(consistency),
+    chaptersAnalyzed: state.markers.length,
+    inconsistentChapters,
+    dominantFormality,
+    dominantPacing,
+    recommendations,
   }
 }
 
-export function detectVoiceDeviation(state: VoiceState, chapter: number, page: number, perspective: NarrativeVoice['perspective'], vocabularyLevel: number, sentenceComplexity: number, emotionalTemperature: number): VoiceState {
-  if (!state.activeVoice) return state
-  const voice = state.voices[state.activeVoice]
-  if (!voice) return state
-  
-  const violations = [...state.consistencyViolations]
-  const descParts: string[] = []
-  
-  if (perspective !== voice.perspective) {
-    descParts.push(`perspective is ${perspective}, expected ${voice.perspective}`)
-  }
-  if (Math.abs(vocabularyLevel - voice.vocabularyLevel) > 3) {
-    descParts.push(`vocabulary level ${vocabularyLevel} far from ${voice.vocabularyLevel}`)
-  }
-  if (Math.abs(sentenceComplexity - voice.sentenceComplexity) > 4) {
-    descParts.push(`sentence complexity ${sentenceComplexity} far from ${voice.sentenceComplexity}`)
-  }
-  if (Math.abs(emotionalTemperature - voice.emotionalTemperature) > 50) {
-    descParts.push(`emotional temperature ${emotionalTemperature} far from ${voice.emotionalTemperature}`)
-  }
-  
-  if (descParts.length > 0) {
-    const severity: VoiceState['consistencyViolations'][0]['severity'] =
-      descParts.length >= 3 ? 'major' : descParts.length >= 2 ? 'moderate' : 'minor'
-    violations.push({ chapter, page, description: descParts.join('; '), severity })
-  }
-  
-  return { ...state, consistencyViolations: violations }
-}
-
-export function getVoiceScore(state: VoiceState, voiceId: string): number {
-  const voice = state.voices[voiceId]
-  if (!voice) return 0
-  const profileSum = Object.values(voice.toneProfile).reduce((s, v) => s + v, 0) / Math.max(Object.keys(voice.toneProfile).length, 1)
-  const vocabScore = voice.vocabularyLevel * 10
-  const complexityScore = voice.sentenceComplexity * 10
-  return Math.round((profileSum + vocabScore + complexityScore) / 3)
-}
-
-export function compareVoices(state: VoiceState, voiceId1: string, voiceId2: string): number {
-  const score1 = getVoiceScore(state, voiceId1)
-  const score2 = getVoiceScore(state, voiceId2)
-  return score1 - score2
-}
-
-export function blendVoices(state: VoiceState, sourceId: string, targetId: string, blendRatio: number): NarrativeVoice | null {
-  const source = state.voices[sourceId]
-  const target = state.voices[targetId]
-  if (!source || !target) return null
-  
-  const ratio = Math.max(0, Math.min(1, blendRatio))
-  const blended: NarrativeVoice = {
-    voiceId: `${sourceId}_${targetId}_blend`,
-    name: `${source.name} / ${target.name}`,
-    perspective: ratio < 0.5 ? source.perspective : target.perspective,
-    toneProfile: {},
-    vocabularyLevel: Math.round(source.vocabularyLevel * (1 - ratio) + target.vocabularyLevel * ratio),
-    sentenceComplexity: Math.round(source.sentenceComplexity * (1 - ratio) + target.sentenceComplexity * ratio),
-    emotionalTemperature: source.emotionalTemperature * (1 - ratio) + target.emotionalTemperature * ratio,
-    pacingPreference: source.pacingPreference * (1 - ratio) + target.pacingPreference * ratio,
-    quirks: [...source.quirks, ...target.quirks].filter((q, i, arr) => arr.indexOf(q) === i)
-  }
-  
-  for (const key of Array.from(new Set([...Object.keys(source.toneProfile), ...Object.keys(target.toneProfile)]))) {
-    const sVal = source.toneProfile[key] || 0
-    const tVal = target.toneProfile[key] || 0
-    blended.toneProfile[key] = Math.round(sVal * (1 - ratio) + tVal * ratio)
-  }
-  
-  return blended
-}
-
-export function getActiveVoice(state: VoiceState): NarrativeVoice | null {
-  return state.activeVoice ? state.voices[state.activeVoice] : null
-}
-
-export function getVoiceById(state: VoiceState, voiceId: string): NarrativeVoice | null {
-  return state.voices[voiceId] || null
-}
-
-export function getConsistencyViolations(state: VoiceState, minSeverity?: 'minor' | 'moderate' | 'major'): typeof state.consistencyViolations {
-  if (!minSeverity) return state.consistencyViolations
-  const severityOrder = ['minor', 'moderate', 'major']
-  const minIdx = severityOrder.indexOf(minSeverity)
-  return state.consistencyViolations.filter(v => severityOrder.indexOf(v.severity) >= minIdx)
-}
-
-export function getVoiceSummary(state: VoiceState): { totalVoices: number, activeVoice: string | null, totalViolations: number, majorViolations: number } {
+export function compareChapterVoice(state: NarrativeVoiceState, ch1: string, ch2: string): {
+  moreFormal: string
+  moreComplex: string
+  moreEmotional: string
+} {
+  const m1 = state.markers.find(m => m.chapterId === ch1)
+  const m2 = state.markers.find(m => m.chapterId === ch2)
+  if (!m1 || !m2) return { moreFormal: ch1, moreComplex: ch1, moreEmotional: ch1 }
   return {
-    totalVoices: Object.keys(state.voices).length,
-    activeVoice: state.activeVoice,
-    totalViolations: state.consistencyViolations.length,
-    majorViolations: state.consistencyViolations.filter(v => v.severity === 'major').length
-  }
-}
-
-export function clearViolations(state: VoiceState): VoiceState {
-  return { ...state, consistencyViolations: [] }
-}
-
-export function transferVoiceToChapter(state: VoiceState, voiceId: string, chapter: number, reason: string): VoiceState {
-  if (!state.voices[voiceId]) return state
-  const prev = state.activeVoice
-  return {
-    ...state,
-    activeVoice: voiceId,
-    currentPerspective: state.voices[voiceId].perspective,
-    voiceTransitions: prev && prev !== voiceId
-      ? [...state.voiceTransitions, { chapter, fromVoice: prev, toVoice: voiceId, reason }]
-      : state.voiceTransitions
+    moreFormal: m1.formalityLevel > m2.formalityLevel ? ch1 : ch2,
+    moreComplex: m1.sentenceComplexity > m2.sentenceComplexity ? ch1 : ch2,
+    moreEmotional: m1.emotionalTemperature > m2.emotionalTemperature ? ch1 : ch2,
   }
 }
