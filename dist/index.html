@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AI小说" />
+    <meta name="description" content="AI辅助小说创作工具" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/ai-novel-assistant/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/ai-novel-assistant/favicon.svg" />
+    <link rel="apple-touch-icon" href="/ai-novel-assistant/pwa-192x192.png" />
+    <title>AI小说开发助手</title>
+    <script>
+      // Theme initialization - runs before React to prevent flash
+      (function() {
+        const stored = localStorage.getItem('ai-novel-theme');
+        const theme = stored || 'system';
+        let isDark = false;
+        if (theme === 'system') {
+          isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } else {
+          isDark = theme === 'dark';
+        }
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/ai-novel-assistant/assets/index-D70909i-.js"></script>
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-react-CNvHvvCs.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-router-X-j8DCfJ.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-markdown-BgxsvY1s.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-misc-DsyGv1CX.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-zustand-DRK8QdZA.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-dexie-2jmnBxhj.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-dnd-EtTMt0D4.js">
+    <link rel="modulepreload" crossorigin href="/ai-novel-assistant/assets/vendor-editor-BpKjm-bD.js">
+    <link rel="stylesheet" crossorigin href="/ai-novel-assistant/assets/vendor-editor-Ch1M4OpB.css">
+    <link rel="stylesheet" crossorigin href="/ai-novel-assistant/assets/index-BsypTnUm.css">
+  <link rel="manifest" href="/ai-novel-assistant/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/ai-novel-assistant/registerSW.js"></script></head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/ai-novel-assistant/sw.js', { scope: '/ai-novel-assistant/' })
+            .then(function(registration) {
+              console.log('SW registered:', registration.scope);
+            })
+            .catch(function(error) {
+              console.log('SW registration failed:', error);
+            });
+        });
+      }
+
+      // PWA Install prompt handling
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-install-available', { detail: e }));
+      });
+      window.addEventListener('appinstalled', function() {
+        deferredPrompt = null;
+        window.dispatchEvent(new CustomEvent('pwa-installed'));
+      });
+    </script>
+  </body>
+</html>
