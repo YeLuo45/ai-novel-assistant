@@ -60,6 +60,12 @@ describe('ThematicSymbolismTrackingEngine', () => {
       expect(symbol?.occurrences[0].context).toBe('Rain falls on protagonist')
       expect(symbol?.evolutionArc[3]).toBe(30)
     })
+
+    it('should return state if symbol not found', () => {
+      const state = createEmptyState()
+      const result = recordSymbolOccurrence(state, 'nonexistent', 1, 10, 'ctx', 5, 'int')
+      expect(result).toBe(state)
+    })
   })
 
   describe('establishThematicThread', () => {
@@ -78,6 +84,14 @@ describe('ThematicSymbolismTrackingEngine', () => {
       state = establishThematicThread(state, 'love', 'Love', 'Different desc', 2, 10, 'Second meeting')
       const theme = getThemeById(state, 'love')
       expect(theme?.firstAppearance.chapter).toBe(1)
+    })
+  })
+
+  describe('updateThreadIntensity', () => {
+    it('should return state if theme not found', () => {
+      const state = createEmptyState()
+      const result = updateThreadIntensity(state, 'nonexistent', 5, 50)
+      expect(result).toBe(state)
     })
   })
 
@@ -136,6 +150,15 @@ describe('ThematicSymbolismTrackingEngine', () => {
       state = recordImageryElement(state, 'darkness', 'shadow', 3)
       expect(state.imagery.darkness?.elements).toContain('shadow')
       expect(state.imagery.darkness?.frequencyByChapter[3]).toBe(1)
+    })
+
+    it('should increment frequency when element already exists', () => {
+      let state = createEmptyState()
+      state = trackImageryLayer(state, 'visual', 'visual', ['shadow'], 'mood')
+      state = recordImageryElement(state, 'visual', 'shadow', 2)
+      state = recordImageryElement(state, 'visual', 'shadow', 2)
+      expect(state.imagery.visual?.frequencyByChapter[2]).toBe(2)
+      expect(state.imagery.visual?.elements).toHaveLength(1)  // element not duplicated
     })
   })
 
