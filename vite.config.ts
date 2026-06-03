@@ -3,10 +3,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+/** Set BUILD_PAGES=1 for GitHub Pages deploy (skips PWA/workbox ESM issue). */
+const isPagesBuild = process.env.BUILD_PAGES === '1'
+
 export default defineConfig({
   base: '/ai-novel-assistant/',
   plugins: [
     react(),
+    ...(!isPagesBuild
+      ? [
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'pwa-192x192.svg'],
@@ -71,7 +76,9 @@ export default defineConfig({
       devOptions: {
         enabled: true
       }
-    })
+    }),
+      ]
+      : []),
   ],
   resolve: {
     alias: {

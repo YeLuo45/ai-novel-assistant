@@ -10,9 +10,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "build:pages": "BUILD_PAGES=1 vite build",
+    "deploy:gh-pages": "npm run build:pages && npx gh-pages --dist dist --dotfiles"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
     "@types/jszip": "^3.4.1",
     "@uiw/react-md-editor": "^4.1.0",
     "dexie": "^3.2.4",
@@ -27,6 +30,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "recharts": "^3.8.1",
+    "sql.js": "^1.14.1",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
@@ -41,15 +45,17 @@
     "@types/react": "^18.2.43",
     "@types/react-beautiful-dnd": "^13.1.7",
     "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.16",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.2",
-    "vite": "^5.0.8",
-    "vite-plugin-pwa": "^0.17.4",
-    "vitest": "^2.1.9"
+    "vite": "^5.4.21",
+    "vite-plugin-pwa": "^0.17.5",
+    "vitest": "^2.1.9",
+    "workbox-build": "^7.4.0",
+    "workbox-window": "^7.4.1"
   }
 }
