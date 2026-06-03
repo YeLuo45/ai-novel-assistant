@@ -3,11 +3,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store'
 import { db } from '../db'
 import OutlineTree from '../components/OutlineTree'
-import AIChat from '../components/AIChat'
 import WritingEditor from '../components/WritingEditor'
 import { MaterialPanel } from '../components/MaterialPanel'
 import WorldbuildingTab from '../components/WorldbuildingTab'
-import AIShortcutBar from '../components/AIShortcutBar'
 import DailyGoalTracker from '../components/DailyGoalTracker'
 import CharacterRelationshipList from '../components/CharacterRelationshipList'
 import TimelineView from '../components/TimelineView'
@@ -23,12 +21,13 @@ export default function ProjectEditor() {
     currentProject, setCurrentProject, 
     outlineNodes, loadOutline,
     createOutlineNode, updateOutlineNode, deleteOutlineNode, moveOutlineNode,
-    agentConfigs,
     currentNodeId, setCurrentNodeId,
     storylines, loadStorylines, createStoryline, updateStoryline, deleteStoryline,
     chapterStorylineLinks, loadChapterStorylineLinks, addChapterStorylineLink, removeChapterStorylineLink,
-    totalWordGoal, dailyGoal, todayWordCount, updateDailyWordCount
+    totalWordGoal,
+    showGoalTracker = true
   } = useStore()
+  
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get('tab')
     if (tab && ['storyline', 'worldbuilding', 'relationships', 'timeline'].includes(tab)) {
@@ -39,7 +38,6 @@ export default function ProjectEditor() {
   const [showNodeModal, setShowNodeModal] = useState(false)
   const [editingNode, setEditingNode] = useState<number | null>(null)
   const [showMaterialPanel, setShowMaterialPanel] = useState(false)
-  const [showGoalTracker, setShowGoalTracker] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [nodeForm, setNodeForm] = useState<{
@@ -59,7 +57,7 @@ export default function ProjectEditor() {
   // Storyline form state
   const [showStorylineModal, setShowStorylineModal] = useState(false)
   const [editingStoryline, setEditingStoryline] = useState<number | null>(null)
-  const [storylineForm, setStorylineForm] = useState({ name: '', color: '#6366f1' })
+  const [storylineForm, setStorylineForm] = useState({ name: '', color: '#18181b' })
 
   // Calculate total book words
   const totalBookWords = outlineNodes.reduce((sum, n) => {
@@ -73,7 +71,6 @@ export default function ProjectEditor() {
       setIsMobile(mobile)
       if (mobile) {
         setShowMaterialPanel(false)
-        setShowGoalTracker(false)
       }
     }
     checkMobile()
@@ -193,7 +190,7 @@ export default function ProjectEditor() {
       color: storylineForm.color
     })
     setShowStorylineModal(false)
-    setStorylineForm({ name: '', color: '#6366f1' })
+    setStorylineForm({ name: '', color: '#18181b' })
   }
 
   const handleUpdateStoryline = async () => {
@@ -204,7 +201,7 @@ export default function ProjectEditor() {
     })
     setShowStorylineModal(false)
     setEditingStoryline(null)
-    setStorylineForm({ name: '', color: '#6366f1' })
+    setStorylineForm({ name: '', color: '#18181b' })
   }
 
   const handleDeleteStoryline = async (storylineId: number) => {
@@ -224,7 +221,6 @@ export default function ProjectEditor() {
     }
   }
 
-  // Get storyline colors for a chapter
   const getChapterStorylineColors = (chapterId: number) => {
     const links = chapterStorylineLinks.filter(l => l.chapterId === chapterId)
     return links
@@ -232,7 +228,6 @@ export default function ProjectEditor() {
       .filter(Boolean)
   }
 
-  // Mobile tabs - fewer tabs on mobile
   const mobileTabs: { key: Tab; icon: string; label: string }[] = [
     { key: 'outline', icon: '📋', label: '大纲' },
     { key: 'worldbuilding', icon: '🌍', label: '世界' },
@@ -252,282 +247,240 @@ export default function ProjectEditor() {
   if (!currentProject) return null
 
   return (
-    <div className="flex h-[calc(100vh-64px)] dark:bg-dark-bg">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-zinc-50 dark:bg-zinc-950">
       {/* Mobile Sidebar Overlay */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Left Sidebar - Outline */}
+      {/* Left Sidebar */}
       <div className={`
-        ${isMobile ? 'fixed inset-y-0 left-0 z-50 w-80' : 'relative'}
-        bg-white dark:bg-dark-bg-secondary border-r border-gray-200 dark:border-dark-border flex flex-col
-        transform transition-transform duration-300
+        ${isMobile ? 'fixed inset-y-0 left-0 z-50 w-80' : 'relative w-80'}
+        bg-white dark:bg-zinc-900/50 backdrop-blur-md border-r border-zinc-200 dark:border-zinc-800 flex flex-col h-full
+        transform transition-transform duration-300 ease-in-out
         ${isMobile && !sidebarOpen ? '-translate-x-full' : 'translate-x-0'}
       `}>
-        <div className="p-4 border-b border-gray-200 dark:border-dark-border">
-          <div className="flex items-center justify-between">
+        {/* Project Info Header */}
+        <div className="p-5 border-b border-zinc-100 dark:border-zinc-800/50">
+          <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-gray-800 dark:text-dark-text truncate">{currentProject.title}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{currentProject.genre}</p>
+              <h2 className="font-medium text-zinc-900 dark:text-zinc-100 font-serif-novel truncate" title={currentProject.title}>
+                {currentProject.title}
+              </h2>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 tracking-wide">
+                {currentProject.genre || '未分类'}
+              </p>
             </div>
             {isMobile && (
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="p-2 -mr-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 touch-target"
+                className="p-2 -mr-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 touch-target"
                 aria-label="关闭"
               >
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
-            )}
-            {!isMobile && (
-              <button
-                onClick={() => navigate(`/projects/${id}/stats`)}
-                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 text-sm touch-target"
-                title="查看统计"
-              >
-                📊
               </button>
             )}
           </div>
         </div>
         
-        {/* Tab Navigation */}
-        <div className={`flex ${isMobile ? 'flex-wrap' : 'flex-col'} border-b border-gray-200 dark:border-dark-border`}>
-          {!isMobile && tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-3 py-3 text-sm font-medium transition-colors border-b-2 touch-target ${
-                activeTab === tab.key 
-                  ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400' 
-                  : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span className={isMobile ? 'text-xs' : ''}>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Mobile Tab Bar */}
-        {isMobile && (
-          <div className="flex border-b border-gray-200 dark:border-dark-border overflow-x-auto">
+        {/* Compact Capsule Tab Navigation */}
+        <div className="p-3 border-b border-zinc-100 dark:border-zinc-800/30">
+          <div className="bg-zinc-100/80 dark:bg-zinc-800/50 p-1 rounded-lg flex flex-wrap gap-0.5">
             {tabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 min-w-[64px] py-3 text-xs font-medium flex flex-col items-center gap-1 transition-colors touch-target ${
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-1 ${
                   activeTab === tab.key 
-                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600' 
-                    : 'text-gray-500 dark:text-gray-400'
+                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' 
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
                 }`}
               >
                 <span>{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span className={isMobile ? 'text-[10px]' : ''}>{tab.label}</span>
               </button>
             ))}
           </div>
-        )}
+        </div>
 
-        {/* Desktop Tab Content */}
-        {!isMobile && activeTab === 'outline' && (
-          <div className="flex-1 overflow-y-auto p-4">
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="outline">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                    <OutlineTree
-                      nodes={outlineNodes.filter(n => n.parentId === null)}
-                      allNodes={outlineNodes}
-                      onEdit={openEditModal}
-                      onDelete={handleDeleteNode}
-                      onAddChild={openAddModal}
-                      onOpenNode={handleOpenNode}
-                      activeNodeId={currentNodeId}
-                      storylines={storylines}
-                      chapterStorylineLinks={chapterStorylineLinks}
-                      totalBookWords={totalBookWords}
-                      totalBookGoal={totalWordGoal}
-                    />
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-            
-            <button
-              onClick={() => openAddModal(null, 'volume')}
-              className="w-full mt-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors touch-target"
-            >
-              + 添加卷
-            </button>
-          </div>
-        )}
-
-        {/* Mobile Outline Content */}
-        {isMobile && activeTab === 'outline' && (
-          <div className="flex-1 overflow-y-auto p-4">
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="outline">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                    <OutlineTree
-                      nodes={outlineNodes.filter(n => n.parentId === null)}
-                      allNodes={outlineNodes}
-                      onEdit={openEditModal}
-                      onDelete={handleDeleteNode}
-                      onAddChild={openAddModal}
-                      onOpenNode={handleOpenNode}
-                      activeNodeId={currentNodeId}
-                      storylines={storylines}
-                      chapterStorylineLinks={chapterStorylineLinks}
-                      totalBookWords={totalBookWords}
-                      totalBookGoal={totalWordGoal}
-                    />
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-            
-            <button
-              onClick={() => openAddModal(null, 'volume')}
-              className="w-full mt-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors touch-target"
-            >
-              + 添加卷
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'worldbuilding' && (
-          <div className="flex-1 overflow-hidden">
-            <WorldbuildingTab />
-          </div>
-        )}
-
-        {activeTab === 'relationships' && currentProject && !isMobile && (
-          <div className="flex-1 overflow-hidden">
-            <CharacterRelationshipList projectId={currentProject.id!} />
-          </div>
-        )}
-
-        {activeTab === 'timeline' && (
-          <div className="flex-1 overflow-hidden">
-            <TimelineView
-              onEditNode={openEditModal}
-              onOpenNode={handleOpenNode}
-            />
-          </div>
-        )}
-
-        {activeTab === 'storyline' && !isMobile && (
-          <div className="flex-1 overflow-y-auto p-4">
-            {/* Storyline List */}
-            <div className="space-y-2 mb-4">
-              {storylines.map(storyline => (
-                <div 
-                  key={storyline.id}
-                  className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-dark-bg-tertiary rounded-lg"
-                >
-                  <span 
-                    className="w-4 h-4 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: storyline.color }}
-                  />
-                  <span className="flex-1 text-sm truncate text-gray-700 dark:text-gray-200">{storyline.name}</span>
-                  <button
-                    onClick={() => {
-                      setEditingStoryline(storyline.id!)
-                      setStorylineForm({ name: storyline.name, color: storyline.color })
-                      setShowStorylineModal(true)
-                    }}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 touch-target px-2 py-1"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    onClick={() => handleDeleteStoryline(storyline.id!)}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 touch-target px-2 py-1"
-                  >
-                    删除
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                setEditingStoryline(null)
-                setStorylineForm({ name: '', color: '#6366f1' })
-                setShowStorylineModal(true)
-              }}
-              className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors touch-target"
-            >
-              + 添加故事线
-            </button>
-
-            {/* Chapter-Storyline Assignment */}
-            {storylines.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">章节-故事线分配</h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {outlineNodes.filter(n => n.type === 'chapter').map(chapter => {
-                    const chapterStorylines = getChapterStorylineColors(chapter.id!)
-                    return (
-                      <div key={chapter.id} className="p-2 bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-dark-border rounded">
-                        <div className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-1 truncate">
-                          {chapter.title}
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {storylines.map(storyline => {
-                            const isLinked = chapterStorylineLinks.some(
-                              l => l.chapterId === chapter.id && l.storylineId === storyline.id
-                            )
-                            return (
-                              <button
-                                key={storyline.id}
-                                onClick={() => toggleChapterStoryline(chapter.id!, storyline.id!)}
-                                className={`w-5 h-5 rounded-full border transition-all touch-target ${
-                                  isLinked ? 'scale-110' : 'opacity-50 hover:opacity-80'
-                                }`}
-                                style={{ backgroundColor: storyline.color }}
-                                title={storyline.name}
-                              />
-                            )
-                          })}
-                        </div>
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {activeTab === 'outline' && (
+            <div className="p-4 flex flex-col h-full">
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="outline">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps}>
+                        <OutlineTree
+                          nodes={outlineNodes.filter(n => n.parentId === null)}
+                          allNodes={outlineNodes}
+                          onEdit={openEditModal}
+                          onDelete={handleDeleteNode}
+                          onAddChild={openAddModal}
+                          onOpenNode={handleOpenNode}
+                          activeNodeId={currentNodeId}
+                          storylines={storylines}
+                          chapterStorylineLinks={chapterStorylineLinks}
+                          totalBookWords={totalBookWords}
+                          totalBookGoal={totalWordGoal}
+                        />
+                        {provided.placeholder}
                       </div>
-                    )
-                  })}
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
+              
+              <button
+                onClick={() => openAddModal(null, 'volume')}
+                className="w-full mt-4 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all touch-target font-medium"
+              >
+                + 添加新卷
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'worldbuilding' && (
+            <div className="h-full overflow-hidden">
+              <WorldbuildingTab />
+            </div>
+          )}
+
+          {activeTab === 'relationships' && currentProject && !isMobile && (
+            <div className="h-full overflow-hidden">
+              <CharacterRelationshipList projectId={currentProject.id!} />
+            </div>
+          )}
+
+          {activeTab === 'timeline' && (
+            <div className="h-full overflow-hidden">
+              <TimelineView
+                onEditNode={openEditModal}
+                onOpenNode={handleOpenNode}
+              />
+            </div>
+          )}
+
+          {activeTab === 'storyline' && !isMobile && (
+            <div className="p-4 space-y-6">
+              {/* Storyline List */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">故事线列表</h4>
+                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {storylines.map(storyline => (
+                    <div 
+                      key={storyline.id}
+                      className="flex items-center gap-3 p-2.5 bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/50 rounded-lg group"
+                    >
+                      <span 
+                        className="w-3 h-3 rounded-full flex-shrink-0 ring-4 ring-zinc-100 dark:ring-zinc-900"
+                        style={{ backgroundColor: storyline.color }}
+                      />
+                      <span className="flex-1 text-xs truncate text-zinc-700 dark:text-zinc-200 font-medium">{storyline.name}</span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setEditingStoryline(storyline.id!)
+                            setStorylineForm({ name: storyline.name, color: storyline.color })
+                            setShowStorylineModal(true)
+                          }}
+                          className="text-[10px] text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-1.5 py-1"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStoryline(storyline.id!)}
+                          className="text-[10px] text-zinc-400 hover:text-red-600 px-1.5 py-1"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
-        )}
+
+              <button
+                onClick={() => {
+                  setEditingStoryline(null)
+                  setStorylineForm({ name: '', color: '#18181b' })
+                  setShowStorylineModal(true)
+                }}
+                className="w-full py-2 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all touch-target"
+              >
+                + 添加故事线
+              </button>
+
+              {/* Chapter-Storyline Assignment */}
+              {storylines.length > 0 && (
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/50">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">章节故事线分配</h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {outlineNodes.filter(n => n.type === 'chapter').map(chapter => {
+                      return (
+                        <div key={chapter.id} className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                          <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2 truncate">
+                            {chapter.title}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {storylines.map(storyline => {
+                              const isLinked = chapterStorylineLinks.some(
+                                l => l.chapterId === chapter.id && l.storylineId === storyline.id
+                              )
+                              return (
+                                <button
+                                  key={storyline.id}
+                                  onClick={() => toggleChapterStoryline(chapter.id!, storyline.id!)}
+                                  className={`w-4 h-4 rounded-full border border-white dark:border-zinc-900 transition-all shadow-sm touch-target ${
+                                    isLinked ? 'scale-110 ring-2 ring-zinc-400 dark:ring-zinc-600' : 'opacity-30 hover:opacity-70'
+                                  }`}
+                                  style={{ backgroundColor: storyline.color }}
+                                  title={storyline.name}
+                                />
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right Content Area */}
-      <div className="flex-1 bg-gray-50 dark:bg-dark-bg overflow-y-auto">
+      <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 overflow-y-auto relative">
         {currentNodeId ? (
           <WritingEditor
             nodeId={currentNodeId}
             onClose={handleCloseEditor}
           />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 p-8">
+          <div className="h-full flex flex-col items-center justify-center p-8">
             <div className="text-center max-w-md">
-              <div className="text-6xl mb-4 opacity-50">📝</div>
-              <p className="text-lg mb-2 dark:text-gray-300">从左侧大纲选择一个节点开始编辑</p>
-              <p className="text-sm">点击章节标题将打开完整的写作编辑器</p>
+              <div className="text-5xl mb-6 grayscale opacity-20">✒️</div>
+              <p className="text-lg font-medium text-zinc-800 dark:text-zinc-200 font-serif-novel mb-2">
+                “写作是唯一的、最终的自由。”
+              </p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 font-serif-novel italic mb-8">
+                —— 弗朗茨·卡夫卡
+              </p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-6">
+                从左侧大纲选择一个章节节点，开启您的文学之旅
+              </p>
               {isMobile && (
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors touch-target font-medium"
+                  className="px-6 py-2.5 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-950 text-xs font-medium rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-sm"
                 >
                   打开大纲
                 </button>
@@ -550,18 +503,18 @@ export default function ProjectEditor() {
 
       {/* Add/Edit Node Modal */}
       {showNodeModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl">
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 font-serif-novel mb-5">
               {editingNode && outlineNodes.find(n => n.id === editingNode) ? '编辑节点' : '添加节点'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">类型</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">类型</label>
                 <select
                   value={nodeForm.type}
                   onChange={e => setNodeForm({ ...nodeForm, type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 bg-white dark:bg-zinc-950 text-sm"
                 >
                   <option value="volume">卷</option>
                   <option value="chapter">章</option>
@@ -570,22 +523,22 @@ export default function ProjectEditor() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">标题</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">标题</label>
                 <input
                   type="text"
                   value={nodeForm.title}
                   onChange={e => setNodeForm({ ...nodeForm, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200"
-                  placeholder="节点标题"
+                  className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 bg-white dark:bg-zinc-950 text-sm"
+                  placeholder="输入标题"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">状态</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">状态</label>
                 <select
                   value={nodeForm.status}
                   onChange={e => setNodeForm({ ...nodeForm, status: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 bg-white dark:bg-zinc-950 text-sm"
                 >
                   <option value="planning">构思中</option>
                   <option value="writing">写作中</option>
@@ -593,25 +546,25 @@ export default function ProjectEditor() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">简述</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">简述</label>
                 <textarea
                   value={nodeForm.summary}
                   onChange={e => setNodeForm({ ...nodeForm, summary: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-20 bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 h-24 bg-white dark:bg-zinc-950 text-sm resize-none"
                   placeholder="简要描述内容..."
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={() => { setShowNodeModal(false); setEditingNode(null); resetNodeForm(); }}
-                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg touch-target"
+                className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-medium rounded-md touch-target"
               >
                 取消
               </button>
               <button
                 onClick={editingNode && outlineNodes.find(n => n.id === editingNode) ? handleUpdateNode : handleAddNode}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 touch-target"
+                className="px-4 py-2 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-950 text-xs font-medium rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 touch-target shadow-sm"
               >
                 确定
               </button>
@@ -622,52 +575,52 @@ export default function ProjectEditor() {
 
       {/* Add/Edit Storyline Modal */}
       {showStorylineModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 w-full max-w-sm">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 font-serif-novel mb-5">
               {editingStoryline ? '编辑故事线' : '添加故事线'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">名称</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">名称</label>
                 <input
                   type="text"
                   value={storylineForm.name}
                   onChange={e => setStorylineForm({ ...storylineForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200"
-                  placeholder="故事线名称"
+                  className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 bg-white dark:bg-zinc-950 text-sm"
+                  placeholder="例如：主线、复仇线、感情线"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">颜色</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">颜色</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={storylineForm.color}
                     onChange={e => setStorylineForm({ ...storylineForm, color: e.target.value })}
-                    className="w-10 h-10 rounded border border-gray-300 dark:border-dark-border cursor-pointer"
+                    className="w-10 h-10 rounded border border-zinc-200 dark:border-zinc-800 cursor-pointer p-0.5 bg-white dark:bg-zinc-950"
                   />
                   <input
                     type="text"
                     value={storylineForm.color}
                     onChange={e => setStorylineForm({ ...storylineForm, color: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-dark-bg text-gray-800 dark:text-gray-200"
-                    placeholder="#6366f1"
+                    className="flex-1 px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 bg-white dark:bg-zinc-950 text-sm"
+                    placeholder="#18181b"
                   />
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={() => { setShowStorylineModal(false); setEditingStoryline(null); }}
-                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg touch-target"
+                className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-medium rounded-md touch-target"
               >
                 取消
               </button>
               <button
                 onClick={editingStoryline ? handleUpdateStoryline : handleAddStoryline}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 touch-target"
+                className="px-4 py-2 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-950 text-xs font-medium rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 touch-target shadow-sm"
               >
                 确定
               </button>

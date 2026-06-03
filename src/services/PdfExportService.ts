@@ -3,11 +3,12 @@
  * Better Chinese font support with proper layout optimization
  */
 
-import * as pdfMake from 'pdfmake/build/pdfmake';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+import pdfMake from 'pdfmake/build/pdfmake';
+import vfsFonts from 'pdfmake/build/vfs_fonts';
+import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 
-// Initialize pdfmake with virtual file system for fonts
-(pdfMake as any).vfs = (pdfFonts as any).vfs;
+// Register bundled fonts (ESM-safe; do not assign to import bindings)
+pdfMake.addVirtualFileSystem(vfsFonts);
 
 export interface PdfChapter {
   title: string;
@@ -81,8 +82,8 @@ function generatePdfContent(
   chapters: PdfChapter[],
   metadata: PdfMetadata,
   options: PdfExportOptions
-): { docDefinition: pdfMake.TDocumentDefinitions; chapterCount: number } {
-  const docContent: pdfMake.Content[] = [];
+): { docDefinition: TDocumentDefinitions; chapterCount: number } {
+  const docContent: Content[] = [];
 
   // Margins: top/bottom 2.5cm, left/right 2cm
   // In pdfmake units: 1 cm ≈ 28.35 points, so 2.5cm ≈ 70.875, 2cm ≈ 56.7
@@ -138,9 +139,9 @@ function generatePdfContent(
       cards: typeof characters,
       title: string,
       emoji: string
-    ): pdfMake.Content[] => {
+    ): Content[] => {
       if (!cards.length) return [];
-      const content: pdfMake.Content[] = [
+      const content: Content[] = [
         {
           text: `${emoji} ${title}`,
           style: 'sectionTitle',
@@ -172,7 +173,7 @@ function generatePdfContent(
     docContent.push(...renderCards(items, '物品', '🎁'));
   }
 
-  const docDefinition: pdfMake.TDocumentDefinitions = {
+  const docDefinition: TDocumentDefinitions = {
     pageSize: 'A4',
     pageMargins: [leftRightMargin, topBottomMargin, leftRightMargin, topBottomMargin],
     info: {

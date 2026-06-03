@@ -55,66 +55,75 @@ export default function Layout() {
   }, [location.pathname, isMobile])
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
+    <div className="app-shell min-h-screen flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       {/* Top Navigation - Desktop */}
       {!isMobile && (
-        <header className="bg-white dark:bg-dark-bg-secondary border-b border-gray-200 dark:border-dark-border px-4 py-3 safe-top">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-8">
-              <h1 className="text-xl font-bold text-indigo-600 dark:text-indigo-400">AI小说开发助手</h1>
-              <nav className="flex gap-2">
+        <header className="bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-zinc-200/80 dark:border-zinc-800/80 px-6 py-3 sticky top-0 z-30 safe-top">
+          <div className="app-shell__bar flex items-center justify-between max-w-7xl mx-auto">
+            <div className="app-shell__brand-nav flex items-center gap-12">
+              <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 font-serif-novel">
+                AI小说开发助手
+              </h1>
+              <nav className="flex gap-1">
                 <Link
                   to="/projects"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
                     isActive('/projects') || location.pathname.startsWith('/projects/')
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900'
                   }`}
                 >
                   项目
                 </Link>
                 <Link
                   to="/settings"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
                     isActive('/settings')
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900'
                   }`}
                 >
                   API设置
                 </Link>
               </nav>
             </div>
+            
             {currentProject && (
-              <div className="flex items-center gap-3">
-                <ThemeToggle />
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  当前项目: <span className="font-medium text-gray-700 dark:text-gray-200">{currentProject.title}</span>
+              <div className="flex items-center gap-4">
+                <div className="text-xs text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5 border-r border-zinc-200 dark:border-zinc-800 pr-4 py-1">
+                  <span>当前项目:</span>
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[120px]" title={currentProject.title}>
+                    {currentProject.title}
+                  </span>
                 </div>
-                {isProjectContext && (
-                  <Link
-                    to={`/projects/${params.id}/stats`}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      location.pathname.includes('/stats')
-                        ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
+                
+                <div className="flex items-center gap-2">
+                  {isProjectContext && (
+                    <Link
+                      to={`/projects/${params.id}/stats`}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 border ${
+                        location.pathname.includes('/stats')
+                          ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent'
+                          : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                      }`}
+                    >
+                      📊 统计
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => setShowBackup(true)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all duration-200"
                   >
-                    📊 统计
-                  </Link>
-                )}
-                <button
-                  onClick={() => setShowBackup(true)}
-                  className="px-3 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors touch-target"
-                >
-                  💾 备份
-                </button>
-                <button
-                  onClick={() => setShowExport(true)}
-                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors touch-target"
-                >
-                  📤 导出
-                </button>
+                    💾 备份
+                  </button>
+                  <button
+                    onClick={() => setShowExport(true)}
+                    className="px-3 py-1.5 text-xs font-medium text-white dark:text-zinc-950 bg-zinc-900 dark:bg-zinc-50 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all duration-200"
+                  >
+                    📤 导出
+                  </button>
+                  <ThemeToggle className="ml-1" />
+                </div>
               </div>
             )}
           </div>
@@ -123,18 +132,18 @@ export default function Layout() {
 
       {/* Mobile Header */}
       {isMobile && (
-        <header className="bg-white dark:bg-dark-bg-secondary border-b border-gray-200 dark:border-dark-border px-4 py-3 safe-top sticky top-0 z-30">
+        <header className="bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 safe-top sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 touch-target"
+              className="p-2 -ml-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 touch-target"
               aria-label="打开菜单"
             >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <svg className="w-5 h-5 text-zinc-600 dark:text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h1 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 truncate">
+            <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 font-serif-novel truncate max-w-[180px]">
               {currentProject?.title || 'AI小说开发助手'}
             </h1>
             <ThemeToggle />
@@ -145,47 +154,47 @@ export default function Layout() {
       {/* Mobile Sidebar Overlay */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Mobile Sidebar Drawer */}
       {isMobile && (
-        <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-dark-bg-secondary transform transition-transform duration-300 ${
+        <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-zinc-900 transform transition-transform duration-300 ease-in-out border-r border-zinc-200 dark:border-zinc-800 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
-          <div className="p-4 border-b border-gray-200 dark:border-dark-border">
+          <div className="p-5 border-b border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-indigo-600 dark:text-indigo-400">AI小说开发助手</h2>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 font-serif-novel">AI小说开发助手</h2>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 touch-target"
+                className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 touch-target"
                 aria-label="关闭菜单"
               >
-                <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
-          <nav className="p-4 space-y-2">
+          <nav className="p-4 space-y-1">
             <Link
               to="/projects"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors touch-target ${
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all touch-target ${
                 isActive('/projects') || location.pathname.startsWith('/projects/')
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
               }`}
             >
               📚 项目
             </Link>
             <Link
               to="/settings"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors touch-target ${
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all touch-target ${
                 isActive('/settings')
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
               }`}
             >
               ⚙️ API设置
@@ -193,10 +202,10 @@ export default function Layout() {
             {isProjectContext && (
               <Link
                 to={`/projects/${params.id}/stats`}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors touch-target ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all touch-target ${
                   location.pathname.includes('/stats')
-                    ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
                 }`}
               >
                 📊 统计
@@ -204,20 +213,20 @@ export default function Layout() {
             )}
           </nav>
           {currentProject && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg-secondary">
-              <div className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                当前项目: <span className="font-medium text-gray-700 dark:text-gray-200">{currentProject.title}</span>
+            <div className="absolute bottom-0 left-0 right-0 p-5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+              <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-3 truncate">
+                当前项目: <span className="font-medium text-zinc-700 dark:text-zinc-300">{currentProject.title}</span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => { setShowBackup(true); setSidebarOpen(false) }}
-                  className="flex-1 px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors touch-target"
+                  className="flex-1 px-3 py-2 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-medium rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors touch-target"
                 >
                   💾 备份
                 </button>
                 <button
                   onClick={() => { setShowExport(true); setSidebarOpen(false) }}
-                  className="flex-1 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors touch-target"
+                  className="flex-1 px-3 py-2 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-950 text-xs font-medium rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors touch-target"
                 >
                   📤 导出
                 </button>
@@ -266,7 +275,7 @@ function MobileBottomNav({ projectId }: { projectId: string }) {
   ]
 
   return (
-    <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 bg-white dark:bg-dark-bg-secondary border-t border-gray-200 dark:border-dark-border flex justify-around items-center z-30 safe-bottom">
+    <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex justify-around items-center z-30 safe-bottom">
       {tabs.map(tab => {
         const isActive = currentPath === tab.path
         return (
@@ -275,12 +284,12 @@ function MobileBottomNav({ projectId }: { projectId: string }) {
             to={tab.path}
             className={`flex flex-col items-center justify-center py-2 px-6 touch-target min-w-[64px] ${
               isActive 
-                ? 'text-indigo-600 dark:text-indigo-400' 
-                : 'text-gray-500 dark:text-gray-400'
+                ? 'text-zinc-900 dark:text-zinc-100 font-semibold' 
+                : 'text-zinc-400 dark:text-zinc-500'
             }`}
           >
-            <span className="text-xl">{tab.icon}</span>
-            <span className="text-xs font-medium mt-1">{tab.label}</span>
+            <span className="text-lg">{tab.icon}</span>
+            <span className="text-[10px] tracking-tight mt-0.5">{tab.label}</span>
           </Link>
         )
       })}

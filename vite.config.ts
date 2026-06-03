@@ -78,6 +78,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  optimizeDeps: {
+    include: ['workbox-build'],
+  },
+  ssr: {
+    noExternal: ['workbox-build'],
+  },
   build: {
     rollupOptions: {
       output: {
