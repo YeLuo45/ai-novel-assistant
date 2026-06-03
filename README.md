@@ -49,6 +49,26 @@ npm install
 
 Windows 下请优先在 WSL 内安装，或使用 `.\scripts\dev.ps1`（脚本会在缺少 `node_modules` 时自动执行 `npm install`）。
 
+### 推送到 GitHub / 更新 Pages
+
+当前默认分支为 **`master`**（远端无 `main` 时，推送会用 `master:main` 创建 `main`）。
+
+**先确保能访问 GitHub**（若出现 `raw.hellogithub.com` 证书与 `github.com` 不匹配，请在 Windows 管理员 PowerShell 刷新 hosts 或暂时注释 GitHub520 相关行后 `ipconfig /flushdns`）。
+
+```powershell
+# Windows：一键经 WSL 推送 master、同步 main、发布 gh-pages
+cd \\wsl$\Ubuntu\home\hermes\projects\ai-novel-assistant
+.\scripts\publish.ps1
+```
+
+```bash
+# WSL 内等价命令
+cd /home/hermes/projects/ai-novel-assistant
+bash scripts/publish.sh
+```
+
+手动步骤：`git push origin master` → `git push origin master:main` → `npm run deploy:gh-pages`
+
 ### 样式未生效时
 
 若页面呈「纯文字左对齐、紫色链接、无卡片网格」，说明 Tailwind 未编译。请确认项目根目录存在 `tailwind.config.js` 与 `postcss.config.js`，然后**重启**开发服务器（`Ctrl+C` 后重新运行 `.\scripts\dev.ps1`）。
