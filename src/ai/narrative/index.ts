@@ -17,3 +17,19 @@ export { CircularNarrativeEngine, createCircularNarrativeEngine } from './Circul
 
 // 一致性检查器
 export { NarrativeConsistencyChecker, checkNarrativeConsistency } from './NarrativeConsistencyChecker';
+
+// V562 叙事弧线智能引擎 — Direction B Iter 1/9
+export {
+  createArcIntelligenceState,
+  addArcLayer,
+  buildHierarchicalStructure,
+  computeFeedbackScores,
+  getOverallIntelligenceScore,
+  flattenHierarchy,
+  checkCrossLayerConsistency,
+  updateTrends,
+  type ArcIntelligenceState,
+  type ArcLayer,
+  type HierarchyNode,
+  type FeedbackScore,
+} from './NarrativeArcIntelligenceEngine';
