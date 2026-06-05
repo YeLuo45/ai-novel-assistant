@@ -1,17 +1,16 @@
 /**
- * V739 NarrativeAdaptationCore Tests — Direction A Iter 1/9 (Round 3)
+ * V825 NarrativeAdaptationCore Tests — Direction E Iter 8/9 (Round 3)
  * Coverage target: 99%+, pass rate: 100%
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   createNarrativeAdaptationCoreState,
-  addAdaptationRule,
-  triggerAdaptation,
-  completeAdaptation,
-  toggleAdaptationRule,
-  getAdaptationRulesByType,
-  getAdaptationEventsByTrigger,
+  detectAdaptation,
+  applyAdaptation,
+  verifyAdaptation,
+  addAdaptationContext,
+  getAdaptationsByType,
   getAdaptationCoreReport,
   resetNarrativeAdaptationCoreState,
   type NarrativeAdaptationCoreState,
@@ -24,106 +23,73 @@ describe('NarrativeAdaptationCore', () => {
 
   describe('createNarrativeAdaptationCoreState', () => {
     it('should initialize with defaults', () => {
-      expect(state.rules.size).toBe(0);
-      expect(state.events.size).toBe(0);
-    });
-
-    it('should have default stability', () => {
-      expect(state.stabilityScore).toBe(0.7);
+      expect(state.adaptations.size).toBe(0);
+      expect(state.contexts.size).toBe(0);
     });
   });
 
-  describe('addAdaptationRule', () => {
-    it('should add rule', () => {
-      const next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low engagement', 'add hook', 0.5);
-      expect(next.rules.size).toBe(1);
-      expect(next.totalRules).toBe(1);
+  describe('detectAdaptation', () => {
+    it('should detect', () => {
+      const next = detectAdaptation(state, 'a1', 'feedback', 'chapter 3', 'pacing too slow', 0.7);
+      expect(next.adaptations.size).toBe(1);
+      expect(next.totalAdaptations).toBe(1);
     });
 
-    it('should count active rules', () => {
-      const next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5, true);
-      expect(next.activeRules).toBe(1);
-    });
-
-    it('should not count inactive rules as active', () => {
-      const next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5, false);
-      expect(next.activeRules).toBe(0);
+    it('should clamp impact', () => {
+      const next = detectAdaptation(state, 'a1', 'feedback', 'target', 'desc', 1.5);
+      expect(next.adaptations.get('a1')?.impact).toBe(1);
     });
   });
 
-  describe('triggerAdaptation', () => {
-    it('should trigger adaptation', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
-      next = triggerAdaptation(next, 'e1', 'r1', 0.3, 0.5, 0.6);
-      expect(next.totalEvents).toBe(1);
-    });
-
-    it('should return state for unknown rule', () => {
-      const next = triggerAdaptation(state, 'e1', 'unknown', 0.3, 0.5, 0.6);
-      expect(next.totalEvents).toBe(0);
+  describe('applyAdaptation', () => {
+    it('should apply', () => {
+      let next = detectAdaptation(state, 'a1', 'feedback', 't', 'd');
+      next = applyAdaptation(next, 'a1', 'expand', 'before', 'after');
+      expect(next.adaptations.get('a1')?.status).toBe('applying');
+      expect(next.adaptations.get('a1')?.after).toBe('after');
     });
   });
 
-  describe('completeAdaptation', () => {
-    it('should complete adaptation', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
-      next = triggerAdaptation(next, 'e1', 'r1', 0.3, 0.5, 0.6);
-      next = completeAdaptation(next, 'e1', true);
-      expect(next.events.get('e1')?.status).toBe('completed');
-      expect(next.successfulAdaptations).toBe(1);
+  describe('verifyAdaptation', () => {
+    it('should verify', () => {
+      let next = detectAdaptation(state, 'a1', 'feedback', 't', 'd');
+      next = applyAdaptation(next, 'a1', 'expand', 'b', 'a');
+      next = verifyAdaptation(next, 'a1', true);
+      expect(next.adaptations.get('a1')?.status).toBe('verified');
+      expect(next.verifiedAdaptations).toBe(1);
     });
 
-    it('should mark as overridden on failure', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
-      next = triggerAdaptation(next, 'e1', 'r1', 0.3, 0.5, 0.6);
-      next = completeAdaptation(next, 'e1', false);
-      expect(next.events.get('e1')?.status).toBe('overridden');
-    });
-  });
-
-  describe('toggleAdaptationRule', () => {
-    it('should toggle rule', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
-      next = toggleAdaptationRule(next, 'r1', false);
-      expect(next.rules.get('r1')?.active).toBe(false);
-      expect(next.activeRules).toBe(0);
-    });
-
-    it('should re-enable rule', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5, false);
-      next = toggleAdaptationRule(next, 'r1', true);
-      expect(next.activeRules).toBe(1);
-    });
-
-    it('should return state for unknown rule', () => {
-      const next = toggleAdaptationRule(state, 'unknown', true);
-      expect(next.totalRules).toBe(0);
+    it('should mark as reverted', () => {
+      let next = detectAdaptation(state, 'a1', 'feedback', 't', 'd');
+      next = applyAdaptation(next, 'a1', 'expand', 'b', 'a');
+      next = verifyAdaptation(next, 'a1', false);
+      expect(next.adaptations.get('a1')?.status).toBe('reverted');
     });
   });
 
-  describe('getAdaptationRulesByType', () => {
+  describe('addAdaptationContext', () => {
+    it('should add context', () => {
+      const next = addAdaptationContext(state, 'c1', ['low tension'], 'expand');
+      expect(next.totalContexts).toBe(1);
+    });
+  });
+
+  describe('getAdaptationsByType', () => {
     it('should filter by type', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
-      next = addAdaptationRule(next, 'r2', 'style', 'metric', 'high', 'refine', 0.5);
-      const content = getAdaptationRulesByType(next, 'content');
-      expect(content.length).toBe(1);
-    });
-  });
-
-  describe('getAdaptationEventsByTrigger', () => {
-    it('should filter by trigger', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
-      next = triggerAdaptation(next, 'e1', 'r1', 0.3, 0.5, 0.6);
-      const events = getAdaptationEventsByTrigger(next, 'feedback');
-      expect(events.length).toBe(1);
+      let next = detectAdaptation(state, 'a1', 'feedback', 't', 'd');
+      next = applyAdaptation(next, 'a1', 'expand', 'b', 'a');
+      next = detectAdaptation(next, 'a2', 'metric', 't', 'd');
+      next = applyAdaptation(next, 'a2', 'contract', 'b', 'a');
+      const expands = getAdaptationsByType(next, 'expand');
+      expect(expands.length).toBe(1);
     });
   });
 
   describe('getAdaptationCoreReport', () => {
     it('should return comprehensive report', () => {
       const report = getAdaptationCoreReport(state);
-      expect(report.totalRules).toBe(0);
-      expect(typeof report.adaptationRate).toBe('number');
+      expect(report.totalAdaptations).toBe(0);
+      expect(typeof report.responsiveness).toBe('number');
     });
 
     it('should include recommendations for empty state', () => {
@@ -134,10 +100,10 @@ describe('NarrativeAdaptationCore', () => {
 
   describe('resetNarrativeAdaptationCoreState', () => {
     it('should reset all state', () => {
-      let next = addAdaptationRule(state, 'r1', 'content', 'feedback', 'low', 'adjust', 0.5);
+      let next = detectAdaptation(state, 'a1', 'feedback', 't', 'd');
       next = resetNarrativeAdaptationCoreState();
-      expect(next.rules.size).toBe(0);
-      expect(next.totalRules).toBe(0);
+      expect(next.adaptations.size).toBe(0);
+      expect(next.totalAdaptations).toBe(0);
     });
   });
 });
