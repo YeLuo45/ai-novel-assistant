@@ -1,200 +1,171 @@
 /**
- * V670 CharacterMotivationEngine — Direction C Iter 3/9 (Round 2)
- * Character motivation engine: goal + need + desire + fear tracking
- * Sources: chatdev role + ruflo hierarchical + nanobot
+ * V850 CharacterMotivationEngine — Direction B Iter 3/15 (Round 4)
+ * Character motivation engine: motivation + drives + inner conflict
+ * Sources: chatdev character + thunderbolt + nanobot
  */
 
-export type MotivationType = 'goal' | 'need' | 'desire' | 'fear' | 'wound';
-export type MotivationState = 'latent' | 'active' | 'conflicted' | 'resolved' | 'abandoned';
-export type MotivationStrength = 'weak' | 'moderate' | 'strong' | 'overwhelming';
+export type MotivationType = 'need' | 'want' | 'fear' | 'belief' | 'value' | 'wound';
+export type MotivationStrength = 'weak' | 'moderate' | 'strong' | 'compelling' | 'overwhelming';
+export type MotivationStatus = 'latent' | 'active' | 'conflicted' | 'resolved' | 'transformed';
 
 export interface Motivation {
   motivationId: string;
-  type: MotivationType;
-  description: string;
-  state: MotivationState;
-  strength: MotivationStrength;
-  priority: number;
   characterId: string;
-  triggeredBy: string[];
-  resolvedBy: string[];
+  type: MotivationType;
+  strength: MotivationStrength;
+  status: MotivationStatus;
+  description: string;
+  target: string;
+  intensity: number;
+  obstacles: string[];
+  chapter: number;
 }
 
-export interface CharacterMotivationState {
+export interface MotivationConflict {
+  conflictId: string;
+  motivation1Id: string;
+  motivation2Id: string;
+  tension: number;
+  resolution: string;
+  resolved: boolean;
+}
+
+export interface CharacterMotivationEngineState {
   motivations: Map<string, Motivation>;
-  characters: Set<string>;
+  conflicts: Map<string, MotivationConflict>;
   totalMotivations: number;
+  totalConflicts: number;
   activeMotivations: number;
-  motivationComplexity: number;
-  averageStrength: number;
-  conflicts: number;
+  resolvedConflicts: number;
+  averageIntensity: number;
+  conflictTension: number;
+  motivationDepth: number;
+  characterDrive: number;
 }
 
 // Factory
-export function createCharacterMotivationState(): CharacterMotivationState {
+export function createCharacterMotivationEngineState(): CharacterMotivationEngineState {
   return {
     motivations: new Map(),
-    characters: new Set(),
+    conflicts: new Map(),
     totalMotivations: 0,
+    totalConflicts: 0,
     activeMotivations: 0,
-    motivationComplexity: 0,
-    averageStrength: 0.5,
-    conflicts: 0,
+    resolvedConflicts: 0,
+    averageIntensity: 0.5,
+    conflictTension: 0,
+    motivationDepth: 0.5,
+    characterDrive: 0.5,
   };
 }
 
 // Add motivation
 export function addMotivation(
-  state: CharacterMotivationState,
+  state: CharacterMotivationEngineState,
   motivationId: string,
   characterId: string,
   type: MotivationType,
   description: string,
+  target: string,
+  chapter: number,
   strength: MotivationStrength = 'moderate',
-  priority: number = 1
-): CharacterMotivationState {
+  intensity: number = 0.5
+): CharacterMotivationEngineState {
   const motivation: Motivation = {
-    motivationId,
-    type,
-    description,
-    state: 'latent',
-    strength,
-    priority,
-    characterId,
-    triggeredBy: [],
-    resolvedBy: [],
+    motivationId, characterId, type, strength, status: 'latent',
+    description, target,
+    intensity: Math.min(1, Math.max(0, intensity)),
+    obstacles: [], chapter,
   };
-
   const motivations = new Map(state.motivations).set(motivationId, motivation);
-  const characters = new Set(state.characters).add(characterId);
-  return recomputeMotivationMetrics({ ...state, motivations, characters, totalMotivations: state.totalMotivations + 1 });
+  return recomputeMotivation({ ...state, motivations, totalMotivations: motivations.size });
 }
 
 // Activate motivation
-export function activateMotivation(state: CharacterMotivationState, motivationId: string, trigger: string): CharacterMotivationState {
+export function activateMotivation(state: CharacterMotivationEngineState, motivationId: string): CharacterMotivationEngineState {
   const motivation = state.motivations.get(motivationId);
   if (!motivation) return state;
 
-  const updated: Motivation = {
-    ...motivation,
-    state: 'active',
-    triggeredBy: [...motivation.triggeredBy, trigger],
-  };
+  const updated: Motivation = { ...motivation, status: 'active' };
   const motivations = new Map(state.motivations).set(motivationId, updated);
-  return recomputeMotivationMetrics({ ...state, motivations });
+  const activeMotivations = motivation.status === 'active' ? state.activeMotivations : state.activeMotivations + 1;
+  return recomputeMotivation({ ...state, motivations, activeMotivations });
 }
 
-// Set motivation state
-export function setMotivationState(state: CharacterMotivationState, motivationId: string, newState: MotivationState, resolution: string = ''): CharacterMotivationState {
-  const motivation = state.motivations.get(motivationId);
-  if (!motivation) return state;
-
-  const updated: Motivation = {
-    ...motivation,
-    state: newState,
-    resolvedBy: newState === 'resolved' ? [...motivation.resolvedBy, resolution] : motivation.resolvedBy,
-  };
-  const motivations = new Map(state.motivations).set(motivationId, updated);
-  return recomputeMotivationMetrics({ ...state, motivations });
+// Create conflict
+export function createMotivationConflict(
+  state: CharacterMotivationEngineState,
+  conflictId: string,
+  motivation1Id: string,
+  motivation2Id: string,
+  tension: number,
+  resolution: string = ''
+): CharacterMotivationEngineState {
+  const conflict: MotivationConflict = { conflictId, motivation1Id, motivation2Id, tension, resolution, resolved: false };
+  const conflicts = new Map(state.conflicts).set(conflictId, conflict);
+  return recomputeMotivation({ ...state, conflicts, totalConflicts: conflicts.size });
 }
 
-// Detect motivation conflicts
-export function detectMotivationConflicts(state: CharacterMotivationState): number {
-  let conflicts = 0;
-  const motivations = Array.from(state.motivations.values());
+// Resolve conflict
+export function resolveMotivationConflict(state: CharacterMotivationEngineState, conflictId: string, resolution: string): CharacterMotivationEngineState {
+  const conflict = state.conflicts.get(conflictId);
+  if (!conflict) return state;
 
-  for (let i = 0; i < motivations.length; i++) {
-    for (let j = i + 1; j < motivations.length; j++) {
-      const m1 = motivations[i];
-      const m2 = motivations[j];
-      if (m1 && m2 && m1.characterId === m2.characterId) {
-        if ((m1.type === 'goal' && m2.type === 'fear') || (m1.type === 'desire' && m2.type === 'wound')) {
-          if (m1.state === 'active' && m2.state === 'active') conflicts++;
-        }
-      }
-    }
-  }
-  return conflicts;
+  const updated: MotivationConflict = { ...conflict, resolution, resolved: true };
+  const conflicts = new Map(state.conflicts).set(conflictId, updated);
+  const resolvedConflicts = state.resolvedConflicts + 1;
+  return recomputeMotivation({ ...state, conflicts, resolvedConflicts });
 }
 
-// Get motivations for character
-export function getCharacterMotivations(state: CharacterMotivationState, characterId: string): Motivation[] {
+// Get motivations by character
+export function getMotivationsByCharacter(state: CharacterMotivationEngineState, characterId: string): Motivation[] {
   return Array.from(state.motivations.values()).filter(m => m.characterId === characterId);
 }
 
-// Get strongest motivation
-export function getStrongestMotivation(state: CharacterMotivationState): Motivation | null {
-  const strengthMap: Record<MotivationStrength, number> = {
-    weak: 0.25,
-    moderate: 0.5,
-    strong: 0.75,
-    overwhelming: 1.0,
-  };
-
-  let strongest: Motivation | null = null;
-  let maxScore = -1;
-
-  state.motivations.forEach(motivation => {
-    const score = strengthMap[motivation.strength] * motivation.priority;
-    if (score > maxScore) {
-      maxScore = score;
-      strongest = motivation;
-    }
-  });
-
-  return strongest;
-}
-
 // Get motivation report
-export function getMotivationReport(state: CharacterMotivationState): {
+export function getMotivationReport(state: CharacterMotivationEngineState): {
   totalMotivations: number;
+  totalConflicts: number;
   activeMotivations: number;
-  characterCount: number;
-  motivationComplexity: number;
-  conflicts: number;
+  averageIntensity: number;
+  conflictTension: number;
+  characterDrive: number;
   recommendations: string[];
 } {
   const recommendations: string[] = [];
-  if (state.activeMotivations === 0) recommendations.push('No active motivations — activate some');
-  if (state.conflicts > 0) recommendations.push('Internal conflicts detected — explore character depth');
-  if (state.motivationComplexity < 0.3) recommendations.push('Low complexity — add layered motivations');
-  if (state.characters.size > 0 && state.activeMotivations / state.characters.size < 1) {
-    recommendations.push('Some characters lack active motivations');
-  }
+  if (state.totalMotivations === 0) recommendations.push('No motivations — add them');
+  if (state.averageIntensity < 0.5) recommendations.push('Low intensity — strengthen');
+  if (state.conflictTension < 0.3) recommendations.push('Low tension — add conflicts');
 
   return {
     totalMotivations: state.totalMotivations,
+    totalConflicts: state.totalConflicts,
     activeMotivations: state.activeMotivations,
-    characterCount: state.characters.size,
-    motivationComplexity: Math.round(state.motivationComplexity * 100) / 100,
-    conflicts: state.conflicts,
+    averageIntensity: Math.round(state.averageIntensity * 100) / 100,
+    conflictTension: Math.round(state.conflictTension * 100) / 100,
+    characterDrive: Math.round(state.characterDrive * 100) / 100,
     recommendations,
   };
 }
 
 // Recompute metrics
-function recomputeMotivationMetrics(state: CharacterMotivationState): CharacterMotivationState {
+function recomputeMotivation(state: CharacterMotivationEngineState): CharacterMotivationEngineState {
   const motivations = Array.from(state.motivations.values());
-  const activeMotivations = motivations.filter(m => m.state === 'active' || m.state === 'conflicted').length;
+  const averageIntensity = motivations.length === 0 ? 0.5
+    : motivations.reduce((s, m) => s + m.intensity, 0) / motivations.length;
 
-  const strengthMap: Record<MotivationStrength, number> = {
-    weak: 0.25,
-    moderate: 0.5,
-    strong: 0.75,
-    overwhelming: 1.0,
-  };
+  const conflicts = Array.from(state.conflicts.values());
+  const conflictTension = conflicts.length === 0 ? 0
+    : conflicts.reduce((s, c) => s + c.tension, 0) / conflicts.length;
 
-  const averageStrength = motivations.length > 0
-    ? motivations.reduce((s, m) => s + strengthMap[m.strength], 0) / motivations.length
-    : 0.5;
+  const typeSet = new Set(motivations.map(m => m.type));
+  const motivationDepth = Math.min(1, typeSet.size / 6);
+  const characterDrive = (averageIntensity * 0.5 + Math.min(0.5, conflictTension) + motivationDepth * 0.3);
 
-  const motivationComplexity = Math.min(1, motivations.length / 10);
-  const conflicts = detectMotivationConflicts({ ...state, motivations: new Map(motivations.map(m => [m.motivationId, m] as [string, Motivation])) });
-
-  return { ...state, activeMotivations, averageStrength, motivationComplexity, conflicts };
+  return { ...state, averageIntensity, conflictTension, motivationDepth, characterDrive };
 }
 
 // Reset motivation state
-export function resetCharacterMotivationState(): CharacterMotivationState {
-  return createCharacterMotivationState();
+export function resetCharacterMotivationEngineState(): CharacterMotivationEngineState {
+  return createCharacterMotivationEngineState();
 }
