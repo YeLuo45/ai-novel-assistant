@@ -1,17 +1,15 @@
 /**
- * V867 CharacterDynamicsEngine Tests — Direction B Iter 11/15 (Round 4)
+ * V1029 CharacterDynamicsEngine Tests — Direction C Iter 2/20 (Round 5)
  * Coverage target: 99%+, pass rate: 100%
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   createCharacterDynamicsEngineState,
-  createCharacterGroup,
-  addGroupMember,
-  recordGroupEvent,
-  updateGroupCohesion,
-  getGroupsByDynamic,
-  getCharacterDynamicsReport,
+  addCharacterDynamic,
+  addDynamicEvolution,
+  getDynamicsByType,
+  getDynamicsReport,
   resetCharacterDynamicsEngineState,
   type CharacterDynamicsEngineState,
 } from './CharacterDynamicsEngine';
@@ -23,77 +21,55 @@ describe('CharacterDynamicsEngine', () => {
 
   describe('createCharacterDynamicsEngineState', () => {
     it('should initialize with defaults', () => {
-      expect(state.groups.size).toBe(0);
-      expect(state.members.size).toBe(0);
+      expect(state.dynamics.size).toBe(0);
+      expect(state.evolutions.size).toBe(0);
     });
   });
 
-  describe('createCharacterGroup', () => {
-    it('should create group', () => {
-      const next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
-      expect(next.groups.size).toBe(1);
-      expect(next.totalGroups).toBe(1);
+  describe('addCharacterDynamic', () => {
+    it('should add dynamic', () => {
+      const next = addCharacterDynamic(state, 'd1', 'rivalry', 'intense', 'climaxing', 'c1', 'c2', 0.8, 0.7, 1);
+      expect(next.dynamics.size).toBe(1);
+      expect(next.totalDynamics).toBe(1);
     });
   });
 
-  describe('addGroupMember', () => {
-    it('should add member', () => {
-      let next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
-      next = addGroupMember(next, 'm1', 'g1', 'c1', 'leader', 0.8);
-      expect(next.totalMembers).toBe(1);
-    });
-
-    it('should update group', () => {
-      let next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
-      next = addGroupMember(next, 'm1', 'g1', 'c1', 'leader');
-      expect(next.groups.get('g1')?.members.length).toBe(1);
+  describe('addDynamicEvolution', () => {
+    it('should add evolution', () => {
+      let next = addCharacterDynamic(state, 'd1', 'rivalry', 'intense', 'climaxing', 'c1', 'c2', 0.8, 0.7, 1);
+      next = addDynamicEvolution(next, 'e1', 'd1', 'forming', 'climaxing');
+      expect(next.totalEvolutions).toBe(1);
     });
   });
 
-  describe('recordGroupEvent', () => {
-    it('should record event', () => {
-      let next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
-      next = recordGroupEvent(next, 'e1', 'g1', 'alliance', 'joined forces', 5, 0.7);
-      expect(next.totalEvents).toBe(1);
+  describe('getDynamicsByType', () => {
+    it('should filter by type', () => {
+      let next = addCharacterDynamic(state, 'd1', 'rivalry', 'intense', 'climaxing', 'c1', 'c2', 0.8, 0.7, 1);
+      next = addCharacterDynamic(next, 'd2', 'romance', 'intense', 'climaxing', 'c1', 'c2', 0.8, 0.7, 1);
+      const rival = getDynamicsByType(next, 'rivalry');
+      expect(rival.length).toBe(1);
     });
   });
 
-  describe('updateGroupCohesion', () => {
-    it('should update', () => {
-      let next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
-      next = updateGroupCohesion(next, 'g1', 0.9, 0.85);
-      expect(next.groups.get('g1')?.cohesion).toBe(0.9);
-    });
-  });
-
-  describe('getGroupsByDynamic', () => {
-    it('should filter by dynamic', () => {
-      let next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
-      next = createCharacterGroup(next, 'g2', 'Rivals', 'conflict', 1);
-      const collab = getGroupsByDynamic(next, 'collaboration');
-      expect(collab.length).toBe(1);
-    });
-  });
-
-  describe('getCharacterDynamicsReport', () => {
+  describe('getDynamicsReport', () => {
     it('should return comprehensive report', () => {
-      const report = getCharacterDynamicsReport(state);
-      expect(report.totalGroups).toBe(0);
-      expect(typeof report.dynamicsRichness).toBe('number');
+      const report = getDynamicsReport(state);
+      expect(report.totalDynamics).toBe(0);
+      expect(typeof report.dynamicsMastery).toBe('number');
     });
 
     it('should include recommendations for empty state', () => {
-      const report = getCharacterDynamicsReport(state);
+      const report = getDynamicsReport(state);
       expect(report.recommendations.length).toBeGreaterThan(0);
     });
   });
 
   describe('resetCharacterDynamicsEngineState', () => {
     it('should reset all state', () => {
-      let next = createCharacterGroup(state, 'g1', 'Fellowship', 'collaboration', 1);
+      let next = addCharacterDynamic(state, 'd1', 'rivalry', 'intense', 'climaxing', 'c1', 'c2', 0.8, 0.7, 1);
       next = resetCharacterDynamicsEngineState();
-      expect(next.groups.size).toBe(0);
-      expect(next.totalGroups).toBe(0);
+      expect(next.dynamics.size).toBe(0);
+      expect(next.totalDynamics).toBe(0);
     });
   });
 });
