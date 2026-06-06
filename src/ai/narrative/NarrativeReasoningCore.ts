@@ -1,200 +1,137 @@
 /**
- * V726 NarrativeReasoningCore — Direction E Iter 4/9 (Round 2)
- * Narrative reasoning core: advanced causal + abductive + analogical reasoning
- * Sources: thunderbolt reasoning + chatdev logical + nanobot
+ * V958 NarrativeReasoningCore — Direction E Iter 12/15 (Round 4)
+ * Narrative reasoning core: deep narrative reasoning
+ * Sources: ruflo reasoning + thunderbolt + nanobot
  */
 
-export type ReasoningType = 'deductive' | 'inductive' | 'abductive' | 'analogical' | 'causal' | 'counterfactual';
-export type ReasoningStep = 'premise' | 'inference' | 'conclusion' | 'evaluation';
-export type ReasoningConfidence = 'certain' | 'high' | 'moderate' | 'low' | 'speculative';
+export type ReasoningType = 'deductive' | 'inductive' | 'abductive' | 'analogical' | 'narrative' | 'metaphorical';
+export type ReasoningQuality = 'flawed' | 'weak' | 'adequate' | 'strong' | 'irrefutable';
+export type ReasoningDepth = 'surface' | 'shallow' | 'moderate' | 'deep' | 'abyssal';
+
+export interface ReasoningArgument {
+  argumentId: string;
+  type: ReasoningType;
+  quality: ReasoningQuality;
+  depth: ReasoningDepth;
+  premise: string;
+  conclusion: string;
+  validity: number;
+  chapter: number;
+}
 
 export interface ReasoningChain {
-  chainId: string;
-  type: ReasoningType;
-  steps: ReasoningStep[];
-  premises: string[];
-  conclusion: string;
-  confidence: ReasoningConfidence;
-  confidenceScore: number;
-  valid: boolean;
+  chainId: string,
+  name: string,
+  argumentIds: string[],
+  coherence: number,
+  power: number,
 }
 
 export interface NarrativeReasoningCoreState {
+  arguments: Map<string, ReasoningArgument>;
   chains: Map<string, ReasoningChain>;
-  typeDistribution: Map<ReasoningType, number>;
+  totalArguments: number;
   totalChains: number;
-  validChains: number;
-  averageConfidence: number;
+  averageValidity: number;
+  typeVersatility: number;
   reasoningDepth: number;
-  abductivePower: number;
+  reasoningMastery: number;
 }
 
 // Factory
 export function createNarrativeReasoningCoreState(): NarrativeReasoningCoreState {
   return {
+    arguments: new Map(),
     chains: new Map(),
-    typeDistribution: new Map(),
+    totalArguments: 0,
     totalChains: 0,
-    validChains: 0,
-    averageConfidence: 0.5,
+    averageValidity: 0.5,
+    typeVersatility: 0,
     reasoningDepth: 0.5,
-    abductivePower: 0.5,
+    reasoningMastery: 0.5,
   };
 }
 
-// Create chain
-export function createReasoningChain(
+// Add argument
+export function addReasoningArgument(
+  state: NarrativeReasoningCoreState,
+  argumentId: string,
+  type: ReasoningType,
+  quality: ReasoningQuality,
+  depth: ReasoningDepth,
+  premise: string,
+  conclusion: string,
+  validity: number,
+  chapter: number
+): NarrativeReasoningCoreState {
+  const argument: ReasoningArgument = { argumentId, type, quality, depth, premise, conclusion, validity, chapter };
+  const arguments_ = new Map(state.arguments).set(argumentId, argument);
+  return recomputeReasoning({ ...state, arguments: arguments_, totalArguments: arguments_.size });
+}
+
+// Add chain
+export function addReasoningChain(
   state: NarrativeReasoningCoreState,
   chainId: string,
-  type: ReasoningType,
-  premises: string[],
-  steps: ReasoningStep[] = ['premise', 'inference', 'conclusion']
+  name: string,
+  argumentIds: string[]
 ): NarrativeReasoningCoreState {
-  const confidence = inferConfidence(type);
-  const confidenceScore = confidenceToScore(confidence);
-  const chain: ReasoningChain = {
-    chainId,
-    type,
-    steps,
-    premises,
-    conclusion: '',
-    confidence,
-    confidenceScore,
-    valid: true,
-  };
+  const arguments_ = argumentIds.map(id => state.arguments.get(id)).filter((a): a is ReasoningArgument => a !== undefined);
+  const power = arguments_.length === 0 ? 0
+    : arguments_.reduce((s, a) => s + a.validity, 0) / arguments_.length;
+  const coherence = arguments_.length < 2 ? 1
+    : Math.max(0, 1 - Math.abs(arguments_[0].validity - arguments_[arguments_.length - 1].validity));
+  const chain: ReasoningChain = { chainId, name, argumentIds, coherence, power };
   const chains = new Map(state.chains).set(chainId, chain);
-  const typeDistribution = new Map(state.typeDistribution);
-  typeDistribution.set(type, (typeDistribution.get(type) || 0) + 1);
-  return recomputeReasoning({ ...state, chains, typeDistribution, totalChains: chains.size });
+  return recomputeReasoning({ ...state, chains, totalChains: chains.size });
 }
 
-// Set conclusion
-export function setConclusion(state: NarrativeReasoningCoreState, chainId: string, conclusion: string): NarrativeReasoningCoreState {
-  const chain = state.chains.get(chainId);
-  if (!chain) return state;
-
-  const updated: ReasoningChain = { ...chain, conclusion };
-  const chains = new Map(state.chains).set(chainId, updated);
-  return recomputeReasoning({ ...state, chains });
-}
-
-// Invalidate chain
-export function invalidateChain(state: NarrativeReasoningCoreState, chainId: string): NarrativeReasoningCoreState {
-  const chain = state.chains.get(chainId);
-  if (!chain) return state;
-
-  const updated: ReasoningChain = { ...chain, valid: false };
-  const chains = new Map(state.chains).set(chainId, updated);
-  return recomputeReasoning({ ...state, chains });
-}
-
-// Re-validate chain
-export function revalidateChain(state: NarrativeReasoningCoreState, chainId: string): NarrativeReasoningCoreState {
-  const chain = state.chains.get(chainId);
-  if (!chain) return state;
-
-  const updated: ReasoningChain = { ...chain, valid: true };
-  const chains = new Map(state.chains).set(chainId, updated);
-  return recomputeReasoning({ ...state, chains });
-}
-
-// Get chains by type
-export function getChainsByType(state: NarrativeReasoningCoreState, type: ReasoningType): ReasoningChain[] {
-  return Array.from(state.chains.values()).filter(c => c.type === type);
-}
-
-// Get valid chains
-export function getValidChains(state: NarrativeReasoningCoreState): ReasoningChain[] {
-  return Array.from(state.chains.values()).filter(c => c.valid);
-}
-
-// Infer conclusion (abductive)
-export function inferConclusion(state: NarrativeReasoningCoreState, observation: string): string {
-  const abductiveChains = getChainsByType(state, 'abductive').filter(c => c.valid);
-  if (abductiveChains.length === 0) return 'No abductive basis';
-
-  // Find chain with most similar premises
-  let bestChain: ReasoningChain | null = null;
-  let bestScore = -1;
-  for (const chain of abductiveChains) {
-    const matchScore = chain.premises.filter(p => p.toLowerCase().includes(observation.toLowerCase())).length;
-    if (matchScore > bestScore) {
-      bestScore = matchScore;
-      bestChain = chain;
-    }
-  }
-  return bestChain?.conclusion || 'No conclusion found';
+// Get arguments by type
+export function getArgumentsByType(state: NarrativeReasoningCoreState, type: ReasoningType): ReasoningArgument[] {
+  return Array.from(state.arguments.values()).filter(a => a.type === type);
 }
 
 // Get reasoning report
 export function getReasoningReport(state: NarrativeReasoningCoreState): {
+  totalArguments: number;
   totalChains: number;
-  validChains: number;
-  averageConfidence: number;
+  averageValidity: number;
+  typeVersatility: number;
   reasoningDepth: number;
-  abductivePower: number;
-  typeDistribution: Record<string, number>;
+  reasoningMastery: number;
   recommendations: string[];
 } {
   const recommendations: string[] = [];
-  if (state.totalChains === 0) recommendations.push('No reasoning chains — start reasoning');
-  if (state.validChains / Math.max(1, state.totalChains) < 0.7) {
-    recommendations.push('Low validity rate — re-evaluate chains');
-  }
-  if (state.abductivePower < 0.4) recommendations.push('Low abductive power — add more abductive chains');
-
-  const typeDistribution: Record<string, number> = {};
-  state.typeDistribution.forEach((count, type) => {
-    typeDistribution[type] = count;
-  });
+  if (state.totalArguments === 0) recommendations.push('No arguments — add reasoning arguments');
+  if (state.averageValidity < 0.5) recommendations.push('Low validity — improve reasoning');
+  if (state.reasoningMastery < 0.5) recommendations.push('Low mastery — develop');
 
   return {
+    totalArguments: state.totalArguments,
     totalChains: state.totalChains,
-    validChains: state.validChains,
-    averageConfidence: Math.round(state.averageConfidence * 100) / 100,
+    averageValidity: Math.round(state.averageValidity * 100) / 100,
+    typeVersatility: Math.round(state.typeVersatility * 100) / 100,
     reasoningDepth: Math.round(state.reasoningDepth * 100) / 100,
-    abductivePower: Math.round(state.abductivePower * 100) / 100,
-    typeDistribution,
+    reasoningMastery: Math.round(state.reasoningMastery * 100) / 100,
     recommendations,
   };
 }
 
-// Infer confidence from type
-function inferConfidence(type: ReasoningType): ReasoningConfidence {
-  const map: Record<ReasoningType, ReasoningConfidence> = {
-    deductive: 'certain',
-    inductive: 'high',
-    abductive: 'moderate',
-    analogical: 'moderate',
-    causal: 'high',
-    counterfactual: 'low',
-  };
-  return map[type];
-}
-
-function confidenceToScore(conf: ReasoningConfidence): number {
-  const map: Record<ReasoningConfidence, number> = {
-    certain: 1.0,
-    high: 0.85,
-    moderate: 0.65,
-    low: 0.4,
-    speculative: 0.2,
-  };
-  return map[conf];
-}
-
 // Recompute metrics
 function recomputeReasoning(state: NarrativeReasoningCoreState): NarrativeReasoningCoreState {
-  const chains = Array.from(state.chains.values());
-  const validChains = chains.filter(c => c.valid).length;
-  const averageConfidence = chains.length > 0
-    ? chains.reduce((s, c) => s + c.confidenceScore, 0) / chains.length
-    : 0.5;
-  const reasoningDepth = chains.length === 0 ? 0.5 : Math.min(1, chains.length / 10);
-  const abductiveChains = chains.filter(c => c.type === 'abductive' && c.valid).length;
-  const abductivePower = chains.length === 0 ? 0.5 : abductiveChains / chains.length;
+  const arguments_ = Array.from(state.arguments.values());
+  const averageValidity = arguments_.length === 0 ? 0.5
+    : arguments_.reduce((s, a) => s + a.validity, 0) / arguments_.length;
+  const typeSet = new Set(arguments_.map(a => a.type));
+  const typeVersatility = Math.min(1, typeSet.size / 5);
 
-  return { ...state, validChains, averageConfidence, reasoningDepth, abductivePower };
+  const depthMap: Record<ReasoningDepth, number> = { surface: 0.2, shallow: 0.4, moderate: 0.6, deep: 0.8, abyssal: 1.0 };
+  const reasoningDepth = arguments_.length === 0 ? 0.5
+    : arguments_.reduce((s, a) => s + depthMap[a.depth], 0) / arguments_.length;
+
+  const reasoningMastery = (averageValidity * 0.4 + typeVersatility * 0.3 + reasoningDepth * 0.3);
+
+  return { ...state, averageValidity, typeVersatility, reasoningDepth, reasoningMastery };
 }
 
 // Reset reasoning state

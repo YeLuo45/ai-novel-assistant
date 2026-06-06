@@ -1,132 +1,75 @@
 /**
- * V659 NarrativeEvaluationEngine Tests — Direction E Iter 6/9
+ * V951 NarrativeEvaluationEngine Tests — Direction E Iter 8/15 (Round 4)
  * Coverage target: 99%+, pass rate: 100%
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  createNarrativeEvaluationState,
-  addMetricScore,
-  evaluateNarrative,
-  recordEvaluation,
+  createNarrativeEvaluationEngineState,
+  addEvaluation,
+  addEvaluationProfile,
+  getEvaluationsByCriterion,
   getEvaluationReport,
-  resetNarrativeEvaluationState,
-  type NarrativeEvaluationState,
+  resetNarrativeEvaluationEngineState,
+  type NarrativeEvaluationEngineState,
 } from './NarrativeEvaluationEngine';
 
 describe('NarrativeEvaluationEngine', () => {
-  let state: NarrativeEvaluationState;
+  let state: NarrativeEvaluationEngineState;
 
-  beforeEach(() => { state = createNarrativeEvaluationState(); });
+  beforeEach(() => { state = createNarrativeEvaluationEngineState(); });
 
-  describe('createNarrativeEvaluationState', () => {
+  describe('createNarrativeEvaluationEngineState', () => {
     it('should initialize with defaults', () => {
-      expect(state.scores).toEqual([]);
-      expect(state.evaluationCount).toBe(0);
-    });
-
-    it('should have default confidence', () => {
-      expect(state.averageConfidence).toBe(0.8);
+      expect(state.evaluations.size).toBe(0);
+      expect(state.profiles.size).toBe(0);
     });
   });
 
-  describe('addMetricScore', () => {
-    it('should add metric score', () => {
-      const next = addMetricScore(state, 'coherence', 0.8, 1, 'structural', 'Good flow');
-      expect(next.scores.length).toBe(1);
-      expect(next.scores[0]?.metric).toBe('coherence');
-    });
-
-    it('should clamp score to 0-1', () => {
-      const next = addMetricScore(state, 'engagement', 1.5, 1, 'semantic');
-      expect(next.scores[0]?.score).toBe(1);
-    });
-
-    it('should compute overall score', () => {
-      const next = addMetricScore(state, 'coherence', 0.8, 1, 'surface');
-      expect(next.overallScore).toBeGreaterThan(0);
-    });
-
-    it('should set reasoning', () => {
-      const next = addMetricScore(state, 'originality', 0.7, 1, 'holistic', 'Creative elements');
-      expect(next.scores[0]?.reasoning).toBe('Creative elements');
+  describe('addEvaluation', () => {
+    it('should add evaluation', () => {
+      const next = addEvaluation(state, 'e1', 'craft', 'rubric', 'excellent', 0.8, 'notes', 'critic1', 1);
+      expect(next.evaluations.size).toBe(1);
+      expect(next.totalEvaluations).toBe(1);
     });
   });
 
-  describe('evaluateNarrative', () => {
-    it('should return evaluation result', () => {
-      let next = addMetricScore(state, 'coherence', 0.8, 1, 'surface');
-      next = addMetricScore(next, 'engagement', 0.6, 1, 'surface');
-      const result = evaluateNarrative(next);
-      expect(typeof result.overallScore).toBe('number');
-      expect(Array.isArray(result.dominantMetrics)).toBe(true);
-    });
-
-    it('should identify dominant and weakest metrics', () => {
-      let next = addMetricScore(state, 'coherence', 0.9, 1, 'surface');
-      next = addMetricScore(next, 'engagement', 0.4, 1, 'surface');
-      const result = evaluateNarrative(next);
-      expect(result.dominantMetrics).toContain('coherence');
-      expect(result.weakestMetrics).toContain('engagement');
-    });
-
-    it('should include recommendations', () => {
-      const result = evaluateNarrative(state);
-      expect(Array.isArray(result.recommendations)).toBe(true);
-      expect(result.recommendations.length).toBeGreaterThan(0);
-    });
-
-    it('should return empty for no scores', () => {
-      const result = evaluateNarrative(state);
-      expect(result.overallScore).toBe(0);
-      expect(result.dominantMetrics).toEqual([]);
+  describe('addEvaluationProfile', () => {
+    it('should add profile', () => {
+      let next = addEvaluation(state, 'e1', 'craft', 'rubric', 'excellent', 0.8, 'notes', 'critic1', 1);
+      next = addEvaluationProfile(next, 'p1', 'Chapter 1', ['e1'], 'strong craft', 'weak plot');
+      expect(next.totalProfiles).toBe(1);
     });
   });
 
-  describe('recordEvaluation', () => {
-    it('should record evaluation to history', () => {
-      let next = addMetricScore(state, 'coherence', 0.8, 1, 'surface');
-      next = recordEvaluation(next);
-      expect(next.evaluationHistory.length).toBe(1);
-      expect(next.evaluationCount).toBe(1);
-    });
-
-    it('should clear current scores', () => {
-      let next = addMetricScore(state, 'coherence', 0.8, 1, 'surface');
-      next = recordEvaluation(next);
-      expect(next.scores.length).toBe(0);
+  describe('getEvaluationsByCriterion', () => {
+    it('should filter by criterion', () => {
+      let next = addEvaluation(state, 'e1', 'craft', 'rubric', 'excellent', 0.8, 'notes', 'critic1', 1);
+      next = addEvaluation(next, 'e2', 'originality', 'rubric', 'good', 0.7, 'notes', 'critic1', 1);
+      const craft = getEvaluationsByCriterion(next, 'craft');
+      expect(craft.length).toBe(1);
     });
   });
 
   describe('getEvaluationReport', () => {
     it('should return comprehensive report', () => {
       const report = getEvaluationReport(state);
-      expect(typeof report.evaluationCount).toBe('number');
-      expect(typeof report.averageConfidence).toBe('number');
+      expect(report.totalEvaluations).toBe(0);
+      expect(typeof report.evaluationMastery).toBe('number');
     });
 
-    it('should compute average overall score from history', () => {
-      let next = addMetricScore(state, 'coherence', 0.8, 1, 'surface');
-      next = recordEvaluation(next);
-      next = addMetricScore(next, 'engagement', 0.6, 1, 'surface');
-      next = recordEvaluation(next);
-      const report = getEvaluationReport(next);
-      expect(report.averageOverallScore).toBeGreaterThan(0);
-    });
-
-    it('should include recommendations', () => {
+    it('should include recommendations for empty state', () => {
       const report = getEvaluationReport(state);
-      expect(Array.isArray(report.recommendations)).toBe(true);
+      expect(report.recommendations.length).toBeGreaterThan(0);
     });
   });
 
-  describe('resetNarrativeEvaluationState', () => {
+  describe('resetNarrativeEvaluationEngineState', () => {
     it('should reset all state', () => {
-      let next = addMetricScore(state, 'coherence', 0.8, 1, 'surface');
-      next = recordEvaluation(next);
-      next = resetNarrativeEvaluationState();
-      expect(next.evaluationCount).toBe(0);
-      expect(next.evaluationHistory.length).toBe(0);
+      let next = addEvaluation(state, 'e1', 'craft', 'rubric', 'excellent', 0.8, 'notes', 'critic1', 1);
+      next = resetNarrativeEvaluationEngineState();
+      expect(next.evaluations.size).toBe(0);
+      expect(next.totalEvaluations).toBe(0);
     });
   });
 });

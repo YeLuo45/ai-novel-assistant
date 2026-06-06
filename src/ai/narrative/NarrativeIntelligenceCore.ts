@@ -1,202 +1,139 @@
 /**
- * V720 NarrativeIntelligenceCore — Direction E Iter 1/9 (Round 2)
- * Narrative intelligence core: master intelligence + meta-cognition
- * Sources: all 6 design systems — thunderbolt pipeline + chatdev + nanobot + ruflo + generic-agent
+ * V956 NarrativeIntelligenceCore — Direction E Iter 11/15 (Round 4)
+ * Narrative intelligence core: integrated narrative intelligence
+ * Sources: nanobot intelligence + thunderbolt + chatdev
  */
 
-export type IntelligenceMode = 'analytical' | 'creative' | 'critical' | 'intuitive' | 'hybrid';
-export type CognitiveLevel = 'surface' | 'shallow' | 'deep' | 'meta';
-export type IntelligenceState = 'dormant' | 'awakening' | 'active' | 'reflecting' | 'integrating';
+export type IntelligenceType = 'emotional' | 'social' | 'spatial' | 'verbal' | 'logical' | 'creative';
+export type IntelligenceLevel = 'low' | 'moderate' | 'high' | 'very_high' | 'exceptional';
+export type IntelligenceApplication = 'craft' | 'character' | 'plot' | 'theme' | 'world' | 'meta';
 
-export interface CognitiveState {
-  level: CognitiveLevel;
-  focus: string;
-  confidence: number;
-  context: string;
-  timestamp: number;
+export interface IntelligenceFacet {
+  facetId: string;
+  type: IntelligenceType;
+  level: IntelligenceLevel;
+  application: IntelligenceApplication;
+  description: string;
+  score: number;
+  chapter: number;
 }
 
-export interface IntelligenceProcess {
-  processId: string;
-  name: string;
-  mode: IntelligenceMode;
-  state: IntelligenceState;
-  cognitiveState: CognitiveState;
-  input: string;
-  output: string;
-  qualityScore: number;
-  startTime: number;
-  endTime: number | null;
+export interface IntelligenceProfile {
+  profileId: string,
+  name: string,
+  facetIds: string[],
+  overallScore: number,
+  versatility: number,
 }
 
 export interface NarrativeIntelligenceCoreState {
-  processes: Map<string, IntelligenceProcess>;
-  currentMode: IntelligenceMode;
-  currentLevel: CognitiveLevel;
-  totalProcesses: number;
-  activeProcesses: number;
-  completedProcesses: number;
-  averageQuality: number;
-  metaCognition: number;
-  intelligenceQuotient: number;
+  facets: Map<string, IntelligenceFacet>;
+  profiles: Map<string, IntelligenceProfile>;
+  totalFacets: number;
+  totalProfiles: number;
+  averageScore: number;
+  typeCoverage: number;
+  intelligenceBalance: number;
+  intelligenceMastery: number;
 }
 
 // Factory
 export function createNarrativeIntelligenceCoreState(): NarrativeIntelligenceCoreState {
   return {
-    processes: new Map(),
-    currentMode: 'hybrid',
-    currentLevel: 'deep',
-    totalProcesses: 0,
-    activeProcesses: 0,
-    completedProcesses: 0,
-    averageQuality: 0.5,
-    metaCognition: 0.6,
-    intelligenceQuotient: 0.7,
+    facets: new Map(),
+    profiles: new Map(),
+    totalFacets: 0,
+    totalProfiles: 0,
+    averageScore: 0.5,
+    typeCoverage: 0,
+    intelligenceBalance: 0.5,
+    intelligenceMastery: 0.5,
   };
 }
 
-// Start process
-export function startProcess(
+// Add facet
+export function addIntelligenceFacet(
   state: NarrativeIntelligenceCoreState,
-  processId: string,
+  facetId: string,
+  type: IntelligenceType,
+  level: IntelligenceLevel,
+  application: IntelligenceApplication,
+  description: string,
+  score: number,
+  chapter: number
+): NarrativeIntelligenceCoreState {
+  const facet: IntelligenceFacet = { facetId, type, level, application, description, score, chapter };
+  const facets = new Map(state.facets).set(facetId, facet);
+  return recomputeIntelligence({ ...state, facets, totalFacets: facets.size });
+}
+
+// Add profile
+export function addIntelligenceProfile(
+  state: NarrativeIntelligenceCoreState,
+  profileId: string,
   name: string,
-  mode: IntelligenceMode,
-  input: string,
-  context: string = ''
+  facetIds: string[]
 ): NarrativeIntelligenceCoreState {
-  const cognitiveState: CognitiveState = {
-    level: state.currentLevel,
-    focus: name,
-    confidence: 0.5,
-    context,
-    timestamp: Date.now(),
-  };
-
-  const process: IntelligenceProcess = {
-    processId,
-    name,
-    mode,
-    state: 'awakening',
-    cognitiveState,
-    input,
-    output: '',
-    qualityScore: 0,
-    startTime: Date.now(),
-    endTime: null,
-  };
-
-  const processes = new Map(state.processes).set(processId, process);
-  return recomputeIntelligence({ ...state, processes, totalProcesses: processes.size, activeProcesses: state.activeProcesses + 1 });
+  const facets = facetIds.map(id => state.facets.get(id)).filter((f): f is IntelligenceFacet => f !== undefined);
+  const overallScore = facets.length === 0 ? 0.5
+    : facets.reduce((s, f) => s + f.score, 0) / facets.length;
+  const typeSet = new Set(facets.map(f => f.type));
+  const versatility = Math.min(1, typeSet.size / 5);
+  const profile: IntelligenceProfile = { profileId, name, facetIds, overallScore, versatility };
+  const profiles = new Map(state.profiles).set(profileId, profile);
+  return recomputeIntelligence({ ...state, profiles, totalProfiles: profiles.size });
 }
 
-// Update process state
-export function updateProcessState(
-  state: NarrativeIntelligenceCoreState,
-  processId: string,
-  newState: IntelligenceState,
-  output: string = '',
-  qualityScore: number = 0
-): NarrativeIntelligenceCoreState {
-  const process = state.processes.get(processId);
-  if (!process) return state;
-
-  const updated: IntelligenceProcess = {
-    ...process,
-    state: newState,
-    output: output || process.output,
-    qualityScore,
-    cognitiveState: { ...process.cognitiveState, confidence: qualityScore },
-    endTime: newState === 'integrating' ? Date.now() : process.endTime,
-  };
-  const processes = new Map(state.processes).set(processId, updated);
-
-  const completedProcesses = newState === 'integrating' ? state.completedProcesses + 1 : state.completedProcesses;
-  const activeProcesses = newState === 'integrating' ? state.activeProcesses - 1 : state.activeProcesses;
-
-  return recomputeIntelligence({ ...state, processes, completedProcesses, activeProcesses: Math.max(0, activeProcesses) });
+// Get facets by type
+export function getFacetsByType(state: NarrativeIntelligenceCoreState, type: IntelligenceType): IntelligenceFacet[] {
+  return Array.from(state.facets.values()).filter(f => f.type === type);
 }
 
-// Set intelligence mode
-export function setIntelligenceMode(state: NarrativeIntelligenceCoreState, mode: IntelligenceMode): NarrativeIntelligenceCoreState {
-  return { ...state, currentMode: mode };
-}
-
-// Set cognitive level
-export function setCognitiveLevel(state: NarrativeIntelligenceCoreState, level: CognitiveLevel): NarrativeIntelligenceCoreState {
-  return { ...state, currentLevel: level };
-}
-
-// Get processes by mode
-export function getProcessesByMode(state: NarrativeIntelligenceCoreState, mode: IntelligenceMode): IntelligenceProcess[] {
-  return Array.from(state.processes.values()).filter(p => p.mode === mode);
-}
-
-// Get processes by state
-export function getProcessesByIntelligenceState(state: NarrativeIntelligenceCoreState, intState: IntelligenceState): IntelligenceProcess[] {
-  return Array.from(state.processes.values()).filter(p => p.state === intState);
-}
-
-// Reflect (meta-cognition)
-export function reflect(state: NarrativeIntelligenceCoreState, processId: string, reflection: string): NarrativeIntelligenceCoreState {
-  const process = state.processes.get(processId);
-  if (!process) return state;
-
-  const updated: IntelligenceProcess = {
-    ...process,
-    cognitiveState: { ...process.cognitiveState, context: process.cognitiveState.context + '\nReflection: ' + reflection },
-  };
-  const processes = new Map(state.processes).set(processId, updated);
-  return { ...state, processes };
-}
-
-// Get intelligence core report
+// Get intelligence report
 export function getIntelligenceCoreReport(state: NarrativeIntelligenceCoreState): {
-  totalProcesses: number;
-  activeProcesses: number;
-  completedProcesses: number;
-  averageQuality: number;
-  metaCognition: number;
-  intelligenceQuotient: number;
-  currentMode: IntelligenceMode;
-  currentLevel: CognitiveLevel;
+  totalFacets: number;
+  totalProfiles: number;
+  averageScore: number;
+  typeCoverage: number;
+  intelligenceBalance: number;
+  intelligenceMastery: number;
   recommendations: string[];
 } {
   const recommendations: string[] = [];
-  if (state.totalProcesses === 0) recommendations.push('No processes — start intelligence work');
-  if (state.metaCognition < 0.5) recommendations.push('Low meta-cognition — reflect more');
-  if (state.averageQuality < 0.6) recommendations.push('Quality below 60% — review processes');
+  if (state.totalFacets === 0) recommendations.push('No facets — add intelligence facets');
+  if (state.typeCoverage < 0.3) recommendations.push('Low coverage — diversify');
+  if (state.intelligenceMastery < 0.5) recommendations.push('Low mastery — develop');
 
   return {
-    totalProcesses: state.totalProcesses,
-    activeProcesses: state.activeProcesses,
-    completedProcesses: state.completedProcesses,
-    averageQuality: Math.round(state.averageQuality * 100) / 100,
-    metaCognition: Math.round(state.metaCognition * 100) / 100,
-    intelligenceQuotient: Math.round(state.intelligenceQuotient * 100) / 100,
-    currentMode: state.currentMode,
-    currentLevel: state.currentLevel,
+    totalFacets: state.totalFacets,
+    totalProfiles: state.totalProfiles,
+    averageScore: Math.round(state.averageScore * 100) / 100,
+    typeCoverage: Math.round(state.typeCoverage * 100) / 100,
+    intelligenceBalance: Math.round(state.intelligenceBalance * 100) / 100,
+    intelligenceMastery: Math.round(state.intelligenceMastery * 100) / 100,
     recommendations,
   };
 }
 
 // Recompute metrics
 function recomputeIntelligence(state: NarrativeIntelligenceCoreState): NarrativeIntelligenceCoreState {
-  const processes = Array.from(state.processes.values());
-  const completed = processes.filter(p => p.state === 'integrating');
-  const averageQuality = completed.length > 0
-    ? completed.reduce((s, p) => s + p.qualityScore, 0) / completed.length
-    : 0.5;
+  const facets = Array.from(state.facets.values());
+  const averageScore = facets.length === 0 ? 0.5
+    : facets.reduce((s, f) => s + f.score, 0) / facets.length;
+  const typeSet = new Set(facets.map(f => f.type));
+  const typeCoverage = Math.min(1, typeSet.size / 5);
 
-  const reflected = processes.filter(p => p.cognitiveState.context.includes('Reflection:')).length;
-  const metaCognition = processes.length > 0 ? reflected / processes.length : 0.6;
+  // Balance: how similar all scores are
+  const variance = facets.length === 0 ? 0
+    : facets.reduce((s, f) => s + Math.pow(f.score - averageScore, 2), 0) / facets.length;
+  const intelligenceBalance = Math.max(0, 1 - variance * 4);
 
-  const intelligenceQuotient = (averageQuality + metaCognition) / 2 + 0.2;
+  const intelligenceMastery = (averageScore * 0.4 + typeCoverage * 0.3 + intelligenceBalance * 0.3);
 
-  return { ...state, averageQuality, metaCognition, intelligenceQuotient: Math.min(1, intelligenceQuotient) };
+  return { ...state, averageScore, typeCoverage, intelligenceBalance, intelligenceMastery };
 }
 
-// Reset intelligence core
+// Reset intelligence state
 export function resetNarrativeIntelligenceCoreState(): NarrativeIntelligenceCoreState {
   return createNarrativeIntelligenceCoreState();
 }
