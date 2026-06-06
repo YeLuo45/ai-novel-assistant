@@ -1,130 +1,147 @@
 /**
- * V682 NarrativeSynthesisEngine — Direction C Iter 9/9 (Round 2)
- * Narrative synthesis engine: integrates all Direction C Round 2 modules
- * Sources: all 6 design systems unified orchestration
+ * V948 NarrativeSynthesisEngine — Direction E Iter 7/15 (Round 4)
+ * Narrative synthesis engine: synthesis of disparate elements
+ * Sources: nanobot synthesis + thunderbolt + chatdev
  */
 
-import { createNarrativePacingState } from './NarrativePacingEngine';
-import { createDialogueOrchestrationState } from './DialogueOrchestrationEngine';
-import { createCharacterMotivationState } from './CharacterMotivationEngine';
-import { createSceneTransitionState } from './SceneTransitionEngine';
-import { createThemeSymbolismState } from './ThemeSymbolismEngine';
-import { createConflictResolutionState } from './ConflictResolutionEngine';
-import { createNarrativeVoiceState } from './NarrativeVoiceEngine';
-import { createReaderEngagementState } from './ReaderEngagementEngine';
+export type SynthesisType = 'thematic' | 'character' | 'plot' | 'stylistic' | 'cultural' | 'philosophical';
+export type SynthesisProcess = 'combine' | 'integrate' | 'unify' | 'weave' | 'fuse' | 'harmonize';
+export type SynthesisResult = 'fragmented' | 'partial' | 'coherent' | 'unified' | 'transcendent';
 
-export interface NarrativeSynthesisState {
-  pacing: ReturnType<typeof createNarrativePacingState>;
-  dialogue: ReturnType<typeof createDialogueOrchestrationState>;
-  motivation: ReturnType<typeof createCharacterMotivationState>;
-  transition: ReturnType<typeof createSceneTransitionState>;
-  theme: ReturnType<typeof createThemeSymbolismState>;
-  conflict: ReturnType<typeof createConflictResolutionState>;
-  voice: ReturnType<typeof createNarrativeVoiceState>;
-  engagement: ReturnType<typeof createReaderEngagementState>;
-  overallScore: number;
-  version: string;
+export interface SynthesisElement {
+  elementId: string;
+  type: SynthesisType;
+  process: SynthesisProcess;
+  inputs: string[];
+  output: string;
+  coherence: number;
+  chapter: number;
 }
 
-export interface SynthesisReport {
-  pacingScore: number;
-  dialogueDensity: number;
-  motivationComplexity: number;
-  transitionFlow: number;
-  themeCoherence: number;
-  conflictResolution: number;
-  voiceConsistency: number;
-  engagementLevel: string;
-  overallScore: number;
-  recommendations: string[];
+export interface SynthesisPattern {
+  patternId: string;
+  name: string;
+  elementIds: string[];
+  effectiveness: number;
+  reuse: number;
+}
+
+export interface NarrativeSynthesisEngineState {
+  elements: Map<string, SynthesisElement>;
+  patterns: Map<string, SynthesisPattern>;
+  totalElements: number;
+  totalPatterns: number;
+  averageCoherence: number;
+  synthesisReuse: number;
+  synthesisMastery: number;
+  overallSynthesis: number;
 }
 
 // Factory
-export function createNarrativeSynthesisState(): NarrativeSynthesisState {
+export function createNarrativeSynthesisEngineState(): NarrativeSynthesisEngineState {
   return {
-    pacing: createNarrativePacingState(),
-    dialogue: createDialogueOrchestrationState(),
-    motivation: createCharacterMotivationState(),
-    transition: createSceneTransitionState(),
-    theme: createThemeSymbolismState(),
-    conflict: createConflictResolutionState(),
-    voice: createNarrativeVoiceState(),
-    engagement: createReaderEngagementState(),
-    overallScore: 0.5,
-    version: '2.0.0',
+    elements: new Map(),
+    patterns: new Map(),
+    totalElements: 0,
+    totalPatterns: 0,
+    averageCoherence: 0.5,
+    synthesisReuse: 0,
+    synthesisMastery: 0.5,
+    overallSynthesis: 0.5,
   };
 }
 
-// Run synthesis cycle
-export function runSynthesisCycle(state: NarrativeSynthesisState): {
-  state: NarrativeSynthesisState;
-  overallScore: number;
-  insights: string[];
-} {
-  const insights: string[] = [];
+// Add element
+export function addSynthesisElement(
+  state: NarrativeSynthesisEngineState,
+  elementId: string,
+  type: SynthesisType,
+  process: SynthesisProcess,
+  inputs: string[],
+  output: string,
+  coherence: number,
+  chapter: number
+): NarrativeSynthesisEngineState {
+  const element: SynthesisElement = { elementId, type, process, inputs, output, coherence, chapter };
+  const elements = new Map(state.elements).set(elementId, element);
+  return recomputeSynthesis({ ...state, elements, totalElements: elements.size });
+}
 
-  // Assess each subsystem
-  if (state.pacing.totalBeats === 0) insights.push('No pacing beats — define rhythm');
-  if (state.dialogue.totalLines === 0) insights.push('No dialogue — add character conversations');
-  if (state.motivation.totalMotivations === 0) insights.push('No motivations — define character drives');
-  if (state.transition.totalTransitions === 0) insights.push('No scene transitions — connect scenes');
-  if (state.theme.totalThemes === 0) insights.push('No themes — establish central themes');
-  if (state.conflict.totalConflicts === 0) insights.push('No conflicts — add tension');
-  if (state.voice.totalProfiles === 0) insights.push('No voice profiles — define narrative style');
-  if (state.engagement.totalHooks === 0) insights.push('No engagement hooks — add curiosity');
+// Add pattern
+export function addSynthesisPattern(
+  state: NarrativeSynthesisEngineState,
+  patternId: string,
+  name: string,
+  elementIds: string[]
+): NarrativeSynthesisEngineState {
+  const elements = elementIds.map(id => state.elements.get(id)).filter((e): e is SynthesisElement => e !== undefined);
+  const effectiveness = elements.length === 0 ? 0.5
+    : elements.reduce((s, e) => s + e.coherence, 0) / elements.length;
+  const pattern: SynthesisPattern = { patternId, name, elementIds, effectiveness, reuse: 0 };
+  const patterns = new Map(state.patterns).set(patternId, pattern);
+  return recomputeSynthesis({ ...state, patterns, totalPatterns: patterns.size });
+}
 
-  // Compute overall score
-  const pacingScore = state.pacing.pacingScore;
-  const dialogueDensity = state.dialogue.dialogueDensity;
-  const motivationComplexity = state.motivation.motivationComplexity;
-  const transitionFlow = state.transition.flowScore;
-  const themeCoherence = state.theme.themeCoherence;
-  const conflictResolution = state.conflict.resolutionEffectiveness;
-  const voiceConsistency = state.voice.averageConsistency;
-  const engagementScore = state.engagement.averageEngagement;
+// Use pattern
+export function useSynthesisPattern(state: NarrativeSynthesisEngineState, patternId: string): NarrativeSynthesisEngineState {
+  const pattern = state.patterns.get(patternId);
+  if (!pattern) return state;
 
-  const overallScore = (
-    pacingScore * 0.125 +
-    dialogueDensity * 0.125 +
-    motivationComplexity * 0.125 +
-    transitionFlow * 0.125 +
-    themeCoherence * 0.125 +
-    conflictResolution * 0.125 +
-    voiceConsistency * 0.125 +
-    engagementScore * 0.125
-  );
+  const updated: SynthesisPattern = { ...pattern, reuse: pattern.reuse + 1 };
+  const patterns = new Map(state.patterns).set(patternId, updated);
+  return recomputeSynthesis({ ...state, patterns });
+}
 
-  return {
-    state: { ...state, overallScore },
-    overallScore: Math.round(overallScore * 100) / 100,
-    insights,
-  };
+// Get elements by type
+export function getElementsByType(state: NarrativeSynthesisEngineState, type: SynthesisType): SynthesisElement[] {
+  return Array.from(state.elements.values()).filter(e => e.type === type);
 }
 
 // Get synthesis report
-export function getSynthesisReport(state: NarrativeSynthesisState): SynthesisReport {
-  const insights: string[] = [];
-  if (state.pacing.totalBeats < 3) insights.push('Pacing underused');
-  if (state.dialogue.totalLines < 5) insights.push('Limited dialogue');
-  if (state.motivation.totalMotivations < 2) insights.push('Few motivations');
-  if (state.theme.totalThemes < 1) insights.push('No themes');
-  if (state.conflict.totalConflicts < 1) insights.push('No conflicts');
+export function getSynthesisReport(state: NarrativeSynthesisEngineState): {
+  totalElements: number;
+  totalPatterns: number;
+  averageCoherence: number;
+  synthesisReuse: number;
+  synthesisMastery: number;
+  recommendations: string[];
+} {
+  const recommendations: string[] = [];
+  if (state.totalElements === 0) recommendations.push('No elements — add synthesis elements');
+  if (state.averageCoherence < 0.5) recommendations.push('Low coherence — improve');
+  if (state.synthesisMastery < 0.5) recommendations.push('Low mastery — develop');
 
   return {
-    pacingScore: Math.round(state.pacing.pacingScore * 100) / 100,
-    dialogueDensity: Math.round(state.dialogue.dialogueDensity * 100) / 100,
-    motivationComplexity: Math.round(state.motivation.motivationComplexity * 100) / 100,
-    transitionFlow: Math.round(state.transition.flowScore * 100) / 100,
-    themeCoherence: Math.round(state.theme.themeCoherence * 100) / 100,
-    conflictResolution: Math.round(state.conflict.resolutionEffectiveness * 100) / 100,
-    voiceConsistency: Math.round(state.voice.averageConsistency * 100) / 100,
-    engagementLevel: state.engagement.averageEngagement >= 0.65 ? 'high' : 'medium',
-    overallScore: Math.round(state.overallScore * 100) / 100,
-    recommendations: insights,
+    totalElements: state.totalElements,
+    totalPatterns: state.totalPatterns,
+    averageCoherence: Math.round(state.averageCoherence * 100) / 100,
+    synthesisReuse: Math.round(state.synthesisReuse * 100) / 100,
+    synthesisMastery: Math.round(state.synthesisMastery * 100) / 100,
+    recommendations,
   };
 }
 
+// Recompute metrics
+function recomputeSynthesis(state: NarrativeSynthesisEngineState): NarrativeSynthesisEngineState {
+  const elements = Array.from(state.elements.values());
+  const averageCoherence = elements.length === 0 ? 0.5
+    : elements.reduce((s, e) => s + e.coherence, 0) / elements.length;
+
+  const patterns = Array.from(state.patterns.values());
+  const totalReuse = patterns.reduce((s, p) => s + p.reuse, 0);
+  const synthesisReuse = patterns.length === 0 ? 0
+    : Math.min(1, totalReuse / Math.max(1, patterns.length * 2));
+
+  const typeSet = new Set(elements.map(e => e.type));
+  const typeCoverage = Math.min(1, typeSet.size / 5);
+
+  const synthesisMastery = (averageCoherence * 0.5 + synthesisReuse * 0.2 + typeCoverage * 0.3);
+  const overallSynthesis = synthesisMastery;
+
+  return { ...state, averageCoherence, synthesisReuse, synthesisMastery, overallSynthesis };
+}
+
 // Reset synthesis state
-export function resetNarrativeSynthesisState(): NarrativeSynthesisState {
-  return createNarrativeSynthesisState();
+export function resetNarrativeSynthesisEngineState(): NarrativeSynthesisEngineState {
+  return createNarrativeSynthesisEngineState();
 }
