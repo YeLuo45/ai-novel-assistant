@@ -1,93 +1,97 @@
 /**
- * V1484 NarrativeThemeOrchestratorEngine — Direction L Iter 30/30 (Round 5)
+ * V1784 NarrativeThemeOrchestratorEngine — Direction Q Iter 30/30 (Round 5)
  * Theme orchestrator: orchestrates all theme engines
- * Sources: thunderbolt + nanobot + ruflo + chatdev + generic-agent + claude-code
+ * Sources: thunderbolt + nanobot + ruflo + chatdev + generic-agent
  */
-
-import type { NarrativeThemeLoveEngineState } from './NarrativeThemeLoveEngine';
-import type { NarrativeThemeDeathEngineState } from './NarrativeThemeDeathEngine';
-import type { NarrativeThemeIdentity2EngineState } from './NarrativeThemeIdentityEngine2';
-import type { NarrativeThemeJusticeEngineState } from './NarrativeThemeJusticeEngine';
-import type { NarrativeThemeTruthEngineState } from './NarrativeThemeTruthEngine';
-import type { NarrativeThemeHope2EngineState } from './NarrativeThemeHopeEngine2';
-import type { NarrativeThemeWisdomEngineState } from './NarrativeThemeWisdomEngine';
+import type { NarrativeThemeIdentityEngineState } from './NarrativeThemeIdentityEngine';
+import type { NarrativeThemePowerEngineState } from './NarrativeThemePowerEngine';
+import type { NarrativeThemeFreedomEngineState } from './NarrativeThemeFreedomEngine';
+import type { NarrativeThemeMortalityEngineState } from './NarrativeThemeMortalityEngine';
+import type { NarrativeThemeMeaningEngineState } from './NarrativeThemeMeaningEngine';
+import type { NarrativeThemeHopeEngineState } from './NarrativeThemeHopeEngine';
+import type { NarrativeThemeDespairEngineState } from './NarrativeThemeDespairEngine';
+import type { NarrativeThemeCourageEngineState } from './NarrativeThemeCourageEngine';
 
 export interface ThemeOrchestratorSnapshot {
-  love: number;
-  death: number;
   identity: number;
-  justice: number;
-  truth: number;
+  power: number;
+  freedom: number;
+  mortality: number;
+  meaning: number;
   hope: number;
-  wisdom: number;
+  despair: number;
+  courage: number;
 }
 
 export interface NarrativeThemeOrchestratorEngineState {
   snapshot: ThemeOrchestratorSnapshot;
-  totalThemes: number;
-  harmonyIndex: number;
-  tensionIndex: number;
-  resolutionIndex: number;
-  narrativeCoherence: number;
+  totalDimensions: number;
+  thematicDepth: number;
+  thematicBalance: number;
+  thematicResonance: number;
+  themeMastery: number;
 }
 
 export function createNarrativeThemeOrchestratorEngineState(): NarrativeThemeOrchestratorEngineState {
   return {
-    snapshot: { love: 0.5, death: 0.5, identity: 0.5, justice: 0.5, truth: 0.5, hope: 0.5, wisdom: 0.5 },
-    totalThemes: 7,
-    harmonyIndex: 0.5,
-    tensionIndex: 0.5,
-    resolutionIndex: 0.5,
-    narrativeCoherence: 0.5,
+    snapshot: { identity: 0.5, power: 0.5, freedom: 0.5, mortality: 0.5, meaning: 0.5, hope: 0.5, despair: 0.5, courage: 0.5 },
+    totalDimensions: 8,
+    thematicDepth: 0.5,
+    thematicBalance: 0.5,
+    thematicResonance: 0.5,
+    themeMastery: 0.5,
   };
 }
 
 export function orchestrateThemes(
-  love: NarrativeThemeLoveEngineState,
-  death: NarrativeThemeDeathEngineState,
-  identity: NarrativeThemeIdentity2EngineState,
-  justice: NarrativeThemeJusticeEngineState,
-  truth: NarrativeThemeTruthEngineState,
-  hope: NarrativeThemeHope2EngineState,
-  wisdom: NarrativeThemeWisdomEngineState
+  identity: NarrativeThemeIdentityEngineState,
+  power: NarrativeThemePowerEngineState,
+  freedom: NarrativeThemeFreedomEngineState,
+  mortality: NarrativeThemeMortalityEngineState,
+  meaning: NarrativeThemeMeaningEngineState,
+  hope: NarrativeThemeHopeEngineState,
+  despair: NarrativeThemeDespairEngineState,
+  courage: NarrativeThemeCourageEngineState
 ): NarrativeThemeOrchestratorEngineState {
   const snapshot: ThemeOrchestratorSnapshot = {
-    love: love.themeLoveMastery,
-    death: death.themeDeathMastery,
-    identity: identity.themeIdentityMastery,
-    justice: justice.themeJusticeMastery,
-    truth: truth.themeTruthMastery,
-    hope: hope.themeHopeMastery,
-    wisdom: wisdom.themeWisdomMastery,
+    identity: identity.identityMastery,
+    power: power.powerMastery,
+    freedom: freedom.freedomMastery,
+    mortality: mortality.mortalityMastery,
+    meaning: meaning.meaningMastery,
+    hope: hope.hopeMastery,
+    despair: despair.despairMastery,
+    courage: courage.courageMastery,
   };
   const values = Object.values(snapshot);
   const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
-  const harmonyIndex = Math.max(0, 1 - variance);
-  const tensionIndex = Math.min(1, variance * 2);
-  const resolutionIndex = mean;
-  const narrativeCoherence = (harmonyIndex * 0.4 + resolutionIndex * 0.6);
+  const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
+  const stdDev = Math.sqrt(variance);
+  const thematicDepth = mean;
+  const thematicBalance = 1 - stdDev;
+  const thematicResonance = (snapshot.hope * 0.3 + snapshot.meaning * 0.3 + snapshot.identity * 0.2 + snapshot.courage * 0.2);
+  const themeMastery = (thematicDepth * 0.4 + thematicBalance * 0.3 + thematicResonance * 0.3);
   return {
     snapshot,
-    totalThemes: 7,
-    harmonyIndex: Math.round(harmonyIndex * 100) / 100,
-    tensionIndex: Math.round(tensionIndex * 100) / 100,
-    resolutionIndex: Math.round(resolutionIndex * 100) / 100,
-    narrativeCoherence: Math.round(narrativeCoherence * 100) / 100,
+    totalDimensions: 8,
+    thematicDepth: Math.round(thematicDepth * 100) / 100,
+    thematicBalance: Math.round(thematicBalance * 100) / 100,
+    thematicResonance: Math.round(thematicResonance * 100) / 100,
+    themeMastery: Math.round(themeMastery * 100) / 100,
   };
 }
 
 export function getThemeOrchestratorReport(state: NarrativeThemeOrchestratorEngineState) {
   const recommendations: string[] = [];
-  if (state.narrativeCoherence < 0.5) recommendations.push('Low coherence — orchestrate themes more');
-  if (state.tensionIndex > 0.7) recommendations.push('High tension — resolve');
-  if (state.harmonyIndex < 0.4) recommendations.push('Low harmony — balance themes');
+  if (state.themeMastery < 0.5) recommendations.push('Low theme mastery — orchestrate themes more');
+  if (state.thematicDepth < 0.5) recommendations.push('Low thematic depth — deepen');
+  if (state.thematicBalance < 0.3) recommendations.push('Low balance — equalize themes');
   return {
-    totalThemes: state.totalThemes,
-    harmonyIndex: state.harmonyIndex,
-    tensionIndex: state.tensionIndex,
-    resolutionIndex: state.resolutionIndex,
-    narrativeCoherence: state.narrativeCoherence,
+    totalDimensions: state.totalDimensions,
+    thematicDepth: state.thematicDepth,
+    thematicBalance: state.thematicBalance,
+    thematicResonance: state.thematicResonance,
+    themeMastery: state.themeMastery,
     recommendations,
   };
 }
