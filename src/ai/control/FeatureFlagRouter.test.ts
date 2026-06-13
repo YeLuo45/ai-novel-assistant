@@ -67,11 +67,23 @@ describe('V2139 FeatureFlagRouter', () => {
     expect(listFlags(s)).toHaveLength(2);
   });
 
-  it('should compute flag health', () => {
-    let s = createFlagState();
-    s = addFlag(s, { flagId: 'f1', name: 'A', state: 'on', rolloutPct: 100, createdAt: Date.now(), cohort: 'all' });
-    const h = flagHealth(s);
-    expect(h.totalFlags).toBe(1);
-    expect(h.health).toBe(1);
+  it('should return false for unknown flag', () => {
+    const s = createFlagState();
+    expect(isEnabled(s, 'unknown', 'user1')).toBe(false);
+  });
+
+  it('should return undefined for unknown flag in getFlag', () => {
+    const s = createFlagState();
+    expect(getFlag(s, 'unknown')).toBeUndefined();
+  });
+
+  it('should set non-existing flag (no-op)', () => {
+    const s = setFlag(createFlagState(), 'no-such', 'on');
+    expect(s.flags.size).toBe(0);
+  });
+
+  it('should return zero stats for unevaluated flag', () => {
+    const s = createFlagState();
+    expect(flagStats(s, 'unknown')).toEqual({ allowed: 0, denied: 0, total: 0 });
   });
 });

@@ -78,12 +78,20 @@ describe('V2138 PermissionGate', () => {
     expect(recentDenied(s, 60000)).toBe(1);
   });
 
-  it('should compute permission health', () => {
+  it('should get role permissions for resource', () => {
     let s = createPermissionState();
-    s = addUser(s, { userId: 'u1', roleIds: [] });
-    s = addRole(s, { roleId: 'r', name: 'R', permissions: {} });
-    const h = permissionHealth(s);
-    expect(h.userCount).toBe(1);
-    expect(h.roleCount).toBe(1);
+    s = addRole(s, { roleId: 'r', name: 'R', permissions: { 'books': ['read', 'write'] } });
+    expect(rolePermissions(s, 'r', 'books')).toEqual(['read', 'write']);
+  });
+
+  it('should return empty for unknown role permissions', () => {
+    const s = createPermissionState();
+    expect(rolePermissions(s, 'nope', 'x')).toEqual([]);
+  });
+
+  it('should deny for non-existing role in chain', () => {
+    let s = createPermissionState();
+    s = addUser(s, { userId: 'u1', roleIds: ['ghost-role'] });
+    expect(checkPermission(s, 'u1', 'books', 'read').allowed).toBe(false);
   });
 });

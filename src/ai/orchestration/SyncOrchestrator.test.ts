@@ -58,4 +58,13 @@ describe('V2141 SyncOrchestrator', () => {
     s = r.state;
     expect(s.completed).toBe(1);
   });
+
+  it('should add multiple jobs in priority order', () => {
+    let s = createOrchestratorState();
+    s = addJob(s, { jobId: 'j1', entityId: 'e1', priority: 3, strategy: 'lazy' });
+    s = addJob(s, { jobId: 'j2', entityId: 'e2', priority: 3, strategy: 'immediate' });
+    s = addJob(s, { jobId: 'j3', entityId: 'e3', priority: 1, strategy: 'batched' });
+    const r = processNext(s);
+    expect(r.processed?.priority).toBe(3);
+  });
 });

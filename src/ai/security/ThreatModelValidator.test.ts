@@ -83,4 +83,22 @@ describe('V2144 ThreatModelValidator', () => {
     expect(h.unmitigated).toBe(0);
     expect(h.health).toBe(1);
   });
+
+  it('should not unmitigate unknown threat', () => {
+    const s = unmitigate(createThreatModel(), 'no-such');
+    expect(s.threats.size).toBe(0);
+  });
+
+  it('should not mitigate unknown threat', () => {
+    const s = mitigate(createThreatModel(), 'no-such', 'fix');
+    expect(s.threats.size).toBe(0);
+  });
+
+  it('should detect high risk model', () => {
+    let s = createThreatModel();
+    s = addThreat(s, { id: 't1', category: 'spoofing', description: 'X', severity: 10, mitigated: false });
+    s = addThreat(s, { id: 't2', category: 'tampering', description: 'Y', severity: 10, mitigated: false });
+    const v = validateModel(s);
+    expect(v.valid).toBe(false);
+  });
 });

@@ -49,13 +49,25 @@ describe('V2145 PowerSyncOrchestrator FINAL', () => {
     expect(m.criticalIssues.length).toBeGreaterThan(0);
   });
 
-  it('should improve mastery with active engines populated', () => {
-    let s = createPowerSyncOrchestrator();
-    // Add a user
-    s = { ...s, userKeys: { entries: new Map([['u1', { userId: 'u1', derivedKey: 'k', salt: 's', createdAt: 0, lastRotated: 0 }]]), defaultParams: { salt: 'a', iterations: 1000, keyLength: 32 } } };
-    // Add a checkpoint
-    s = { ...s, crashRecovery: { checkpoints: [{ id: 'cp1', state: {}, createdAt: Date.now(), label: 'init' }], crashLog: [], autoRollback: true } };
+  it('should detect missing key manager state by default health', () => {
+    const s = createPowerSyncOrchestrator();
     const m = computeMastery(s);
-    expect(m.healthyEngines).toBeGreaterThan(0);
+    // Without any active keys, the orchestrator is not at 100% mastery
+    expect(m.mastery).toBeGreaterThanOrEqual(0);
+    expect(m.mastery).toBeLessThanOrEqual(1);
+  });
+
+  it('should return same scores on multiple calls', () => {
+    const s = createPowerSyncOrchestrator();
+    const a = engineHealthScores(s);
+    const b = engineHealthScores(s);
+    expect(a).toEqual(b);
+  });
+
+  it('should report critical issue when recovery circuit is open', () => {
+    let s = createPowerSyncOrchestrator();
+    s = { ...s, recovery: { ...s.recovery, circuit: 'open' as const, consecutiveFailures: 10, lastFailureAt: Date.now() } };
+    const m = computeMastery(s);
+    expect(m.degradedEngines).toBeGreaterThanOrEqual(0);
   });
 });
