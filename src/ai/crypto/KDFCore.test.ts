@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   pbkdf2Sync,
+  pbkdf2Async,
   verifyKey,
   newSalt,
   validateParams,
@@ -59,5 +60,29 @@ describe('V2124 KDFCore', () => {
     const a = pbkdf2Sync('password', { ...DEFAULT_KDF_PARAMS, iterations: 1000 });
     const b = pbkdf2Sync('password', { ...DEFAULT_KDF_PARAMS, iterations: 2000 });
     expect(a).not.toBe(b);
+  });
+
+  it('should produce 32-byte hex key (64 chars)', () => {
+    const k = pbkdf2Sync('test', DEFAULT_KDF_PARAMS);
+    expect(k).toHaveLength(64);
+    expect(/^[0-9a-f]+$/.test(k)).toBe(true);
+  });
+
+  it('should generate unique salts', () => {
+    const s1 = newSalt(8);
+    const s2 = newSalt(8);
+    expect(s1).not.toBe(s2);
+    expect(s1).toHaveLength(16);
+  });
+
+  it('should async fallback to sync in jsdom', async () => {
+    const k = await pbkdf2Async('test', DEFAULT_KDF_PARAMS);
+    expect(k).toHaveLength(64);
+  });
+
+  it('should compute time estimate for key derivation', () => {
+    const est = estimateMs({ ...DEFAULT_KDF_PARAMS, iterations: 100000 });
+    expect(est.perDerive).toBe(100);
+    expect(est.per1k).toBe(100000);
   });
 });

@@ -7,6 +7,8 @@ import {
   queryBySeverity,
   countBySeverity,
   auditHealth,
+  queryInWindow,
+  pruneExpired,
 } from './AuditLogger';
 
 describe('V2143 AuditLogger', () => {
@@ -61,5 +63,23 @@ describe('V2143 AuditLogger', () => {
     s = log(s, { actor: 'u1', action: 'breach', resource: 'r', severity: 'critical', details: {} });
     const h = auditHealth(s);
     expect(h.health).toBeLessThan(1);
+  });
+
+  it('should query by time window', () => {
+    let s = createAuditLogger();
+    const t = Date.now();
+    s = log(s, { actor: 'u1', action: 'create', resource: 'x', severity: 'info', details: {} });
+    const events = queryInWindow(s, t - 1000, t + 1000);
+    expect(events.length).toBe(1);
+  });
+
+  it('should prune expired events', () => {
+    let s = createAuditLogger(0); // 0 retention
+    s = log(s, { actor: 'u1', action: 'x', resource: 'r', severity: 'info', details: {} });
+    // Wait briefly
+    const start = Date.now();
+    while (Date.now() - start < 5) {}
+    s = pruneExpired(s);
+    expect(s.events).toHaveLength(0);
   });
 });

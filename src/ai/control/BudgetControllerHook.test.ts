@@ -76,4 +76,35 @@ describe('V2140 BudgetControllerHook', () => {
     const h = budgetHealth(s);
     expect(h.totalBudgets).toBe(0);
   });
+
+  it('should auto-reset when budget period expires', () => {
+    let s = createBudgetHookState();
+    s = addBudget(s, { budgetId: 'b1', kind: 'tokens', limit: 100, used: 0, resetAt: Date.now() - 1 });
+    const r = consume(s, 'b1', 50);
+    expect(r.ok).toBe(true);
+  });
+
+  it('should trigger hook only for matching budget', () => {
+    let s = createBudgetHookState();
+    s = addBudget(s, { budgetId: 'b1', kind: 'tokens', limit: 10, used: 0, resetAt: Date.now() + 86400000 });
+    s = addBudget(s, { budgetId: 'b2', kind: 'calls', limit: 100, used: 0, resetAt: Date.now() + 86400000 });
+    s = registerHook(s, 'h1', 'b1', 'notify');
+    const r = consume(s, 'b1', 20);
+    expect(r.triggeredHook).toBe('h1');
+    expect(remaining(s, 'b2')).toBe(100);
+  });
+
+  it('should report unhealthy when over-utilized', () => {
+    let s = createBudgetHookState();
+    s = addBudget(s, { budgetId: 'b1', kind: 'tokens', limit: 10, used: 9, resetAt: Date.now() + 86400000 });
+    const h = budgetHealth(s);
+    expect(h.health).toBe(0.5);
+  });
+
+  it('should list multiple budgets', () => {
+    let s = createBudgetHookState();
+    s = addBudget(s, { budgetId: 'b1', kind: 'tokens', limit: 100, used: 0, resetAt: Date.now() + 86400000 });
+    s = addBudget(s, { budgetId: 'b2', kind: 'calls', limit: 10, used: 0, resetAt: Date.now() + 86400000 });
+    expect(listBudgets(s)).toHaveLength(2);
+  });
 });
