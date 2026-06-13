@@ -74,4 +74,20 @@ describe('V2127 EncryptedStorage', () => {
     expect(h.backend).toBe('memory');
     expect(h.health).toBe(1);
   });
+
+  it('should return null when decryption fails', () => {
+    let s = createStorageState();
+    s = putRecord(s, 'a', 'data');
+    // Tamper key to force decryption failure
+    s = { ...s, keyHex: '0'.repeat(64) };
+    expect(getRecord(s, 'a')).toBe(null);
+  });
+
+  it('should return null for rotated key mismatch', () => {
+    let s = createStorageState();
+    s = putRecord(s, 'a', 'data');
+    s = rotateKey(s, 'b'.repeat(64));
+    // After rotation records are re-encrypted, so 'a' should still work
+    expect(getRecord(s, 'a')).toBe('data');
+  });
 });

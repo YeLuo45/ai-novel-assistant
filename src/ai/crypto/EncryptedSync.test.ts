@@ -61,4 +61,18 @@ describe('V2128 EncryptedSync', () => {
     expect(h.totalMessages).toBe(1);
     expect(h.health).toBe(1);
   });
+
+  it('should return decryption failed for wrong key', () => {
+    let s = createEncryptedSyncState('a'.repeat(64));
+    s = openChannel(s, 'c1', 'a'.repeat(64), ['a']);
+    s = sendEncrypted(s, 'c1', 'a', 'x');
+    s = { ...s, localKeyHex: 'b'.repeat(64) };
+    const received = receiveAll(s, 'c1');
+    expect(received[0].plaintext).toBe('[decryption failed]');
+  });
+
+  it('should return empty list for unknown channel', () => {
+    const s = createEncryptedSyncState('a'.repeat(64));
+    expect(receiveAll(s, 'unknown')).toEqual([]);
+  });
 });

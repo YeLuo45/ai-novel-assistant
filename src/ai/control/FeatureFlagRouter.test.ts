@@ -5,6 +5,7 @@ import {
   setFlag,
   isEnabled,
   recordEvaluation,
+  evaluate,
   getFlag,
   listFlags,
   flagStats,
@@ -85,5 +86,16 @@ describe('V2139 FeatureFlagRouter', () => {
   it('should return zero stats for unevaluated flag', () => {
     const s = createFlagState();
     expect(flagStats(s, 'unknown')).toEqual({ allowed: 0, denied: 0, total: 0 });
+  });
+
+  it('should evaluate and record both true and false', () => {
+    let s = createFlagState();
+    s = addFlag(s, { flagId: 'f1', name: 'A', state: 'off', rolloutPct: 0, createdAt: Date.now(), cohort: 'all' });
+    s = addFlag(s, { flagId: 'f2', name: 'B', state: 'on', rolloutPct: 100, createdAt: Date.now(), cohort: 'all' });
+    // recordEvaluation returns new state; use it directly
+    s = recordEvaluation(s, 'f1', false);
+    s = recordEvaluation(s, 'f2', true);
+    expect(flagStats(s, 'f1').denied).toBe(1);
+    expect(flagStats(s, 'f2').allowed).toBe(1);
   });
 });

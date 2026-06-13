@@ -34,6 +34,39 @@ describe('V2121 SyncQueue', () => {
     expect(q.items).toHaveLength(1);
   });
 
+  it('should dequeue non-existent id (no-op)', () => {
+    let q = createQueue();
+    q = enqueue(q, 'op1', {});
+    q = dequeue(q, 'op2');
+    expect(q.items).toHaveLength(1);
+  });
+
+  it('should mark failed for non-existent id (no-op)', () => {
+    let q = createQueue();
+    q = markFailed(q, 'no-such', 'err');
+    expect(q.items).toHaveLength(0);
+  });
+
+  it('should mark done for non-existent id (no-op)', () => {
+    let q = createQueue();
+    q = markDone(q, 'no-such');
+    expect(q.items).toHaveLength(0);
+  });
+
+  it('should mark in-flight for non-existent id (no-op)', () => {
+    let q = createQueue();
+    q = markInFlight(q, 'no-such');
+    expect(q.items).toHaveLength(0);
+  });
+
+  it('should not retry on non-failed item', () => {
+    let q = createQueue(2);
+    q = enqueue(q, 'op1', {});
+    q = markInFlight(q, 'op1');
+    // status is in_flight, not failed
+    expect(shouldRetry(q.items[0], 2)).toBe(false);
+  });
+
   it('should dequeue item by id', () => {
     let q = createQueue();
     q = enqueue(q, 'op1', {});

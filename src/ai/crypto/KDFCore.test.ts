@@ -85,4 +85,19 @@ describe('V2124 KDFCore', () => {
     expect(est.perDerive).toBe(100);
     expect(est.per1k).toBe(100000);
   });
+
+  it('should fail validation with all 3 issues at once', () => {
+    const r = validateParams({ salt: 'a', iterations: 100, keyLength: 8 });
+    expect(r.issues.length).toBe(3);
+  });
+
+  it('should produce 16-byte salt (32 hex chars)', () => {
+    const s = newSalt(16);
+    expect(s).toHaveLength(32);
+  });
+
+  it('should produce 8-byte salt (16 hex chars)', () => {
+    const s = newSalt(8);
+    expect(s).toHaveLength(16);
+  });
 });

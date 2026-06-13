@@ -10,6 +10,7 @@ import {
   riskScore,
   validateModel,
   threatModelHealth,
+  type ThreatCategory,
 } from './ThreatModelValidator';
 
 describe('V2144 ThreatModelValidator', () => {
@@ -100,5 +101,34 @@ describe('V2144 ThreatModelValidator', () => {
     s = addThreat(s, { id: 't2', category: 'tampering', description: 'Y', severity: 10, mitigated: false });
     const v = validateModel(s);
     expect(v.valid).toBe(false);
+  });
+
+  it('should validate model as invalid when >50% unmitigated', () => {
+    let s = createThreatModel();
+    s = addThreat(s, { id: 't1', category: 'spoofing', description: 'X', severity: 1, mitigated: false });
+    s = addThreat(s, { id: 't2', category: 'tampering', description: 'Y', severity: 1, mitigated: false });
+    s = addThreat(s, { id: 't3', category: 'repudiation', description: 'Z', severity: 1, mitigated: true });
+    const v = validateModel(s);
+    expect(v.issues.some((i) => i.includes('50%'))).toBe(true);
+  });
+
+  it('should filter threats by info_disclosure category', () => {
+    let s = createThreatModel();
+    s = addThreat(s, { id: 't1', category: 'info_disclosure', description: 'X', severity: 5, mitigated: false });
+    expect(threatsByCategory(s, 'info_disclosure')).toHaveLength(1);
+  });
+
+  it('should compute risk with mitigation discount', () => {
+    let s = createThreatModel();
+    s = addThreat(s, { id: 't1', category: 'spoofing', description: 'X', severity: 10, mitigated: true });
+    expect(riskScore(s)).toBe(1);
+  });
+
+  it('should cover all 6 STRIDE categories', () => {
+    const cats: ThreatCategory[] = ['spoofing', 'tampering', 'repudiation', 'info_disclosure', 'denial_of_service', 'elevation_of_privilege'];
+    for (const c of cats) {
+      const s = addThreat(createThreatModel(), { id: c, category: c, description: 'X', severity: 1, mitigated: false });
+      expect(s.threats.size).toBe(1);
+    }
   });
 });
