@@ -46,7 +46,8 @@ describe('V2240 CacheCompression', () => {
 
   it('should compute health', () => {
     let s = createCacheCompressionState();
-    s = compressValue(s, 'x');
+    s = compressValue(s, 'x').state;
+    s = decompressValue(s, JSON.stringify('x')).state;
     const h = cacheCompressionHealth(s);
     expect(h.health).toBe(1);
   });
