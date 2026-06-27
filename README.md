@@ -170,6 +170,8 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/soul-marketplace-integration.test.ts` | Soul 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/demo/studio-demo.test.ts` | Studio 状态机 demo |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/studio-integration.test.ts` | Studio e2e |
+| `npx vitest run src/ai/agent-runtime/protocol/demo/observability-demo.test.ts` | 可观测性 + 自我进化 demo |
+| `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
 

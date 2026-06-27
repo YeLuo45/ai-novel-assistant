@@ -16,6 +16,11 @@ export * from './SoulMarketplace'
 export * from './SoulVersioning'
 export * from './SoulExportImport'
 export * from './SoulStudio'
+export * from './StudioState'
+export * from './StudioAdvanced'
+export * from './Observability'
+export * from './ABTesting'
+export * from './AdaptationAndHealth'
 
 /** Direction B 版本号 */
 export const DIRECTION_B_VERSION = '1.0.0'
