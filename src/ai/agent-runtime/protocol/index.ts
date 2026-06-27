@@ -7,6 +7,9 @@ export * from './AgentMessageBus'
 export * from './RouterAndSerializer'
 export * from './RequestReply'
 export * from './NegotiationAndDelegation'
+export * from './MemoryStore'
+export * from './MemoryGuard'
+export * from './MemoryReplayAndAuction'
 
 /** Direction B 版本号 */
 export const DIRECTION_B_VERSION = '1.0.0'

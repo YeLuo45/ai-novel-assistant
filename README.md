@@ -162,6 +162,8 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/agent-runtime/ --coverage` | Agent Runtime 覆盖率 |
 | `npx vitest run src/ai/agent-runtime/protocol/` | 仅 Agent 协议测试 |
 | `npx vitest run src/ai/agent-runtime/protocol/demo/negotiation-demo.test.ts` | 5 agent 协商 demo |
+| `npx vitest run src/ai/agent-runtime/protocol/demo/memory-sharing-demo.test.ts` | 5 agent memory 共享 demo |
+| `npx vitest run src/ai/agent-runtime/protocol/__tests__/memory-integration.test.ts` | Memory 三层隔离 e2e |
 
 ## Agent Runtime 速览
 
