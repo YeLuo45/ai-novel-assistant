@@ -176,6 +176,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/collab/v3/StudioPanels.smoke.test.ts` | Studio 基础 panels |
 | `npx vitest run src/collab/v3/StudioPanels2.smoke.test.ts` | Studio 专项 panels |
 | `npx vitest run src/collab/v3/StudioPanels3.smoke.test.ts` | Studio 高级 panels |
+| `npx vitest run src/ai/providers/` | LLM Provider 集成（126 tests）|
+| `npx vitest run src/ai/providers/demo/provider-integration-demo.test.ts` | Provider demo |
+| `npx vitest run src/ai/providers/__tests__/provider-integration.test.ts` | Provider 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
