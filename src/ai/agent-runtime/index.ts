@@ -236,3 +236,10 @@ export {
   type MetricsHookSnapshot,
   type AuditLogEntry,
 } from './AgentHookBuiltins'
+
+// =============================================================================
+// Direction B: Agent 间协议 (MessageBus + Negotiation + Delegation)
+// =============================================================================
+
+export * as Protocol from './protocol'
+export { DIRECTION_B_VERSION } from './protocol'
