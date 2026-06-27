@@ -179,6 +179,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/providers/` | LLM Provider 集成（126 tests）|
 | `npx vitest run src/ai/providers/demo/provider-integration-demo.test.ts` | Provider demo |
 | `npx vitest run src/ai/providers/__tests__/provider-integration.test.ts` | Provider 集成 e2e |
+| `npx vitest run src/ai/project/` | Project 编排（75 tests）|
+| `npx vitest run src/ai/project/demo/project-integration-demo.test.ts` | Project demo |
+| `npx vitest run src/ai/project/__tests__/project-integration.test.ts` | Project 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
