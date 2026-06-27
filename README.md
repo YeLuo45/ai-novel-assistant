@@ -164,6 +164,8 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/agent-runtime/protocol/demo/negotiation-demo.test.ts` | 5 agent 协商 demo |
 | `npx vitest run src/ai/agent-runtime/protocol/demo/memory-sharing-demo.test.ts` | 5 agent memory 共享 demo |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/memory-integration.test.ts` | Memory 三层隔离 e2e |
+| `npx vitest run src/ai/agent-runtime/protocol/demo/user-context-demo.test.ts` | User 投影 + 隐私 demo |
+| `npx vitest run src/ai/agent-runtime/protocol/__tests__/user-context-integration.test.ts` | User context e2e |
 
 ## Agent Runtime 速览
 

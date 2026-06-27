@@ -10,6 +10,8 @@ export * from './NegotiationAndDelegation'
 export * from './MemoryStore'
 export * from './MemoryGuard'
 export * from './MemoryReplayAndAuction'
+export * from './UserContext'
+export * from './UserPreferencesAndAdapter'
 
 /** Direction B 版本号 */
 export const DIRECTION_B_VERSION = '1.0.0'
