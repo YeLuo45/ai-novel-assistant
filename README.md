@@ -182,6 +182,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/project/` | Project 编排（75 tests）|
 | `npx vitest run src/ai/project/demo/project-integration-demo.test.ts` | Project demo |
 | `npx vitest run src/ai/project/__tests__/project-integration.test.ts` | Project 集成 e2e |
+| `npx vitest run src/ai/persistence/` | Cross-Session 持久化（82 tests）|
+| `npx vitest run src/ai/persistence/demo/persistence-integration-demo.test.ts` | Persistence demo |
+| `npx vitest run src/ai/persistence/__tests__/persistence-integration.test.ts` | Persistence 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
