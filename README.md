@@ -188,6 +188,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/collab/MultiUser.test.ts` | Multi-User 协作（31 tests）|
 | `npx vitest run src/ai/collab/demo/multi-user-integration-demo.test.ts` | Multi-User demo |
 | `npx vitest run src/ai/collab/__tests__/multi-user-integration.test.ts` | Multi-User 集成 e2e |
+| `npx vitest run src/ui/theme/` | Theme System 4 套主题（92 tests）|
+| `npx vitest run src/ui/theme/demo/theme-integration-demo.test.ts` | Theme demo |
+| `npx vitest run src/ui/theme/__tests__/theme-integration.test.ts` | Theme 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
