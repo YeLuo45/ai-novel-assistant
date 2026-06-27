@@ -164,3 +164,28 @@ export {
   type AgentRuntimeConfig,
   type ActorContext,
 } from './AgentRuntime'
+
+// =============================================================================
+// 内置 Soul 模板（5 个内置 agent）
+// =============================================================================
+
+export {
+  PLOT_ADVISOR_TEMPLATE,
+  STYLE_COACH_TEMPLATE,
+  DIALOGUE_MASTER_TEMPLATE,
+  CRITIC_MASTER_TEMPLATE,
+  CONTINUITY_GUARD_TEMPLATE,
+  ALL_BUILTIN_TEMPLATES,
+  BUILTIN_TEMPLATE_IDS,
+  BUILTIN_ARCHETYPE_COVERAGE,
+  getBuiltinTemplate,
+  createBuiltinTeamIds,
+  builtinTemplateByIndex,
+  type BuiltinTemplateId,
+} from './builtinSouls'
+
+// =============================================================================
+// Bridge: 旧系统 → 新 Runtime 适配器
+// =============================================================================
+
+export * as Bridge from './bridge'
