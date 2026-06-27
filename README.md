@@ -166,6 +166,8 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/memory-integration.test.ts` | Memory 三层隔离 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/demo/user-context-demo.test.ts` | User 投影 + 隐私 demo |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/user-context-integration.test.ts` | User context e2e |
+| `npx vitest run src/ai/agent-runtime/protocol/demo/soul-marketplace-demo.test.ts` | Soul 模板市场 demo |
+| `npx vitest run src/ai/agent-runtime/protocol/__tests__/soul-marketplace-integration.test.ts` | Soul 集成 e2e |
 
 ## Agent Runtime 速览
 
