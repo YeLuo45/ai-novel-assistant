@@ -4,10 +4,10 @@
  * 导出层级：
  * - L0: types（三件套核心数据）
  * - L1: AgentSoul / AgentUserBinding / AgentMemoryScope（构造 + 工厂）
- * - L2: hooks / protocol / bridge（后续 PR 接入）
- * - L3: AgentRuntime / AgentRegistry / AgentFactory / AgentSandbox / AgentLifecycle（后续 PR 接入）
+ * - L2: AgentRegistry / AgentFactory / AgentSandbox / AgentLifecycle / AgentRuntime
+ * - L3: hooks / protocol / bridge（后续 PR 接入）
  *
- * 本文件 = L0 + L1 的统一入口；后续 PR 会扩展。
+ * 本文件 = L0 + L1 + L2 的统一入口；后续 PR 会扩展。
  */
 
 // =============================================================================
@@ -97,3 +97,70 @@ export {
   type AclCheckResult,
   type RetentionCheck,
 } from './AgentMemoryScope'
+
+// =============================================================================
+// L2: Registry
+// =============================================================================
+
+export {
+  AgentRegistry,
+  getAgentRegistry,
+  resetAgentRegistry,
+  type AgentSummary,
+  type AgentLifecycleStatus,
+  type RegisterAgentInput,
+} from './AgentRegistry'
+
+// =============================================================================
+// L2: Factory
+// =============================================================================
+
+export {
+  AgentFactory,
+  spawnEphemeral,
+  FACTORY_VERSION,
+  type SpawnedAgent,
+  type SpawnInput,
+} from './AgentFactory'
+
+// =============================================================================
+// L2: Sandbox (ACL)
+// =============================================================================
+
+export {
+  AgentSandbox,
+  createDefaultSandbox,
+  createStrictSandbox,
+  applySanctionToScope,
+  type SandboxOp,
+  type Sanction,
+  type SandboxOptions,
+} from './AgentSandbox'
+
+// =============================================================================
+// L2: Lifecycle
+// =============================================================================
+
+export {
+  validateTransition,
+  nextStates,
+  isTerminalState,
+  AgentLifecycleManager,
+  createDefaultLifecycleManager,
+  type LifecycleConfig,
+  type LifecycleEvent,
+  type TransitionResult,
+} from './AgentLifecycle'
+
+// =============================================================================
+// L2: Runtime (壳入口)
+// =============================================================================
+
+export {
+  AgentRuntime,
+  ManagedAgentRuntime,
+  getGlobalRuntime,
+  resetGlobalRuntime,
+  type AgentRuntimeConfig,
+  type ActorContext,
+} from './AgentRuntime'

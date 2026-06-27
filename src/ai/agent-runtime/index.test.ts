@@ -52,6 +52,35 @@ describe('AgentRuntime index — public API', () => {
     expect(typeof API.deriveMemoryScope).toBe('function')
   })
 
+  it('exports Registry', () => {
+    expect(typeof API.AgentRegistry).toBe('function')
+    expect(typeof API.getAgentRegistry).toBe('function')
+    expect(typeof API.resetAgentRegistry).toBe('function')
+  })
+
+  it('exports Factory', () => {
+    expect(typeof API.AgentFactory).toBe('function')
+    expect(typeof API.spawnEphemeral).toBe('function')
+  })
+
+  it('exports Sandbox', () => {
+    expect(typeof API.AgentSandbox).toBe('function')
+    expect(typeof API.createDefaultSandbox).toBe('function')
+    expect(typeof API.createStrictSandbox).toBe('function')
+  })
+
+  it('exports Lifecycle', () => {
+    expect(typeof API.AgentLifecycleManager).toBe('function')
+    expect(typeof API.createDefaultLifecycleManager).toBe('function')
+    expect(typeof API.validateTransition).toBe('function')
+  })
+
+  it('exports Runtime', () => {
+    expect(typeof API.AgentRuntime).toBe('function')
+    expect(typeof API.ManagedAgentRuntime).toBe('function')
+    expect(typeof API.getGlobalRuntime).toBe('function')
+  })
+
   it('exports utility functions', () => {
     expect(typeof API.clamp01).toBe('function')
     expect(typeof API.normalizeTone).toBe('function')
