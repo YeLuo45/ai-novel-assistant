@@ -189,3 +189,50 @@ export {
 // =============================================================================
 
 export * as Bridge from './bridge'
+
+// =============================================================================
+// Hook 系统（17 事件 + pub/sub + 2 内置 hook）
+// =============================================================================
+
+export {
+  ALL_AGENT_HOOK_EVENTS,
+  makePayload,
+  isAgentEvent,
+  isSandboxEvent,
+  isRuntimeEvent,
+  isMemoryEvent,
+  type AgentHookEvent,
+  type AgentHookPayload,
+  type AgentSpawnPayload,
+  type AgentDestroyPayload,
+  type AgentStatusChangedPayload,
+  type AgentExecutePayload,
+  type AgentMessagePayload,
+  type AgentMemoryPayload,
+  type SandboxPayload,
+  type RuntimeTickPayload,
+  type PayloadFor,
+} from './AgentHookEvents'
+
+export {
+  AgentHookEmitter,
+  getGlobalEmitter,
+  resetGlobalEmitter,
+  type HookHandler,
+  type HookSubscription,
+  type HookFilter,
+  type EmitResult,
+} from './AgentHookEmitter'
+
+export {
+  AGENT_LIFECYCLE_EVENTS,
+  AGENT_EXECUTE_EVENTS,
+  AGENT_MEMORY_EVENTS,
+  SANDBOX_EVENTS,
+  RUNTIME_EVENTS,
+  subscribeMany,
+  MetricsHook,
+  AuditLogHook,
+  type MetricsHookSnapshot,
+  type AuditLogEntry,
+} from './AgentHookBuiltins'
