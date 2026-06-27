@@ -158,8 +158,10 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npm run test` | 运行 Vitest |
 | `npm run test:watch` | Vitest 监听模式 |
 | `npm run coverage` | 测试覆盖率报告 |
-| `npx vitest run src/ai/agent-runtime/` | 仅 Agent Runtime 测试（426 tests） |
+| `npx vitest run src/ai/agent-runtime/` | 仅 Agent Runtime 测试（571 tests） |
 | `npx vitest run src/ai/agent-runtime/ --coverage` | Agent Runtime 覆盖率 |
+| `npx vitest run src/ai/agent-runtime/protocol/` | 仅 Agent 协议测试 |
+| `npx vitest run src/ai/agent-runtime/protocol/demo/negotiation-demo.test.ts` | 5 agent 协商 demo |
 
 ## Agent Runtime 速览
 
