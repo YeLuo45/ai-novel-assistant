@@ -212,6 +212,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/security/` | Security & Compliance（91 tests）|
 | `npx vitest run src/security/demo/security-demo.test.ts` | Security demo |
 | `npx vitest run src/security/__tests__/security-integration.test.ts` | Security 集成 e2e |
+| `npx vitest run src/devops/` | DevOps & Observability（76 tests）|
+| `npx vitest run src/devops/demo/devops-demo.test.ts` | DevOps demo |
+| `npx vitest run src/devops/__tests__/devops-integration.test.ts` | DevOps 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
