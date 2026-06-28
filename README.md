@@ -191,6 +191,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ui/theme/` | Theme System 4 套主题（92 tests）|
 | `npx vitest run src/ui/theme/demo/theme-integration-demo.test.ts` | Theme demo |
 | `npx vitest run src/ui/theme/__tests__/theme-integration.test.ts` | Theme 集成 e2e |
+| `npx vitest run src/realtime/` | Real-time Multi-User Sync（95 tests）|
+| `npx vitest run src/realtime/demo/sync-integration-demo.test.ts` | Sync demo |
+| `npx vitest run src/realtime/__tests__/sync-integration.test.ts` | Sync 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
