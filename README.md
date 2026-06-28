@@ -203,6 +203,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ui/animation/` | Animation & Feedback（74 tests）|
 | `npx vitest run src/ui/animation/demo/animation-demo.test.ts` | Animation demo |
 | `npx vitest run src/ui/animation/__tests__/animation-integration.test.ts` | Animation 集成 e2e |
+| `npx vitest run src/ui/a11y/` | a11y + i18n（80 tests）|
+| `npx vitest run src/ui/a11y/demo/a11y-i18n-demo.test.ts` | a11y demo |
+| `npx vitest run src/ui/a11y/__tests__/a11y-integration.test.ts` | a11y 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
