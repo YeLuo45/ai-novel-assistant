@@ -197,6 +197,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/ui/components/` | Advanced UI Components（67 tests）|
 | `npx vitest run src/ui/components/demo/components-integration-demo.test.ts` | Components demo |
 | `npx vitest run src/ui/components/__tests__/components-integration.test.ts` | Components 集成 e2e |
+| `npx vitest run src/mobile/` | Mobile & PWA（76 tests）|
+| `npx vitest run src/mobile/demo/mobile-pwa-demo.test.ts` | Mobile demo |
+| `npx vitest run src/mobile/__tests__/mobile-pwa-integration.test.ts` | Mobile 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
