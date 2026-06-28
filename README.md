@@ -216,6 +216,7 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/devops/demo/devops-demo.test.ts` | DevOps demo |
 | `npx vitest run src/devops/__tests__/devops-integration.test.ts` | DevOps 集成 e2e |
 | `npx vitest run src/docs/` | Documentation & DX（41 tests）|
+| `npx vitest run src/ai/native/` | AI-Native Features（36 tests）|
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
