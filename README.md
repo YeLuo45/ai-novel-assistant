@@ -200,6 +200,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/mobile/` | Mobile & PWA（76 tests）|
 | `npx vitest run src/mobile/demo/mobile-pwa-demo.test.ts` | Mobile demo |
 | `npx vitest run src/mobile/__tests__/mobile-pwa-integration.test.ts` | Mobile 集成 e2e |
+| `npx vitest run src/ui/animation/` | Animation & Feedback（74 tests）|
+| `npx vitest run src/ui/animation/demo/animation-demo.test.ts` | Animation demo |
+| `npx vitest run src/ui/animation/__tests__/animation-integration.test.ts` | Animation 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
