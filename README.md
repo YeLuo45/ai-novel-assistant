@@ -194,6 +194,9 @@ npx vitest run src/ai/agent-runtime/ 2>&1 | tail -5
 | `npx vitest run src/realtime/` | Real-time Multi-User Sync（95 tests）|
 | `npx vitest run src/realtime/demo/sync-integration-demo.test.ts` | Sync demo |
 | `npx vitest run src/realtime/__tests__/sync-integration.test.ts` | Sync 集成 e2e |
+| `npx vitest run src/ui/components/` | Advanced UI Components（67 tests）|
+| `npx vitest run src/ui/components/demo/components-integration-demo.test.ts` | Components demo |
+| `npx vitest run src/ui/components/__tests__/components-integration.test.ts` | Components 集成 e2e |
 | `npx vitest run src/ai/agent-runtime/protocol/__tests__/observability-integration.test.ts` | Observability e2e |
 
 ## Agent Runtime 速览
