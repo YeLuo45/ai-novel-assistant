@@ -1,6 +1,19 @@
 # ai-novel-assistant
 
-AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot）。
+AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 8 创作大师方向 AB/X/Y/AA/AC/Z/AD/AE 共 240 engines）。
+
+## 创作大师方向（V3016-V3255 · 8 方向 · 240 engines · 605 tests · 100% pass · ≥98% coverage）
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **AB Pacing & Structure** — 故事结构与节奏大师 | 30 | 86 | 99.09% | [AB_PACING_README.md](./docs/AB_PACING_README.md) |
+| **X Prose Craft** — 文笔打磨工坊 | 30 | 81 | 99.47% | [X_PROSE_README.md](./docs/X_PROSE_README.md) |
+| **Y Reader Psychology** — 读者心理与留存 | 30 | 78 | 98.48% | [Y_READER_README.md](./docs/Y_READER_README.md) |
+| **AA Worldbuilding** — 世界设定自洽 | 30 | 78 | 98.39% | [AA_WORLDBUILD_README.md](./docs/AA_WORLDBUILD_README.md) |
+| **AC Continuity & Lore** — 时间线与连续性 | 30 | 84 | ~98% | [AC_CONTINUITY_README.md](./docs/AC_CONTINUITY_README.md) |
+| **Z Genre Masters** — 类型小说精通 | 30 | 80 | 98.51% | [Z_GENRE_README.md](./docs/Z_GENRE_README.md) |
+| **AD Voice & Style** — 风格指纹 | 30 | 53 | ~99% | [AD_VOICE_README.md](./docs/AD_VOICE_README.md) |
+| **AE Publishing & Marketing** — 出版与营销 | 30 | 69 | 99.34% | [AE_PUBLISHING_README.md](./docs/AE_PUBLISHING_README.md) |
 
 ## 基本信息
 
