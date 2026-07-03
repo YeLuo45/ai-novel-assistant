@@ -180,6 +180,10 @@ describe('SceneSequelBalance', () => {
   it('recommend more_scene at 0.5', () => {
     expect(ssb.recommend(0.5)).toBe('more_scene');
   });
+
+  it('recommend more_sequel at 0.9', () => {
+    expect(ssb.recommend(0.9)).toBe('more_sequel');
+  });
 });
 
 describe('IncitingIncidentLocator', () => {

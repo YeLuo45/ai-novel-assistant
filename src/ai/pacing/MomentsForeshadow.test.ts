@@ -130,6 +130,18 @@ describe('ForeshadowPlanter', () => {
     const f = p.plant('x', 1, 1.5);
     expect(f.strength).toBe(1);
   });
+
+  it('plant strength 0 is allowed', () => {
+    const f = p.plant('x', 1, 0);
+    expect(f.strength).toBe(0);
+  });
+
+  it('getCount tracks plants', () => {
+    const pp = new ForeshadowPlanter();
+    pp.plant('a', 1);
+    pp.plant('b', 2);
+    expect(pp.getCount()).toBe(2);
+  });
 });
 
 describe('ForeshadowPayoffTracker', () => {
@@ -143,6 +155,12 @@ describe('ForeshadowPayoffTracker', () => {
   it('findByForeshadowId', () => {
     t.track('fs_2', 5, 'reveal', 1);
     expect(t.findByForeshadowId('fs_2')).toHaveLength(1);
+  });
+
+  it('getAll returns tracked', () => {
+    const tt = new ForeshadowPayoffTracker();
+    tt.track('a', 1, 'x', 0);
+    expect(tt.getAll().length).toBe(1);
   });
 });
 
@@ -164,6 +182,13 @@ describe('PlantPayoffLedger', () => {
     l.markPlanted('orphan', 1);
     const o = l.getOrphans();
     expect(o.some((e) => e.id === 'orphan')).toBe(true);
+  });
+
+  it('getResolved returns resolved entries', () => {
+    const ll = new PlantPayoffLedger();
+    ll.markPlanted('k1', 1);
+    ll.markPaidOff('k1', 5);
+    expect(ll.getResolved().length).toBe(1);
   });
 });
 
