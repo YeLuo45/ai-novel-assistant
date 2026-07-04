@@ -1,0 +1,16 @@
+/**
+ * ComicScriptCore.ts — Direction BG, V4066-V4075 (Batch 1/3)
+ * Comic Script Engine: 漫画脚本核心
+ */
+
+export class PanelLayoutEngine { layout(panelCount: number, pageSize: 'small' | 'medium' | 'large' = 'medium'): { rows: number; cols: number } { if (panelCount <= 4) return { rows: 2, cols: 2 }; if (panelCount <= 6) return { rows: 2, cols: 3 }; return { rows: 3, cols: 3 }; } isValid(layout: { rows: number; cols: number }): boolean { return layout.rows > 0 && layout.cols > 0; } }
+export class SpeechBubblePlacer { place(text: string, panelSize: 'small' | 'medium' | 'large' = 'medium'): { position: string; size: 'small' | 'medium' | 'large' } { return { position: 'top-right', size: panelSize }; } hasBubble(placement: { position: string }): boolean { return placement.position.length > 0; } }
+export class ComicDialogueWriter { write(character: string, text: string, mood: string): string { return `${character}: ${mood} "${text}"`; } isValid(d: string): boolean { return d.length > 0; } }
+export class ComicSceneDivider { divide(text: string): { scene: string; visual: string }[] { const lines = text.split('。').filter((l) => l.trim()); return lines.map((l) => ({ scene: l.trim(), visual: l.trim() })); } isDivided(scenes: { scene: string }[]): boolean { return scenes.length > 0; } }
+export class ComicActionLineWriter { write(action: string, intensity: 'low' | 'medium' | 'high' = 'medium'): string { return intensity === 'high' ? `*** ${action} ***` : action; } isIntense(line: string): boolean { return line.includes('***'); } }
+export class ComicSoundEffectGenerator { generate(action: string): string { const sounds: Record<string, string> = { hit: '砰', jump: '啊', run: '哒哒' }; return sounds[action] || '嗖'; } isSound(s: string): boolean { return s.length > 0; } }
+export class ComicPanel { id: string = ''; description: string = ''; dialogue: string = ''; toString(): string { return `${this.id}: ${this.description}`; } isValid(): boolean { return this.id.length > 0; } }
+export class ComicPageBuilder { buildPage(panels: { description: string; dialogue: string }[]): string { return panels.map((p, i) => `Panel ${i + 1}: ${p.description} (${p.dialogue})`).join('\n'); } isValid(page: string): boolean { return page.includes('Panel'); } }
+export class ComicScriptFormatter { format(script: string): string { return script.replace(/action/g, '[ACTION]').replace(/dialogue/g, '[DIALOGUE]'); } isFormatted(s: string): boolean { return s.includes('[ACTION]'); } }
+export class ComicScriptCoreIndex { list(): string[] { return ['PanelLayoutEngine', 'SpeechBubblePlacer', 'ComicDialogueWriter', 'ComicSceneDivider', 'ComicActionLineWriter', 'ComicSoundEffectGenerator', 'ComicPanel', 'ComicPageBuilder', 'ComicScriptFormatter']; } count(): number { return this.list().length; } }
+export const BG_BATCH_1_ENGINES = { PanelLayoutEngine, SpeechBubblePlacer, ComicDialogueWriter, ComicSceneDivider, ComicActionLineWriter, ComicSoundEffectGenerator, ComicPanel, ComicPageBuilder, ComicScriptFormatter, ComicScriptCoreIndex } as const;
