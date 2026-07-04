@@ -1,8 +1,10 @@
 # ai-novel-assistant
 
-AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 8 创作大师方向 AB/X/Y/AA/AC/Z/AD/AE 共 240 engines）。
+AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 16 创作大师方向 AB-X-Y-AA-AC-Z-AD-AE-AF-AG-AH-AI-AJ-AK-AL-AM 共 480 engines）。
 
-## 创作大师方向（V3016-V3255 · 8 方向 · 240 engines · 605 tests · 100% pass · ≥98% coverage）
+## 创作大师方向（V3016-V3495 · 16 方向 · 480 engines · 1119 tests · 100% pass · ≥98% coverage）
+
+### Round 1（V3016-V3255 · 8 方向 · 240 engines · 609 tests）
 
 | 方向 | 引擎数 | 测试 | Coverage | 文档 |
 |------|--------|------|----------|------|
@@ -14,6 +16,19 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **Z Genre Masters** — 类型小说精通 | 30 | 80 | 98.51% | [Z_GENRE_README.md](./docs/Z_GENRE_README.md) |
 | **AD Voice & Style** — 风格指纹 | 30 | 53 | ~99% | [AD_VOICE_README.md](./docs/AD_VOICE_README.md) |
 | **AE Publishing & Marketing** — 出版与营销 | 30 | 69 | 99.34% | [AE_PUBLISHING_README.md](./docs/AE_PUBLISHING_README.md) |
+
+### Round 2（V3256-V3495 · 8 方向 · 240 engines · 510 tests · 24 commits pushed）
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **AF Plot Hole Detector** — 跨章逻辑漏洞检测 | 30 | 74 | 98.62% | [AF_PLOTHOLE_README.md](./docs/AF_PLOTHOLE_README.md) |
+| **AG Emotional Arc Mapper** — 情绪曲线可视化 | 30 | 62 | 99% | [AG_EMOTION_README.md](./docs/AG_EMOTION_README.md) |
+| **AH Character Voice Differentiator** — 多角色声音辨识 | 30 | 55 | 98.76% | [AH_VOICE_README.md](./docs/AH_VOICE_README.md) |
+| **AI Chapter Title Optimizer** — 标题党 + A/B 测试 | 30 | 70 | 98.88% | [AI_TITLE_README.md](./docs/AI_TITLE_README.md) |
+| **AJ Author Block Breaker** — 创作瓶颈突破 | 30 | 69 | ≥98% | [AJ_BLOCK_README.md](./docs/AJ_BLOCK_README.md) |
+| **AK Adaptive Writing Coach** — 个人化教练 | 30 | 64 | ≥98% | [AK_COACH_README.md](./docs/AK_COACH_README.md) |
+| **AL Beta Reader Persona** — 模拟 3 类读者反馈 | 30 | 59 | ≥98% | [AL_BETAREADER_README.md](./docs/AL_BETAREADER_README.md) |
+| **AM Cross-Media Adaptation** — 小说→剧本→漫画→游戏 | 30 | 57 | 98.94% | [AM_CROSSMEDIA_README.md](./docs/AM_CROSSMEDIA_README.md) |
 
 ## 基本信息
 
