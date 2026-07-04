@@ -1,0 +1,16 @@
+/**
+ * TranslationCore.ts — Direction AU, V3706-V3715 (Batch 1/3)
+ * Translation-Aware Writing: 翻译友好写作核心
+ */
+
+export class CulturalReferenceDetector { detect(text: string): string[] { const refs: string[] = []; if (/饺子/.test(text)) refs.push('food:饺子'); if (/春节/.test(text)) refs.push('festival:春节'); if (/孔子/.test(text)) refs.push('person:孔子'); return refs; } count(text: string): number { return this.detect(text).length; } }
+export class IdiomaticExpressionDetector { detect(text: string): string[] { const expr: string[] = []; if (/说曹操/.test(text)) expr.push('idiom:说曹操'); if (/画蛇添足/.test(text)) expr.push('idiom:画蛇添足'); return expr; } isIdiomatic(expr: string): boolean { return expr.startsWith('idiom:'); } }
+export class WordplayDetector { detect(text: string): boolean { return /一语双关|谐音/.test(text); } isLostInTranslation(text: string): boolean { return this.detect(text); } }
+export class NameAdaptabilityChecker { check(name: string): { translatable: boolean; suggestion: string } { return { translatable: !/[^\x00-\x7F]/.test(name), suggestion: `[${name}]` }; } isAdaptable(name: string): boolean { return /[a-zA-Z]/.test(name); } }
+export class CulturalSensitivityScanner { scan(text: string): string[] { const issues: string[] = []; if (/(歧视|偏见)/.test(text)) issues.push('discrimination'); return issues; } hasIssues(text: string): boolean { return this.scan(text).length > 0; } }
+export class HonorificTracker { track(text: string): { formal: number; informal: number } { const formal = (text.match(/(先生|女士|老师)/g) || []).length; const informal = (text.match(/(哥们|姐们)/g) || []).length; return { formal, informal }; } isFormal(t: { formal: number; informal: number }): boolean { return t.formal > t.informal; } }
+export class TranslationLengthEstimator { estimate(text: string, lang: string): number { const ratios: Record<string, number> = { en: 1.5, ja: 1.0, ko: 1.0, es: 1.3 }; return Math.ceil(text.length * (ratios[lang] || 1)); } fitsInBudget(text: string, lang: string, budget: number): boolean { return this.estimate(text, lang) <= budget; } }
+export class LocaleAdaptability { adapt(text: string, locale: string): string { return `[${locale}] ${text}`; } isAdapted(text: string): boolean { return /^\[\w+\]/.test(text); } }
+export class SlangDetector { detect(text: string): string[] { const slangs: string[] = []; if (/装逼/.test(text)) slangs.push('slang:装逼'); return slangs; } isSlang(s: string): boolean { return s.startsWith('slang:'); } }
+export class TranslationCoreIndex { list(): string[] { return ['CulturalReferenceDetector', 'IdiomaticExpressionDetector', 'WordplayDetector', 'NameAdaptabilityChecker', 'CulturalSensitivityScanner', 'HonorificTracker', 'TranslationLengthEstimator', 'LocaleAdaptability', 'SlangDetector']; } count(): number { return this.list().length; } }
+export const AU_BATCH_1_ENGINES = { CulturalReferenceDetector, IdiomaticExpressionDetector, WordplayDetector, NameAdaptabilityChecker, CulturalSensitivityScanner, HonorificTracker, TranslationLengthEstimator, LocaleAdaptability, SlangDetector, TranslationCoreIndex } as const;
