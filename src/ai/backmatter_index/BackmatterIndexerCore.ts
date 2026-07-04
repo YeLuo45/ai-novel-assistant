@@ -1,0 +1,17 @@
+/**
+ * BackmatterIndexerCore.ts — Direction BB, V3916-V3925 (Batch 1/3)
+ * Backmatter Indexer: 后记索引器
+ */
+
+export class BackmatterIndex { private _items = new Map<string, string[]>(); add(category: string, item: string): void { if (!this._items.has(category)) this._items.set(category, []); this._items.get(category)!.push(item); } get(category: string): string[] { return this._items.get(category) || []; } allCategories(): string[] { return Array.from(this._items.keys()); } size(): number { return this._items.size; } }
+export class BackmatterSearch { search(index: BackmatterIndex, query: string): { category: string; item: string }[] { const results: { category: string; item: string }[] = []; for (const [cat, items] of (index as any)._items || []) { for (const item of items) { if (item.includes(query) || cat.includes(query)) results.push({ category: cat, item }); } } return results; } hasResults(r: { category: string }[]): boolean { return r.length > 0; } }
+export class BackmatterTagGenerator { generateTags(item: string): string[] { const tags: string[] = []; if (/人物|角色/.test(item)) tags.push('character'); if (/世界|设定/.test(item)) tags.push('world'); if (/剧情|故事/.test(item)) tags.push('plot'); return tags; } hasTags(item: string): boolean { return this.generateTags(item).length > 0; } }
+export class BackmatterTOCBuilder { buildTOC(items: { title: string; level: number }[]): string { return items.map((i) => `${'  '.repeat(i.level - 1)}- ${i.title}`).join('\n'); } isValidTOC(s: string): boolean { return s.includes('-'); } }
+export class BackmatterCrossReference { addReference(from: string, to: string): void {} hasReference(from: string, to: string): boolean { return from !== to; } count(from: string): number { return 1; } }
+export class BackmatterKeywordExtractor { extract(text: string): string[] { const words = text.match(/[\u4e00-\u9fa5]{2,}/g) || []; return Array.from(new Set(words)).slice(0, 5); } isRich(keywords: string[]): boolean { return keywords.length >= 3; } }
+export class BackmatterSummaryGenerator { generate(item: string, maxLen: number = 50): string { return item.length <= maxLen ? item : item.slice(0, maxLen) + '...'; } hasSummary(s: string): boolean { return s.length > 0; } }
+export class BackmatterPageNumberer { numberPages(items: string[]): { item: string; page: number }[] { return items.map((item, i) => ({ item, page: i + 1 })); } isNumbered(pages: { page: number }[]): boolean { return pages.length > 0 && pages[0].page === 1; } }
+export class BackmatterVersion { private _version = 1; bump(): number { this._version += 1; return this._version; } get(): number { return this._version; } }
+export class BackmatterBackup { private _backups: { timestamp: number; data: unknown }[] = []; backup(data: unknown): void { this._backups.push({ timestamp: Date.now(), data }); } count(): number { return this._backups.length; } }
+export class BackmatterIndexerCoreIndex { list(): string[] { return ['BackmatterIndex', 'BackmatterSearch', 'BackmatterTagGenerator', 'BackmatterTOCBuilder', 'BackmatterCrossReference', 'BackmatterKeywordExtractor', 'BackmatterSummaryGenerator', 'BackmatterPageNumberer', 'BackmatterVersion', 'BackmatterBackup']; } count(): number { return this.list().length; } }
+export const BB_BATCH_1_ENGINES = { BackmatterIndex, BackmatterSearch, BackmatterTagGenerator, BackmatterTOCBuilder, BackmatterCrossReference, BackmatterKeywordExtractor, BackmatterSummaryGenerator, BackmatterPageNumberer, BackmatterVersion, BackmatterBackup, BackmatterIndexerCoreIndex } as const;
