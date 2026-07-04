@@ -1,0 +1,16 @@
+/**
+ * AudioDramaIntegration.ts — Direction BI, V4146-V4155 (Batch 3/3 收口)
+ * Audio Drama Script: 集成 + 收口
+ */
+
+export class AudioDramaPipeline { steps: string[] = ['script', 'sound_design', 'music', 'voice', 'master']; isComplete(step: string): boolean { return this.steps[this.steps.length - 1] === step; } next(step: string): string { const i = this.steps.indexOf(step); return i >= 0 && i < this.steps.length - 1 ? this.steps[i + 1] : 'done'; } }
+export class AudioDramaDirector { decide(state: { hasScript: boolean; hasSound: boolean; hasMusic: boolean }): string { if (!state.hasScript) return 'write_script'; if (!state.hasSound) return 'add_sound'; if (!state.hasMusic) return 'add_music'; return 'produce'; } }
+export class AudioDramaReport { generate(stats: { duration: number; cues: number }): string { return `${stats.duration} 分钟, ${stats.cues} 音效`; } hasReport(s: string): boolean { return s.includes('分钟'); } }
+export class AudioDramaLibrary { private _dramas = new Map<string, unknown>(); save(key: string, drama: unknown): void { this._dramas.set(key, drama); } get(key: string): unknown { return this._dramas.get(key); } count(): number { return this._dramas.size; } }
+export class AudioDramaValidator { validate(drama: { cues: number; duration: number }): { valid: boolean; issues: string[] } { const issues: string[] = []; if (drama.cues < 1) issues.push('no cues'); if (drama.duration <= 0) issues.push('no duration'); return { valid: issues.length === 0, issues }; } isValid(r: { valid: boolean }): boolean { return r.valid; } }
+export class AudioDramaTools { tools: string[] = ['Audacity', 'Reaper', 'Logic Pro']; isAvailable(t: string): boolean { return this.tools.includes(t); } count(): number { return this.tools.length; } }
+export class AudioDramaQualityGate { gate(drama: { duration: number; cues: number }): boolean { return drama.duration >= 5 && drama.cues >= 5; } }
+export class AudioDramaExport { export(drama: string): string { return `[AUDIO_DRAMA]\n${drama}\n[/AUDIO_DRAMA]`; } isValid(s: string): boolean { return s.includes('[AUDIO_DRAMA]'); } }
+export class AudioDramaADirector2 { decide(state: { produced: boolean; reviewed: boolean }): string { if (!state.produced) return 'produce'; if (!state.reviewed) return 'review'; return 'distribute'; } }
+export class AudioDramaMasterIndex { list(): string[] { return ['SoundEffectDesigner', 'VoiceActorAssignment', 'DialogueTimingCalculator', 'BackgroundMusicSelector', 'AmbientSoundAdder', 'AudioDramaCueSheet', 'AudioDramaEpisode', 'AudioDramaScriptWriter', 'AudioDramaNarrator', 'VoiceDirection', 'SoundEffectLibrary', 'AudioDramaSceneDivider', 'AudioDramaFoleyDesigner', 'AudioDramaVoiceVariation', 'AudioDramaDialogueEnhancer', 'AudioDramaEpisodeDivider', 'AudioDramaMusicSelector', 'AudioDramaTransitionsAdder', 'AudioDramaPipeline', 'AudioDramaDirector', 'AudioDramaReport', 'AudioDramaLibrary', 'AudioDramaValidator', 'AudioDramaTools', 'AudioDramaQualityGate', 'AudioDramaExport', 'AudioDramaADirector2', 'AudioDramaMasterIndex']; } count(): number { return this.list().length; } }
+export const BI_BATCH_3_ENGINES = { AudioDramaPipeline, AudioDramaDirector, AudioDramaReport, AudioDramaLibrary, AudioDramaValidator, AudioDramaTools, AudioDramaQualityGate, AudioDramaExport, AudioDramaADirector2, AudioDramaMasterIndex } as const;
