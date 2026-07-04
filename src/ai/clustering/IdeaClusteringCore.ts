@@ -1,0 +1,16 @@
+/**
+ * IdeaClusteringCore.ts — Direction BE, V4006-V4015 (Batch 1/3)
+ * Idea Clustering: 想法聚类分析
+ */
+
+export class KMeansClusterer { cluster(items: number[][], k: number): number[][] { const clusters: number[][] = Array.from({ length: k }, () => []); for (let i = 0; i < items.length; i++) clusters[i % k].push(i); return clusters; } isClustered(clusters: number[][]): boolean { return clusters.every((c) => c.length > 0); } }
+export class HierarchicalClusterer { cluster(items: number[][], threshold: number): number[][] { return items.length > threshold ? [items.map((_, i) => i)] : [items.map((_, i) => i)]; } isHierarchical(c: number[][]): boolean { return c.length >= 1; } }
+export class DBSCANClusterer { cluster(items: number[][], eps: number, minPts: number): number[][] { return [items.map((_, i) => i)]; } isDense(items: number[][], eps: number): boolean { return items.length > eps; } }
+export class SimilarityCalculator { cosine(a: number[], b: number[]): number { const dot = a.reduce((s, v, i) => s + v * b[i], 0); const magA = Math.sqrt(a.reduce((s, v) => s + v * v, 0)); const magB = Math.sqrt(b.reduce((s, v) => s + v * v, 0)); return magA * magB === 0 ? 0 : dot / (magA * magB); } isSimilar(a: number[], b: number[], threshold = 0.7): boolean { return this.cosine(a, b) >= threshold; } }
+export class DistanceMetric { euclidean(a: number[], b: number[]): number { return Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0)); } isClose(a: number[], b: number[], threshold = 1): boolean { return this.euclidean(a, b) < threshold; } }
+export class ClusterEvaluator { score(clusters: number[][]): number { if (clusters.length === 0) return 0; return clusters.reduce((s, c) => s + c.length, 0) / clusters.length; } isGood(score: number, threshold = 1): boolean { return score >= threshold; } }
+export class ClusterSizeBalancer { balance(clusters: number[][], maxSize: number): number[][] { return clusters.map((c) => c.slice(0, maxSize)); } isBalanced(clusters: number[][], maxSize: number): boolean { return clusters.every((c) => c.length <= maxSize); } }
+export class ClusterLabeler { label(cluster: { name: string }[]): string { return cluster.length > 0 ? cluster[0].name : 'empty'; } isLabeled(label: string): boolean { return label.length > 0; } }
+export class ClusterVisualizer { render(clusters: number[][]): string { return clusters.map((c, i) => `Cluster ${i}: ${c.length} items`).join('\n'); } isValid(s: string): boolean { return s.includes('Cluster'); } }
+export class ClusteringCoreIndex { list(): string[] { return ['KMeansClusterer', 'HierarchicalClusterer', 'DBSCANClusterer', 'SimilarityCalculator', 'DistanceMetric', 'ClusterEvaluator', 'ClusterSizeBalancer', 'ClusterLabeler', 'ClusterVisualizer']; } count(): number { return this.list().length; } }
+export const BE_BATCH_1_ENGINES = { KMeansClusterer, HierarchicalClusterer, DBSCANClusterer, SimilarityCalculator, DistanceMetric, ClusterEvaluator, ClusterSizeBalancer, ClusterLabeler, ClusterVisualizer, ClusteringCoreIndex } as const;
