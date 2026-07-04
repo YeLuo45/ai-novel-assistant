@@ -1,0 +1,16 @@
+/**
+ * IntensityIntegration.ts — Direction AW, V3786-V3795 (Batch 3/3 收口)
+ * Emotion Intensity Tuner: 集成 + 收口
+ */
+
+export class IntensityReport { generate(text: string, score: number): string { return `文本长度 ${text.length}, 情绪强度 ${score.toFixed(2)}`; } hasReport(s: string): boolean { return s.includes('情绪强度'); } }
+export class IntensityTarget { target = 0.5; setTarget(v: number): void { this.target = Math.max(0, Math.min(1, v)); } getTarget(): number { return this.target; } }
+export class IntensityTunerDirector { decide(current: number, target: number): string { if (Math.abs(current - target) < 0.05) return 'done'; if (current < target) return 'amplify'; return 'dampen'; } }
+export class IntensityProfile { private _intensities = new Map<string, number>(); set(name: string, value: number): void { this._intensities.set(name, value); } get(name: string): number { return this._intensities.get(name) || 0; } all(): Map<string, number> { return new Map(this._intensities); } }
+export class IntensityStats { private _adjustments = 0; recordAdjustment(): void { this._adjustments += 1; } count(): number { return this._adjustments; } }
+export class IntensityMemoryBank { private _patterns = new Map<string, number>(); store(p: string): void { this._patterns.set(p, (this._patterns.get(p) || 0) + 1); } top(): string | null { let top: string | null = null; let max = 0; for (const [p, c] of this._patterns) if (c > max) { max = c; top = p; } return top; } }
+export class IntensityADirector { decideStep(state: { step: string; count: number }): string { if (state.step === 'done') return 'finalize'; return 'continue'; } }
+export class IntensityReview { review(before: number, after: number): { improved: boolean; delta: number } { return { improved: Math.abs(after - before) > 0.1, delta: after - before }; } isImproved(r: { improved: boolean }): boolean { return r.improved; } }
+export class IntensityTools { tools: string[] = ['Amplify', 'Dampen', 'Balance', 'Rescale']; isAvailable(t: string): boolean { return this.tools.includes(t); } count(): number { return this.tools.length; } }
+export class IntensityMasterIndex { list(): string[] { return ['EmotionIntensityScorer', 'IntensityAdjuster', 'EmotionPeakDetector', 'IntensityCalibrator', 'EmotionDynamics', 'EmotionCurveSmoother', 'MoodTransitioner', 'EmotionIntensityTuner', 'EmotionBalance', 'WordIntensityAdjuster', 'SentenceIntensityAdjuster', 'ParagraphIntensityAdjuster', 'IntensityByGenre', 'IntensityByCharacter', 'IntensityVariance', 'IntensityRange', 'IntensityDistribution', 'IntensityHistory', 'IntensityReport', 'IntensityTarget', 'IntensityTunerDirector', 'IntensityProfile', 'IntensityStats', 'IntensityMemoryBank', 'IntensityADirector', 'IntensityReview', 'IntensityTools', 'IntensityMasterIndex']; } count(): number { return this.list().length; } }
+export const AW_BATCH_3_ENGINES = { IntensityReport, IntensityTarget, IntensityTunerDirector, IntensityProfile, IntensityStats, IntensityMemoryBank, IntensityADirector, IntensityReview, IntensityTools, IntensityMasterIndex } as const;
