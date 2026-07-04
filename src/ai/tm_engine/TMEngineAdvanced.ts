@@ -1,0 +1,18 @@
+/**
+ * TMEngineAdvanced.ts — Direction BC, V3956-V3965 (Batch 2/3)
+ * Translation Memory Engine: 高级工具
+ */
+
+import type { TMEntry, TMStore } from './TMEngineCore';
+
+export class TMConcordancer { search(store: TMStore, query: string): TMEntry[] { return store.getAll().filter((e) => e.source.includes(query) || e.target.includes(query)); } isRich(r: TMEntry[]): boolean { return r.length > 0; } }
+export class TMConvergence { compute(store: TMStore): { domains: number; avgQuality: number } { const entries = store.getAll(); const domains = new Set(entries.map((e) => e.domain || 'general')).size; const avgQuality = entries.length === 0 ? 0 : entries.reduce((s, e) => s + e.quality, 0) / entries.length; return { domains, avgQuality }; } isConverged(c: { domains: number }, threshold = 3): boolean { return c.domains >= threshold; } }
+export class TMPretranslation { pretranslate(store: TMStore, source: string): string { const entry = store.find(source); return entry ? entry.target : source; } isPretranslated(s: string, t: string): boolean { return s !== t; } }
+export class TMLeverage { compute(store: TMStore, source: string): { exact: number; fuzzy: number; newWords: number } { const exact = store.find(source); const fuzzy = store.findFuzzy(source, 0.7); return { exact: exact ? 1 : 0, fuzzy: fuzzy ? 0.5 : 0, newWords: exact ? 0 : 1 }; } isHighLeverage(l: { exact: number; fuzzy: number; newWords: number }, threshold = 0.7): boolean { return l.exact + l.fuzzy * 0.5 >= threshold; } }
+export class TMConsistency { check(store: TMStore, source: string): { consistent: boolean; entries: number } { const exact = store.find(source); const fuzzy = store.findFuzzy(source, 0.7); return { consistent: !!exact, entries: (exact ? 1 : 0) + (fuzzy ? 1 : 0) }; } isConsistent(c: { consistent: boolean }): boolean { return c.consistent; } }
+export class TMStatistics { compute(store: TMStore): { total: number; avgQuality: number; totalWords: number } { const entries = store.getAll(); const totalWords = entries.reduce((s, e) => s + e.source.length, 0); const avgQuality = entries.length === 0 ? 0 : entries.reduce((s, e) => s + e.quality, 0) / entries.length; return { total: entries.length, avgQuality, totalWords }; } isHealthy(s: { total: number }, threshold = 100): boolean { return s.total >= threshold; } }
+export class TMEditor { edit(store: TMStore, source: string, newTarget: string): void { const entry = store.find(source); if (entry) entry.target = newTarget; } isEdited(store: TMStore, source: string, newTarget: string): boolean { return store.find(source)?.target === newTarget; } }
+export class TMVersioning { private _versions = new Map<string, number>(); bump(key: string): number { const v = (this._versions.get(key) || 0) + 1; this._versions.set(key, v); return v; } get(key: string): number { return this._versions.get(key) || 0; } }
+export class TMBatch { private _batch: TMEntry[] = []; add(entry: TMEntry): void { this._batch.push(entry); } commit(store: TMStore): number { for (const e of this._batch) store.add(e); const size = this._batch.length; this._batch = []; return size; } isCommitted(): boolean { return this._batch.length === 0; } }
+export class TMAdvancedIndex { list(): string[] { return ['TMConcordancer', 'TMConvergence', 'TMPretranslation', 'TMLeverage', 'TMConsistency', 'TMStatistics', 'TMEditor', 'TMVersioning', 'TMBatch']; } count(): number { return this.list().length; } }
+export const BC_BATCH_2_ENGINES = { TMConcordancer, TMConvergence, TMPretranslation, TMLeverage, TMConsistency, TMStatistics, TMEditor, TMVersioning, TMBatch, TMAdvancedIndex } as const;
