@@ -1,0 +1,18 @@
+/**
+ * IntensityTuning.ts — Direction AW, V3776-V3785 (Batch 2/3)
+ * Emotion Intensity Tuner: 调节工具
+ */
+
+import { EmotionIntensityScorer } from './IntensityCore';
+
+export class WordIntensityAdjuster { amplify(text: string, word: string, factor: number): string { return text.replace(new RegExp(word, 'g'), word + '！'.repeat(Math.round(factor))); } isAmplified(text: string, word: string): boolean { return text.includes(word + '！'); } }
+export class SentenceIntensityAdjuster { boost(sentence: string): string { return sentence.replace(/[!！?？.。]/g, (m) => m + '！').slice(0, sentence.length + 10); } isBoosted(s: string): boolean { return (s.match(/！/g) || []).length > 2; } }
+export class ParagraphIntensityAdjuster { adjust(paragraph: string, target: number): string { const cur = new EmotionIntensityScorer().score(paragraph); if (cur < target) return paragraph + '！'.repeat(Math.round((target - cur) * 5)); return paragraph.replace(/！/g, '.'); } isAdjusted(text: string, target: number): boolean { return Math.abs(new EmotionIntensityScorer().score(text) - target) < 0.3; } }
+export class IntensityByGenre { adjust(text: string, genre: string, target: number): string { const genreTarget: Record<string, number> = { romance: 0.6, action: 0.8, horror: 0.9, literary: 0.5 }; return text + (target < (genreTarget[genre] || 0.5) ? '！' : ''); } isGenreAppropriate(text: string, genre: string): boolean { return text.length > 5; } }
+export class IntensityByCharacter { adjustFor(text: string, character: string, target: number): string { return text + (target > 0.5 ? ` (${character}激动)` : ''); } isConsistentWith(text: string, character: string): boolean { return text.includes(character); } }
+export class IntensityVariance { variance(values: number[]): number { if (values.length === 0) return 0; const avg = values.reduce((s, v) => s + v, 0) / values.length; return values.reduce((s, v) => s + (v - avg) ** 2, 0) / values.length; } isStable(variance: number, threshold = 0.05): boolean { return variance <= threshold; } }
+export class IntensityRange { inRange(value: number, min: number, max: number): boolean { return value >= min && value <= max; } clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); } }
+export class IntensityDistribution { distribution(values: number[]): { low: number; medium: number; high: number } { let low = 0; let medium = 0; let high = 0; for (const v of values) { if (v < 0.33) low += 1; else if (v < 0.67) medium += 1; else high += 1; } return { low, medium, high }; } isBalanced(d: { low: number; medium: number; high: number }): boolean { return d.low > 0 && d.medium > 0 && d.high > 0; } }
+export class IntensityHistory { private _history: { timestamp: number; intensity: number }[] = []; record(intensity: number): void { this._history.push({ timestamp: Date.now(), intensity }); } getAll(): { timestamp: number; intensity: number }[] { return [...this._history]; } size(): number { return this._history.length; } }
+export class IntensityTuningIndex { list(): string[] { return ['WordIntensityAdjuster', 'SentenceIntensityAdjuster', 'ParagraphIntensityAdjuster', 'IntensityByGenre', 'IntensityByCharacter', 'IntensityVariance', 'IntensityRange', 'IntensityDistribution', 'IntensityHistory']; } count(): number { return this.list().length; } }
+export const AW_BATCH_2_ENGINES = { WordIntensityAdjuster, SentenceIntensityAdjuster, ParagraphIntensityAdjuster, IntensityByGenre, IntensityByCharacter, IntensityVariance, IntensityRange, IntensityDistribution, IntensityHistory, IntensityTuningIndex } as const;
