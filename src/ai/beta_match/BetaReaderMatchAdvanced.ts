@@ -1,0 +1,16 @@
+/**
+ * BetaReaderMatchAdvanced.ts — Direction BF, V4046-V4055 (Batch 2/3)
+ * Beta Reader Auto-Match: 高级工具
+ */
+
+export class ReaderAvailability { available: { day: string; hours: number }[] = []; addDay(day: string, hours: number): void { this.available.push({ day, hours }); } isAvailableOn(day: string): boolean { return this.available.some((a) => a.day === day && a.hours > 0); } }
+export class ReaderSpecialization { specializations: string[] = []; add(s: string): void { this.specializations.push(s); } has(s: string): boolean { return this.specializations.includes(s); } }
+export class ReaderRating { private _ratings: { reader: string; rating: number }[] = []; record(reader: string, rating: number): void { this._ratings.push({ reader, rating }); } average(): number { if (this._ratings.length === 0) return 0; return this._ratings.reduce((s, r) => s + r.rating, 0) / this._ratings.length; } }
+export class ReaderFeedbackCollector { private _feedback: { reader: string; comment: string }[] = []; collect(reader: string, comment: string): void { this._feedback.push({ reader, comment }); } count(): number { return this._feedback.length; } }
+export class ReaderMatchingEngine { match(readers: { preferences: string[] }[], book: { genre: string }): { preferences: string[] } | null { return readers.find((r) => r.preferences.includes(book.genre)) || null; } isMatched(r: { preferences: string[] } | null): boolean { return r !== null; } }
+export class ReaderDiversityCalculator { calculate(readers: { demographics: string }[]): { uniqueGroups: number; score: number } { const groups = new Set(readers.map((r) => r.demographics)); return { uniqueGroups: groups.size, score: Math.min(1, groups.size / 5) }; } isDiverse(d: { score: number }, threshold = 0.6): boolean { return d.score >= threshold; } }
+export class ReaderRecruitment { private _pool: { name: string }[] = []; add(reader: { name: string }): void { this._pool.push(reader); } random(n: number): { name: string }[] { return this._pool.sort(() => Math.random() - 0.5).slice(0, n); } size(): number { return this._pool.length; } }
+export class ReaderRetentionPredictor { predict(readings: { completed: boolean }[]): number { if (readings.length === 0) return 0; return readings.filter((r) => r.completed).length / readings.length; } isLikelyToReturn(p: number, threshold = 0.5): boolean { return p >= threshold; } }
+export class ReaderOnboarding { steps: string[] = ['welcome', 'preferences', 'sample_chapter', 'feedback']; isComplete(step: string): boolean { return this.steps[this.steps.length - 1] === step; } next(step: string): string { const i = this.steps.indexOf(step); return i >= 0 && i < this.steps.length - 1 ? this.steps[i + 1] : 'done'; } }
+export class BetaReaderMatchAdvancedIndex { list(): string[] { return ['ReaderAvailability', 'ReaderSpecialization', 'ReaderRating', 'ReaderFeedbackCollector', 'ReaderMatchingEngine', 'ReaderDiversityCalculator', 'ReaderRecruitment', 'ReaderRetentionPredictor', 'ReaderOnboarding']; } count(): number { return this.list().length; } }
+export const BF_BATCH_2_ENGINES = { ReaderAvailability, ReaderSpecialization, ReaderRating, ReaderFeedbackCollector, ReaderMatchingEngine, ReaderDiversityCalculator, ReaderRecruitment, ReaderRetentionPredictor, ReaderOnboarding, BetaReaderMatchAdvancedIndex } as const;
