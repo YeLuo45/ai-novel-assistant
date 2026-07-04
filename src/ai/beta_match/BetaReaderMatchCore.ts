@@ -1,0 +1,16 @@
+/**
+ * BetaReaderMatchCore.ts — Direction BF, V4036-V4045 (Batch 1/3)
+ * Beta Reader Auto-Match: 测试读者自动匹配
+ */
+
+export class ReaderProfileBuilder { build(reader: { name: string; preferences: string[]; demographics: string }): { name: string; preferences: string[]; demographics: string; matchScore: number } { return { ...reader, matchScore: 0.5 }; } isValid(p: { name: string }): boolean { return p.name.length > 0; } }
+export class PreferenceMatcher { match(profile: { preferences: string[] }, book: { genre: string; themes: string[] }): number { let score = 0; if (profile.preferences.includes(book.genre)) score += 0.5; score += profile.preferences.filter((p) => book.themes.includes(p)).length * 0.1; return Math.min(1, score); } isMatch(score: number, threshold = 0.5): boolean { return score >= threshold; } }
+export class DemographicsMatcher { match(reader: { demographics: string }, target: { demographics: string }): number { return reader.demographics === target.demographics ? 1 : 0.3; } isMatch(score: number): boolean { return score >= 0.5; } }
+export class ReaderRanker { rank(readers: { matchScore: number }[]): { matchScore: number }[] { return [...readers].sort((a, b) => b.matchScore - a.matchScore); } topN(readers: { matchScore: number }[], n: number): { matchScore: number }[] { return this.rank(readers).slice(0, n); } }
+export class ReaderDatabase { private _readers: { name: string; matchScore: number }[] = []; add(reader: { name: string; matchScore: number }): void { this._readers.push(reader); } find(name: string): { name: string; matchScore: number } | null { return this._readers.find((r) => r.name === name) || null; } size(): number { return this._readers.length; } }
+export class MatchScoreCalculator { calculate(components: number[]): number { if (components.length === 0) return 0; return components.reduce((s, c) => s + c, 0) / components.length; } isHigh(score: number, threshold = 0.7): boolean { return score >= threshold; } }
+export class MatchThreshold { min: number = 0.5; setThreshold(t: number): void { this.min = t; } meets(score: number): boolean { return score >= this.min; } }
+export class MatchReport { generate(matches: { name: string; score: number }[]): string { return matches.map((m) => `${m.name}: ${(m.score * 100).toFixed(0)}%`).join('\n'); } hasReport(s: string): boolean { return s.includes('%'); } }
+export class MatchADirector { decide(state: { readerCount: number; matchCount: number }): string { if (state.matchCount === 0) return 'expand'; if (state.matchCount < 3) return 'find_more'; return 'finalize'; } }
+export class BetaReaderMatchCoreIndex { list(): string[] { return ['ReaderProfileBuilder', 'PreferenceMatcher', 'DemographicsMatcher', 'ReaderRanker', 'ReaderDatabase', 'MatchScoreCalculator', 'MatchThreshold', 'MatchReport', 'MatchADirector']; } count(): number { return this.list().length; } }
+export const BF_BATCH_1_ENGINES = { ReaderProfileBuilder, PreferenceMatcher, DemographicsMatcher, ReaderRanker, ReaderDatabase, MatchScoreCalculator, MatchThreshold, MatchReport, MatchADirector, BetaReaderMatchCoreIndex } as const;
