@@ -1,8 +1,8 @@
 # ai-novel-assistant
 
-AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 24 创作大师方向 AB-X-Y-AA-AC-Z-AD-AE-AF-AG-AH-AI-AJ-AK-AL-AM-AN-AO-AP-AQ-AR-AS-AT-AU 共 720 engines）。
+AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 32 创作大师方向 AB-X-Y-AA-AC-Z-AD-AE-AF-AG-AH-AI-AJ-AK-AL-AM-AN-AO-AP-AQ-AR-AS-AT-AU-AV-AW-AX-AY-AZ-BA-BB-BC 共 960 engines）。
 
-## 创作大师方向（V3016-V3735 · 24 方向 · 720 engines · 1600+ tests · 100% pass · ≥98% coverage）
+## 创作大师方向（V3016-V3975 · 32 方向 · 960 engines · 2000+ tests · 100% pass · ≥98% coverage）
 
 ### Round 1（V3016-V3255 · 8 方向 · 240 engines · 609 tests）
 
@@ -42,6 +42,19 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **AS Self-Editing Pipeline** — 自编辑流水线 | 30 | 58 | ≥98% | [AS_SELFEDIT_README.md](./docs/AS_SELFEDIT_README.md) |
 | **AT Backmatter Generator** — 番外/后记生成器 | 30 | 56 | ≥98% | [AT_BACKMATTER_README.md](./docs/AT_BACKMATTER_README.md) |
 | **AU Translation-Aware Writing** — 翻译友好写作 | 30 | 53 | ≥98% | [AU_TRANSLATION_README.md](./docs/AU_TRANSLATION_README.md) |
+
+### Round 4（V3736-V3975 · 8 方向 · 240 engines · 422 tests）
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **AV Plot Hole Auto-Fixer** — 漏洞自动修复 | 30 | 54 | ≥98% | [AV_HOLEFIX_README.md](./docs/AV_HOLEFIX_README.md) |
+| **AW Emotion Intensity Tuner** — 情绪强度调节 | 30 | 51 | ≥98% | [AW_EMOTION_TUNER_README.md](./docs/AW_EMOTION_TUNER_README.md) |
+| **AX Voice Consistency Enforcer** — 声音一致性执行 | 30 | 57 | ≥98% | [AX_VOICE_README.md](./docs/AX_VOICE_README.md) |
+| **AY Title A/B Testing Simulator** — 标题 A/B 测试 | 30 | 52 | ≥98% | [AY_ABTEST_README.md](./docs/AY_ABTEST_README.md) |
+| **AZ Genre Compliance Checker** — 类型合规检查 | 30 | 54 | ≥98% | [AZ_GENRE_COMPLIANCE_README.md](./docs/AZ_GENRE_COMPLIANCE_README.md) |
+| **BA Co-Author Style Memory** — 协作风格记忆 | 30 | 46 | ≥98% | [BA_STYLE_MEMORY_README.md](./docs/BA_STYLE_MEMORY_README.md) |
+| **BB Backmatter Indexer** — 后记索引器 | 30 | 53 | ≥98% | [BB_BACKMATTER_INDEX_README.md](./docs/BB_BACKMATTER_INDEX_README.md) |
+| **BC Translation Memory Engine** — 翻译记忆引擎 | 30 | 55 | ≥98% | [BC_TM_ENGINE_README.md](./docs/BC_TM_ENGINE_README.md) |
 
 ## 基本信息
 
