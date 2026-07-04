@@ -1,0 +1,17 @@
+/**
+ * ABTestAdvanced.ts — Direction AY, V3836-V3845 (Batch 2/3)
+ * Title A/B Testing Simulator: 高级工具
+ */
+
+export class TitleCTRDistribution { distribution(titles: { title: string; ctr: number }[]): { title: string; bucket: string }[] { return titles.map((t) => ({ title: t.title, bucket: t.ctr >= 0.1 ? 'high' : t.ctr >= 0.05 ? 'medium' : 'low' })); } hasHighCTR(items: { title: string; bucket: string }[]): boolean { return items.some((i) => i.bucket === 'high'); } }
+export class TitleTagExperiment { tag: string = ''; record(variant: string, tag: string): void {} isValid(s: string): boolean { return s.length > 0; } }
+export class TitleRegressionDetector { detect(history: { ctr: number }[]): boolean { if (history.length < 3) return false; const recent = history.slice(-3).reduce((s, h) => s + h.ctr, 0) / 3; const older = history.slice(0, -3).reduce((s, h) => s + h.ctr, 0) / Math.max(1, history.length - 3); return recent < older * 0.7; } isRegression(b: boolean): boolean { return b; } }
+export class TitleBenchmarking { benchmark(title: string, genreCTR: number): { title: string; aboveAverage: boolean } { return { title, aboveAverage: genreCTR > 0.1 }; } isAboveAverage(b: { aboveAverage: boolean }): boolean { return b.aboveAverage; } }
+export class TitleSeasonalEffect { detect(title: string, season: string): number { return season === 'holiday' ? 1.5 : 1.0; } hasSeasonalBoost(factor: number): boolean { return factor > 1; } }
+export class TitleMultivariateTest { tests: { title: string; ctr: number }[] = []; add(title: string, ctr: number): void { this.tests.push({ title, ctr }); } best(): string | null { if (this.tests.length === 0) return null; return this.tests.sort((a, b) => b.ctr - a.ctr)[0].title; } }
+export class TitleABResultArchive { archive: { variant: string; winner: boolean }[] = []; add(variant: string, winner: boolean): void { this.archive.push({ variant, winner }); } count(): number { return this.archive.length; } }
+export class TitleCooldown { cooldowns = new Map<string, number>(); set(title: string, days: number): void { this.cooldowns.set(title, days); } isInCooldown(title: string): boolean { return (this.cooldowns.get(title) || 0) > 0; } }
+export class TitleROICalculator { calculate(ctr: number, impressions: number, revenuePerClick: number): number { return ctr * impressions * revenuePerClick; } isProfitable(roi: number, threshold = 100): boolean { return roi > threshold; } }
+export class TitleExperimentDesigner { design(title: string): { baseline: string; variants: string[]; duration: number } { return { baseline: title, variants: [title + ' (A)', title + ' (B)'], duration: 7 }; } isValid(d: { variants: string[] }): boolean { return d.variants.length >= 2; } }
+export class TitleAdvancedIndex { list(): string[] { return ['TitleCTRDistribution', 'TitleTagExperiment', 'TitleRegressionDetector', 'TitleBenchmarking', 'TitleSeasonalEffect', 'TitleMultivariateTest', 'TitleABResultArchive', 'TitleCooldown', 'TitleROICalculator', 'TitleExperimentDesigner']; } count(): number { return this.list().length; } }
+export const AY_BATCH_2_ENGINES = { TitleCTRDistribution, TitleTagExperiment, TitleRegressionDetector, TitleBenchmarking, TitleSeasonalEffect, TitleMultivariateTest, TitleABResultArchive, TitleCooldown, TitleROICalculator, TitleExperimentDesigner, TitleAdvancedIndex } as const;
