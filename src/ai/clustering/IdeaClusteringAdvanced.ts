@@ -1,0 +1,16 @@
+/**
+ * IdeaClusteringAdvanced.ts — Direction BE, V4016-V4025 (Batch 2/3)
+ * Idea Clustering: 高级工具
+ */
+
+export class ClusterKeywordExtractor { extract(items: string[]): string[] { const all = items.join(' ').match(/[\u4e00-\u9fa5]{2,}/g) || []; const freq: Record<string, number> = {}; for (const w of all) freq[w] = (freq[w] || 0) + 1; return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]); } isRich(keywords: string[]): boolean { return keywords.length >= 2; } }
+export class ClusterSummary { generate(cluster: { name: string; size: number }): string { return `${cluster.name} (${cluster.size} items)`; } isValid(s: string): boolean { return s.includes('items'); } }
+export class ClusterMerger { merge(a: number[], b: number[]): number[] { return [...a, ...b]; } isMerged(merged: number[]): boolean { return merged.length > 0; } }
+export class ClusterSplitter { split(items: number[], k: number): number[][] { const perGroup = Math.ceil(items.length / k); const result: number[][] = []; for (let i = 0; i < items.length; i += perGroup) result.push(items.slice(i, i + perGroup)); return result; } isSplit(parts: number[][], k: number): boolean { return parts.length === k; } }
+export class ClusterCentroid { centroid(items: number[][]): number[] { if (items.length === 0) return []; const dim = items[0].length; const result: number[] = new Array(dim).fill(0); for (const item of items) for (let i = 0; i < dim; i++) result[i] += item[i] || 0; return result.map((v) => v / items.length); } isCentroid(c: number[]): boolean { return c.length > 0; } }
+export class ClusterQuality { score(clusters: number[][]): number { if (clusters.length === 0) return 0; return clusters.reduce((s, c) => s + (c.length > 0 ? 1 : 0), 0) / clusters.length; } isQuality(s: number, threshold = 0.7): boolean { return s >= threshold; } }
+export class ClusterSearch { search(clusters: { name: string }[], query: string): { name: string } | null { return clusters.find((c) => c.name.includes(query)) || null; } hasMatch(r: { name: string } | null): boolean { return r !== null; } }
+export class ClusterExport { exportCSV(clusters: { id: number; items: string[] }[]): string { return clusters.map((c) => `${c.id},${c.items.join('|')}`).join('\n'); } isValidCSV(s: string): boolean { return s.includes(','); } }
+export class ClusterImport { importCSV(csv: string): { id: number; items: string[] }[] { return csv.split('\n').filter((l) => l).map((l, i) => { const parts = l.split(','); return { id: i, items: parts[1] ? parts[1].split('|') : [] }; }); } isValid(s: string): boolean { return s.includes(','); } }
+export class ClusteringAdvancedIndex { list(): string[] { return ['ClusterKeywordExtractor', 'ClusterSummary', 'ClusterMerger', 'ClusterSplitter', 'ClusterCentroid', 'ClusterQuality', 'ClusterSearch', 'ClusterExport', 'ClusterImport']; } count(): number { return this.list().length; } }
+export const BE_BATCH_2_ENGINES = { ClusterKeywordExtractor, ClusterSummary, ClusterMerger, ClusterSplitter, ClusterCentroid, ClusterQuality, ClusterSearch, ClusterExport, ClusterImport, ClusteringAdvancedIndex } as const;
