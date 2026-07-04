@@ -1,0 +1,17 @@
+/**
+ * VoiceAdvanced.ts — Direction AX, V3806-V3815 (Batch 2/3)
+ * Voice Consistency Enforcer: 高级工具
+ */
+
+export class VoicePersistence { private _events: { chapter: number; voice: string }[] = []; record(chapter: number, voice: string): void { this._events.push({ chapter, voice }); } count(): number { return this._events.length; } }
+export class VoiceConsistencyScorer { score(text: string, baseline: string): number { return text.length === baseline.length ? 1 : 1 - Math.abs(text.length - baseline.length) / Math.max(text.length, baseline.length); } isHigh(score: number, threshold = 0.8): boolean { return score >= threshold; } }
+export class VoiceAnomalyDetector { detect(text: string, baselineAvgLen: number): number { const sentences = text.split(/[。！？.!?\n]+/).filter((s) => s.trim().length > 0); const avgLen = sentences.length > 0 ? text.length / sentences.length : 0; return Math.abs(avgLen - baselineAvgLen) / Math.max(1, baselineAvgLen); } isAnomaly(drift: number, threshold = 0.5): boolean { return drift > threshold; } }
+export class VoiceRefiner { refine(text: string): string { return text.replace(/他很/g, '他').replace(/她很/g, '她'); } isRefined(original: string, refined: string): boolean { return original !== refined; } }
+export class VoiceQualityScorer { score(text: string): number { let s = 0.5; if (text.length > 100) s += 0.2; if (!/[！!]{3,}/.test(text)) s += 0.2; if (!/[，,]{3,}/.test(text)) s += 0.1; return Math.min(1, s); } isQuality(score: number, threshold = 0.7): boolean { return score >= threshold; } }
+export class VoiceMemoryBank { private _samples = new Map<string, string[]>(); add(character: string, sample: string): void { if (!this._samples.has(character)) this._samples.set(character, []); this._samples.get(character)!.push(sample); } get(character: string): string[] { return this._samples.get(character) || []; } size(): number { return this._samples.size; } }
+export class VoiceEnforcementLoop { private _iterations = 0; record(): void { this._iterations += 1; } count(): number { return this._iterations; } isStable(threshold = 3): boolean { return this._iterations >= threshold; } }
+export class VoiceWarningLevel { classify(drift: number): 'low' | 'medium' | 'high' { if (drift < 0.2) return 'low'; if (drift < 0.5) return 'medium'; return 'high'; } }
+export class VoiceBatchEnforcer { enforceBatch(texts: string[], profile: { avgLen: number }): string[] { return texts.map((t) => new (require('./VoiceConsistency') as any).VoiceEnforcer().enforce(t, profile)); } count(texts: string[]): number { return texts.length; } }
+export class VoiceReviewer { review(original: string, enforced: string): { needsReview: boolean; reason: string } { return { needsReview: original !== enforced, reason: original === enforced ? 'no change' : 'changed' }; } needsReview(r: { needsReview: boolean }): boolean { return r.needsReview; } }
+export const AX_BATCH_2_ENGINES = { VoicePersistence, VoiceConsistencyScorer, VoiceAnomalyDetector, VoiceRefiner, VoiceQualityScorer, VoiceMemoryBank, VoiceEnforcementLoop, VoiceWarningLevel, VoiceBatchEnforcer, VoiceReviewer } as const;
+export class VoiceAdvancedIndex { list(): string[] { return ['VoicePersistence', 'VoiceConsistencyScorer', 'VoiceAnomalyDetector', 'VoiceRefiner', 'VoiceQualityScorer', 'VoiceMemoryBank', 'VoiceEnforcementLoop', 'VoiceWarningLevel', 'VoiceBatchEnforcer', 'VoiceReviewer']; } count(): number { return this.list().length; } }
