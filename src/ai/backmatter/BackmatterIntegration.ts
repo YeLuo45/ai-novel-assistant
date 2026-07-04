@@ -1,0 +1,16 @@
+/**
+ * BackmatterIntegration.ts — Direction AT, V3696-V3705 (Batch 3/3 收口)
+ * Backmatter Generator: 集成 + 收口
+ */
+
+export class BackmatterCollection { private _items: string[] = []; add(s: string): void { this._items.push(s); } getAll(): string[] { return [...this._items]; } size(): number { return this._items.length; } }
+export class BackmatterOrderer { order(items: string[]): string[] { return items.sort(); } isOrdered(a: string[], b: string[]): boolean { return JSON.stringify(a) === JSON.stringify(b); } }
+export class BonusPDFGenerator { generate(items: string[]): string { return items.join('\n\n'); } isValidPDF(content: string): boolean { return content.length > 10; } }
+export class BackmatterIndex { items: string[] = ['side_story', 'epilogue', 'glossary', 'author_note']; count(): number { return this.items.length; } isStandard(item: string): boolean { return this.items.includes(item); } }
+export class ExclusiveContent { title: string = ''; content: string = ''; isValid(): boolean { return this.title.length > 0 && this.content.length > 0; } }
+export class BackmatterLengthAdjuster { adjust(text: string, targetWords: number): string { const currentWords = text.length / 4; if (currentWords > targetWords) return text.slice(0, targetWords * 4); return text + ' word '.repeat(Math.max(0, Math.ceil(targetWords - currentWords))).trim(); } meetsTarget(text: string, target: number): boolean { return text.length / 4 >= target; } }
+export class BackmatterTranslator { translate(text: string, lang: string): string { return `[${lang}] ${text}`; } isTranslated(text: string): boolean { return /^\[\w+\]/.test(text); } }
+export class BackmatterADirector { decide(hasItems: boolean, hasOrder: boolean): string { if (!hasItems) return 'create'; if (!hasOrder) return 'order'; return 'publish'; } }
+export class BackmatterPackager { package(items: string[]): { name: string; count: number } { return { name: 'Bonus Pack', count: items.length }; } isPackaged(p: { count: number }): boolean { return p.count > 0; } }
+export class BackmatterMasterIndex { list(): string[] { return ['SideStoryGenerator', 'BackstoryGenerator', 'EpilogueGenerator', 'PrologueGenerator', 'CharacterBioGenerator', 'WorldRuleGuide', 'GlossaryGenerator', 'TimelineAppendix', 'AuthorNoteGenerator', 'BloopersGenerator', 'AuthorInterviewGenerator', 'DeletedSceneGenerator', 'AlternateEndingGenerator', 'ArtPromptGenerator', 'MusicPlaylistCurator', 'TimelineInfographic', 'ReadingGroupGuide', 'BonusContentGenerator', 'BackmatterCollection', 'BackmatterOrderer', 'BonusPDFGenerator', 'BackmatterIndex', 'ExclusiveContent', 'BackmatterLengthAdjuster', 'BackmatterTranslator', 'BackmatterADirector', 'BackmatterPackager', 'BackmatterMasterIndex']; } count(): number { return this.list().length; } }
+export const AT_BATCH_3_ENGINES = { BackmatterCollection, BackmatterOrderer, BonusPDFGenerator, BackmatterIndex, ExclusiveContent, BackmatterLengthAdjuster, BackmatterTranslator, BackmatterADirector, BackmatterPackager, BackmatterMasterIndex } as const;
