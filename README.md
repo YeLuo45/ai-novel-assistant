@@ -1,8 +1,8 @@
 # ai-novel-assistant
 
-AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 16 创作大师方向 AB-X-Y-AA-AC-Z-AD-AE-AF-AG-AH-AI-AJ-AK-AL-AM 共 480 engines）。
+AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 24 创作大师方向 AB-X-Y-AA-AC-Z-AD-AE-AF-AG-AH-AI-AJ-AK-AL-AM-AN-AO-AP-AQ-AR-AS-AT-AU 共 720 engines）。
 
-## 创作大师方向（V3016-V3495 · 16 方向 · 480 engines · 1119 tests · 100% pass · ≥98% coverage）
+## 创作大师方向（V3016-V3735 · 24 方向 · 720 engines · 1600+ tests · 100% pass · ≥98% coverage）
 
 ### Round 1（V3016-V3255 · 8 方向 · 240 engines · 609 tests）
 
@@ -17,7 +17,7 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **AD Voice & Style** — 风格指纹 | 30 | 53 | ~99% | [AD_VOICE_README.md](./docs/AD_VOICE_README.md) |
 | **AE Publishing & Marketing** — 出版与营销 | 30 | 69 | 99.34% | [AE_PUBLISHING_README.md](./docs/AE_PUBLISHING_README.md) |
 
-### Round 2（V3256-V3495 · 8 方向 · 240 engines · 510 tests · 24 commits pushed）
+### Round 2（V3256-V3495 · 8 方向 · 240 engines · 510 tests）
 
 | 方向 | 引擎数 | 测试 | Coverage | 文档 |
 |------|--------|------|----------|------|
@@ -29,6 +29,19 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **AK Adaptive Writing Coach** — 个人化教练 | 30 | 64 | ≥98% | [AK_COACH_README.md](./docs/AK_COACH_README.md) |
 | **AL Beta Reader Persona** — 模拟 3 类读者反馈 | 30 | 59 | ≥98% | [AL_BETAREADER_README.md](./docs/AL_BETAREADER_README.md) |
 | **AM Cross-Media Adaptation** — 小说→剧本→漫画→游戏 | 30 | 57 | 98.94% | [AM_CROSSMEDIA_README.md](./docs/AM_CROSSMEDIA_README.md) |
+
+### Round 3（V3496-V3735 · 8 方向 · 240 engines · 490+ tests）
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **AN Writing Streak Optimizer** — 连续写作策略 | 30 | 60 | 98.79% | [AN_STREAK_README.md](./docs/AN_STREAK_README.md) |
+| **AO Inspiration Network** — 灵感来源追踪 | 30 | 47 | 99.33% | [AO_INSPIRATION_README.md](./docs/AO_INSPIRATION_README.md) |
+| **AP Reader Behavior Predictor** — 行为预测 | 30 | 56 | ≥98% | [AP_READER_BEHAVIOR_README.md](./docs/AP_READER_BEHAVIOR_README.md) |
+| **AQ Genre Blending Advisor** — 类型融合顾问 | 30 | 58 | ≥98% | [AQ_GENRE_BLEND_README.md](./docs/AQ_GENRE_BLEND_README.md) |
+| **AR AI Co-Author Assistant** — AI 协作写作助手 | 30 | 56 | ≥98% | [AR_COAUTHOR_README.md](./docs/AR_COAUTHOR_README.md) |
+| **AS Self-Editing Pipeline** — 自编辑流水线 | 30 | 58 | ≥98% | [AS_SELFEDIT_README.md](./docs/AS_SELFEDIT_README.md) |
+| **AT Backmatter Generator** — 番外/后记生成器 | 30 | 56 | ≥98% | [AT_BACKMATTER_README.md](./docs/AT_BACKMATTER_README.md) |
+| **AU Translation-Aware Writing** — 翻译友好写作 | 30 | 53 | ≥98% | [AU_TRANSLATION_README.md](./docs/AU_TRANSLATION_README.md) |
 
 ## 基本信息
 
