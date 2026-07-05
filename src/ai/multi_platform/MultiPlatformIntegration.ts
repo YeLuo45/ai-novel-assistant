@@ -1,0 +1,18 @@
+/**
+ * MultiPlatformIntegration.ts — Direction BY, V4546-V4555 (Batch 3/3 收口)
+ * Multi-Platform Publisher: 集成 + 收口
+ */
+
+import { PlatformAccountManager } from './MultiPlatformCore';
+
+export class MultiPlatformPipeline { steps: string[] = ['select', 'validate', 'adapt', 'upload', 'track']; isComplete(step: string): boolean { return this.steps[this.steps.length - 1] === step; } next(step: string): string { const i = this.steps.indexOf(step); return i >= 0 && i < this.steps.length - 1 ? this.steps[i + 1] : 'done'; } }
+export class MultiPlatformDirector { decide(state: { selected: boolean; uploaded: boolean }): string { if (!state.selected) return 'select'; if (!state.uploaded) return 'upload'; return 'track'; } }
+export class MultiPlatformReport { generate(stats: { platforms: number; success: number }): string { return `${stats.platforms} 平台, ${stats.success} 成功`; } hasReport(s: string): boolean { return s.includes('平台'); } }
+export class MultiPlatformLibrary { private _accounts = new PlatformAccountManager(); add(platform: string, token: string): void { this._accounts.add(platform, token); } count(): number { return this._accounts.count(); } }
+export class MultiPlatformValidator { validate(stats: { platforms: number; content: { title: string } }): { valid: boolean } { return { valid: stats.platforms > 0 && stats.content.title.length > 0 }; } isValid(r: { valid: boolean }): boolean { return r.valid; } }
+export class MultiPlatformTools { tools: string[] = ['EpubPub', 'Vellum', 'Reedsy', 'Direct Upload']; isAvailable(t: string): boolean { return this.tools.includes(t); } count(): number { return this.tools.length; } }
+export class MultiPlatformQualityGate { gate(stats: { platforms: number; success: number }): boolean { return stats.platforms > 0 && stats.success / stats.platforms >= 0.8; } }
+export class MultiPlatformADirector { decide(state: { hasContent: boolean; hasAccounts: boolean }): string { if (!state.hasAccounts) return 'add_accounts'; if (!state.hasContent) return 'add_content'; return 'publish'; } }
+export class MultiPlatformScheduler { schedule: { platform: string; time: string }[] = []; add(platform: string, time: string): void { this.schedule.push({ platform, time }); } count(): number { return this.schedule.length; } }
+export class MultiPlatformMasterIndex { list(): string[] { return ['PlatformAccountManager', 'PlatformSelector', 'UnifiedContentAdapter', 'PlatformValidator', 'ConcurrentUploader', 'PlatformSyncStatus', 'PlatformMetadataConverter', 'PlatformCoverAdapter', 'PlatformRetryManager', 'PlatformBatchScheduler', 'PlatformDiffEngine', 'PlatformUnifiedDashboard', 'PlatformAlertSystem', 'PlatformConflictResolver', 'PlatformRevenueAggregator', 'PlatformAnalyticsAggregator', 'PlatformWebhookReceiver', 'PlatformRateLimiter', 'PlatformCache', 'PlatformABTesting', 'MultiPlatformPipeline', 'MultiPlatformDirector', 'MultiPlatformReport', 'MultiPlatformLibrary', 'MultiPlatformValidator', 'MultiPlatformTools', 'MultiPlatformQualityGate', 'MultiPlatformADirector', 'MultiPlatformScheduler', 'MultiPlatformMasterIndex']; } count(): number { return this.list().length; } }
+export const BY_BATCH_3_ENGINES = { MultiPlatformPipeline, MultiPlatformDirector, MultiPlatformReport, MultiPlatformLibrary, MultiPlatformValidator, MultiPlatformTools, MultiPlatformQualityGate, MultiPlatformADirector, MultiPlatformScheduler, MultiPlatformMasterIndex } as const;

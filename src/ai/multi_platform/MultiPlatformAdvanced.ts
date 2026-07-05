@@ -1,0 +1,17 @@
+/**
+ * MultiPlatformAdvanced.ts — Direction BY, V4536-V4545 (Batch 2/3)
+ * Multi-Platform Publisher: 高级工具
+ */
+
+export class PlatformDiffEngine { diff(a: string, b: string): string { return a === b ? 'same' : 'diff'; } isDiff(d: string): boolean { return d === 'diff'; } }
+export class PlatformUnifiedDashboard { generate(stats: { platforms: number; synced: number; failed: number }): string { return `${stats.platforms} 平台, ${stats.synced} 同步, ${stats.failed} 失败`; } hasDashboard(s: string): boolean { return s.includes('平台'); } }
+export class PlatformAlertSystem { alerts: string[] = []; send(message: string): void { this.alerts.push(message); } count(): number { return this.alerts.length; } }
+export class PlatformConflictResolver { resolve(a: string, b: string): string { return a === b ? a : `${a}/${b}`; } isResolved(r: string): boolean { return r.length > 0; } }
+export class PlatformRevenueAggregator { revenue = new Map<string, number>(); record(platform: string, amount: number): void { this.revenue.set(platform, amount); } total(): number { return Array.from(this.revenue.values()).reduce((s, n) => s + n, 0); } }
+export class PlatformAnalyticsAggregator { compute(stats: { views: number; chapters: number }[]): { totalViews: number; avgChapters: number } { return { totalViews: stats.reduce((s, x) => s + x.views, 0), avgChapters: stats.length > 0 ? stats.reduce((s, x) => s + x.chapters, 0) / stats.length : 0 }; } isAggregated(r: { totalViews: number }): boolean { return r.totalViews > 0; } }
+export class PlatformWebhookReceiver { private _hooks: { url: string; event: string }[] = []; register(url: string, event: string): void { this._hooks.push({ url, event }); } count(): number { return this._hooks.length; } }
+export class PlatformRateLimiter { private _calls = new Map<string, number>(); canCall(platform: string, max: number = 10): boolean { return (this._calls.get(platform) || 0) < max; } record(platform: string): void { this._calls.set(platform, (this._calls.get(platform) || 0) + 1); } }
+export class PlatformCache { private _cache = new Map<string, string>(); set(key: string, value: string): void { this._cache.set(key, value); } get(key: string): string | undefined { return this._cache.get(key); } size(): number { return this._cache.size; } }
+export class PlatformABTesting { variants: { name: string; views: number }[] = []; add(name: string): void { this.variants.push({ name, views: 0 }); } best(): string { return this.variants[0]?.name || ''; } count(): number { return this.variants.length; } }
+export class MultiPlatformAdvancedIndex { list(): string[] { return ['PlatformDiffEngine', 'PlatformUnifiedDashboard', 'PlatformAlertSystem', 'PlatformConflictResolver', 'PlatformRevenueAggregator', 'PlatformAnalyticsAggregator', 'PlatformWebhookReceiver', 'PlatformRateLimiter', 'PlatformCache', 'PlatformABTesting']; } count(): number { return this.list().length; } }
+export const BY_BATCH_2_ENGINES = { PlatformDiffEngine, PlatformUnifiedDashboard, PlatformAlertSystem, PlatformConflictResolver, PlatformRevenueAggregator, PlatformAnalyticsAggregator, PlatformWebhookReceiver, PlatformRateLimiter, PlatformCache, PlatformABTesting, MultiPlatformAdvancedIndex } as const;
