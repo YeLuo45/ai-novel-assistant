@@ -1,0 +1,17 @@
+/**
+ * PluginRegistryAdvanced.ts — Direction BZ, V4566-V4575 (Batch 2/3)
+ * Plugin Registry: 高级工具
+ */
+
+export class PluginReviews { private _reviews: { plugin: string; rating: number; comment: string }[] = []; add(plugin: string, rating: number, comment: string): void { this._reviews.push({ plugin, rating, comment }); } count(): number { return this._reviews.length; } }
+export class PluginScreenshots { screenshots: string[] = []; add(url: string): void { this.screenshots.push(url); } count(): number { return this.screenshots.length; } }
+export class PluginChangelog { versions: { version: string; notes: string }[] = []; add(version: string, notes: string): void { this.versions.push({ version, notes }); } count(): number { return this.versions.length; } }
+export class PluginReadmeParser { parse(readme: string): { title: string; sections: string[] } { const lines = readme.split('\n'); const title = lines[0] || ''; const sections = lines.filter((l) => l.startsWith('##')).map((l) => l); return { title, sections }; } isValid(r: { title: string }): boolean { return r.title.length > 0; } }
+export class PluginTagging { tags: string[] = []; add(tag: string): void { this.tags.push(tag); } has(tag: string): boolean { return this.tags.includes(tag); } count(): number { return this.tags.length; } }
+export class PluginStatistics { private _stats = new Map<string, number>(); record(name: string, value: number): void { this._stats.set(name, (this._stats.get(name) || 0) + value); } get(name: string): number { return this._stats.get(name) || 0; } }
+export class PluginRecommendation { recommend(plugins: { name: string; downloads: number }[]): { name: string; downloads: number }[] { return [...plugins].sort((a, b) => b.downloads - a.downloads); } best(plugins: { name: string; downloads: number }[]): { name: string; downloads: number } { return this.recommend(plugins)[0]; } }
+export class PluginCollection { private _items = new Map<string, string[]>(); add(name: string, plugins: string[]): void { this._items.set(name, plugins); } get(name: string): string[] | undefined { return this._items.get(name); } count(): number { return this._items.size; } }
+export class PluginEditorConfig { config: Record<string, string> = {}; set(key: string, value: string): void { this.config[key] = value; } get(key: string): string | undefined { return this.config[key]; } }
+export class PluginSchemaValidator { validate(schema: { name: string; version: string; author: string }): { valid: boolean; issues: string[] } { const issues: string[] = []; if (!schema.name) issues.push('no name'); if (!schema.version) issues.push('no version'); if (!schema.author) issues.push('no author'); return { valid: issues.length === 0, issues }; } isValid(r: { valid: boolean }): boolean { return r.valid; } }
+export class PluginRegistryAdvancedIndex { list(): string[] { return ['PluginReviews', 'PluginScreenshots', 'PluginChangelog', 'PluginReadmeParser', 'PluginTagging', 'PluginStatistics', 'PluginRecommendation', 'PluginCollection', 'PluginEditorConfig', 'PluginSchemaValidator']; } count(): number { return this.list().length; } }
+export const BZ_BATCH_2_ENGINES = { PluginReviews, PluginScreenshots, PluginChangelog, PluginReadmeParser, PluginTagging, PluginStatistics, PluginRecommendation, PluginCollection, PluginEditorConfig, PluginSchemaValidator, PluginRegistryAdvancedIndex } as const;

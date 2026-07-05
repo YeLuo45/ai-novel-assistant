@@ -1,0 +1,17 @@
+/**
+ * PluginRegistryCore.ts — Direction BZ, V4556-V4565 (Batch 1/3)
+ * Plugin Registry: 插件注册中心
+ */
+
+export class PluginManifest { name: string = ''; version: string = '1.0.0'; author: string = ''; description: string = ''; isValid(): boolean { return this.name.length > 0 && this.author.length > 0; } }
+export class PluginPublisher { private _published = new Map<string, { name: string; version: string }>(); publish(plugin: { name: string; version: string }): void { this._published.set(plugin.name, plugin); } isPublished(name: string): boolean { return this._published.has(name); } count(): number { return this._published.size; } }
+export class PluginVersioning { bump(version: string, type: 'major' | 'minor' | 'patch' = 'patch'): string { const parts = version.split('.'); const idx = type === 'major' ? 0 : type === 'minor' ? 1 : 2; parts[idx] = String(Number(parts[idx] || 0) + 1); return parts.join('.'); } isNewer(a: string, b: string): boolean { return a > b; } }
+export class PluginSearch { search(plugins: { name: string }[], query: string): { name: string }[] { return plugins.filter((p) => p.name.includes(query)); } hasMatch(r: { name: string }[]): boolean { return r.length > 0; } }
+export class PluginRating { private _ratings = new Map<string, number[]>(); addRating(name: string, rating: number): void { if (!this._ratings.has(name)) this._ratings.set(name, []); this._ratings.get(name)!.push(rating); } average(name: string): number { const r = this._ratings.get(name) || []; if (r.length === 0) return 0; return r.reduce((s, n) => s + n, 0) / r.length; } }
+export class PluginDownloader { private _downloads = new Map<string, number>(); record(name: string): number { const n = (this._downloads.get(name) || 0) + 1; this._downloads.set(name, n); return n; } count(name: string): number { return this._downloads.get(name) || 0; } }
+export class PluginSignatureVerifier { verify(plugin: { signature: string }, expected: string): boolean { return plugin.signature === expected; } isValid(v: boolean): boolean { return v; } }
+export class PluginCompatibility { check(version: string, minVersion: string): boolean { return version >= minVersion; } isCompatible(c: boolean): boolean { return c; } }
+export class PluginLocalCache { private _cache = new Map<string, string>(); set(key: string, value: string): void { this._cache.set(key, value); } get(key: string): string | undefined { return this._cache.get(key); } size(): number { return this._cache.size; } }
+export class PluginChecksum { compute(content: string): string { return content.length.toString(16); } verify(content: string, expected: string): boolean { return this.compute(content) === expected; } }
+export class PluginRegistryCoreIndex { list(): string[] { return ['PluginManifest', 'PluginPublisher', 'PluginVersioning', 'PluginSearch', 'PluginRating', 'PluginDownloader', 'PluginSignatureVerifier', 'PluginCompatibility', 'PluginLocalCache', 'PluginChecksum']; } count(): number { return this.list().length; } }
+export const BZ_BATCH_1_ENGINES = { PluginManifest, PluginPublisher, PluginVersioning, PluginSearch, PluginRating, PluginDownloader, PluginSignatureVerifier, PluginCompatibility, PluginLocalCache, PluginChecksum, PluginRegistryCoreIndex } as const;
