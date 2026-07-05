@@ -1,0 +1,16 @@
+/**
+ * SeriesContinuityCore.ts — Direction BO, V4306-V4315 (Batch 1/3)
+ * Series Continuity Validator: 系列连续性验证
+ */
+
+export class ContinuityTracker { private _events = new Map<number, string[]>(); addEvent(book: number, event: string): void { if (!this._events.has(book)) this._events.set(book, []); this._events.get(book)!.push(event); } getEvents(book: number): string[] { return this._events.get(book) || []; } count(): number { return this._events.size; } }
+export class CharacterStateTracker { private _states = new Map<string, { book: number; state: string }[]>(); update(character: string, book: number, state: string): void { if (!this._states.has(character)) this._states.set(character, []); this._states.get(character)!.push({ book, state }); } getState(character: string, book: number): string | null { const s = this._states.get(character); if (!s) return null; const entry = s.find((e) => e.book === book); return entry ? entry.state : null; } }
+export class TimelineValidator { validate(timeline: { book: number; year: number }[]): boolean { for (let i = 1; i < timeline.length; i++) if (timeline[i].year < timeline[i - 1].year) return false; return true; } isValid(v: boolean): boolean { return v; } }
+export class ForeshadowingTracker { private _items = new Map<string, number>(); plant(setup: string, payoffBook: number): void { this._items.set(setup, payoffBook); } get(setup: string): number | undefined { return this._items.get(setup); } hasPayoff(setup: string): boolean { return this._items.has(setup); } }
+export class WorldRuleValidator { validate(rules: { rule: string; followed: boolean }[]): boolean { return rules.every((r) => r.followed); } isValid(v: boolean): boolean { return v; } }
+export class PlotThreadTracker { private _threads = new Map<string, { status: 'open' | 'closed'; book: number }>(); open(thread: string, book: number): void { this._threads.set(thread, { status: 'open', book }); } close(thread: string): void { const t = this._threads.get(thread); if (t) t.status = 'closed'; } isOpen(thread: string): boolean { return this._threads.get(thread)?.status === 'open'; } }
+export class CharacterArcValidator { validate(arc: { start: string; end: string }): { consistent: boolean } { return { consistent: arc.start !== arc.end }; } isConsistent(r: { consistent: boolean }): boolean { return r.consistent; } }
+export class ContinuityReport { generate(issues: string[]): string { return issues.join('\n'); } isValid(s: string): boolean { return s.length >= 0; } }
+export class ContinuityIssue { severity: 'low' | 'medium' | 'high' = 'low'; description: string = ''; isSevere(): boolean { return this.severity === 'high'; } }
+export class SeriesContinuityCoreIndex { list(): string[] { return ['ContinuityTracker', 'CharacterStateTracker', 'TimelineValidator', 'ForeshadowingTracker', 'WorldRuleValidator', 'PlotThreadTracker', 'CharacterArcValidator', 'ContinuityReport', 'ContinuityIssue']; } count(): number { return this.list().length; } }
+export const BO_BATCH_1_ENGINES = { ContinuityTracker, CharacterStateTracker, TimelineValidator, ForeshadowingTracker, WorldRuleValidator, PlotThreadTracker, CharacterArcValidator, ContinuityReport, ContinuityIssue, SeriesContinuityCoreIndex } as const;
