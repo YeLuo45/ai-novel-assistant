@@ -1,8 +1,8 @@
 # ai-novel-assistant
 
-AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 40 创作大师方向 AB-BK 共 1200 engines）。
+AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 56 创作大师方向 AB-CA 共 1680 engines）。
 
-## 创作大师方向（V3016-V4215 · 40 方向 · 1200 engines · 2400+ tests · 100% pass · ≥98% coverage）
+## 创作大师方向（V3016-V4615 · 56 方向 · 1680 engines · 3000+ tests · 100% pass · ≥98% coverage）
 
 ### Round 1（V3016-V3255 · 8 方向 · 240 engines · 609 tests）
 
@@ -56,7 +56,31 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **BB Backmatter Indexer** — 后记索引器 | 30 | 53 | ≥98% | [BB_BACKMATTER_INDEX_README.md](./docs/BB_BACKMATTER_INDEX_README.md) |
 | **BC Translation Memory Engine** — 翻译记忆引擎 | 30 | 55 | ≥98% | [BC_TM_ENGINE_README.md](./docs/BC_TM_ENGINE_README.md) |
 
-## 基本信息
+### Round 5（V3976-V4215 · 8 方向 · 240 engines · 393 tests）
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **BD Writing Sprint Timer** — 写作冲刺计时器 | 30 | 50 | ≥98% | [BD_SPRINT_README.md](./docs/BD_SPRINT_README.md) |
+| **BE Idea Clustering** — 想法聚类分析 | 30 | 53 | ≥98% | [BE_CLUSTERING_README.md](./docs/BE_CLUSTERING_README.md) |
+| **BF Beta Reader Auto-Match** — 测试读者自动匹配 | 30 | 39 | ≥98% | [BF_BETA_READER_README.md](./docs/BF_BETA_READER_README.md) |
+| **BG Comic Script Engine** — 漫画脚本引擎 | 30 | 55 | ≥98% | [BG_COMIC_README.md](./docs/BG_COMIC_README.md) |
+| **BH Short Story Adapter** — 短篇改编器 | 30 | 56 | ≥98% | [BH_SHORT_STORY_README.md](./docs/BH_SHORT_STORY_README.md) |
+| **BI Audio Drama Script** — 广播剧脚本 | 30 | 51 | ≥98% | [BI_AUDIO_DRAMA_README.md](./docs/BI_AUDIO_DRAMA_README.md) |
+| **BJ Trope Encyclopedia** — 套路百科 | 30 | 41 | ≥98% | [BJ_TROPE_README.md](./docs/BJ_TROPE_README.md) |
+| **BK Fandom Wiki Generator** — 同人百科生成器 | 30 | 48 | ≥98% | [BK_FANDOM_README.md](./docs/BK_FANDOM_README.md) |
+
+### Round 7（V4376-V4615 · 8 方向 · 240 engines · 283 tests）— 番茄发布 + 语音 + 扩展
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **BT Tomato Novel Publisher** — 番茄小说发布 | 30 | 36 | ≥98% | [BT_TOMATO_README.md](./docs/BT_TOMATO_README.md) |
+| **BU Voice Dictation Engine** — 语音听写 | 30 | 35 | ≥98% | [BU_VOICE_DICTATION_README.md](./docs/BU_VOICE_DICTATION_README.md) |
+| **BV Extension Manager** — 扩展管理 | 30 | 34 | ≥98% | [BV_EXTENSION_README.md](./docs/BV_EXTENSION_README.md) |
+| **BW Tomato Style Adapter** — 番茄风格 | 30 | 38 | ≥98% | [BW_TOMATO_STYLE_README.md](./docs/BW_TOMATO_STYLE_README.md) |
+| **BX Voice Command Engine** — 语音命令 | 30 | 36 | ≥98% | [BX_VOICE_COMMAND_README.md](./docs/BX_VOICE_COMMAND_README.md) |
+| **BY Multi-Platform Publisher** — 多平台 | 30 | 39 | ≥98% | [BY_MULTI_PLATFORM_README.md](./docs/BY_MULTI_PLATFORM_README.md) |
+| **BZ Plugin Registry** — 插件注册 | 30 | 33 | ≥98% | [BZ_PLUGIN_README.md](./docs/BZ_PLUGIN_README.md) |
+| **CA Voice Emotion Detector** — 语音情感 | 30 | 32 | ≥98% | [CA_VOICE_EMOTION_README.md](./docs/CA_VOICE_EMOTION_README.md) |
 
 - **项目 ID**: ai-novel-assistant
 - **本地路径（WSL）**: `/home/hermes/projects/ai-novel-assistant`
