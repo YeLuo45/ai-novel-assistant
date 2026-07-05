@@ -1,0 +1,17 @@
+/**
+ * VoiceEmotionCore.ts — Direction CA, V4586-V4595 (Batch 1/3)
+ * Voice Emotion Detector: 语音情感检测
+ */
+
+export class EmotionClassifier { classify(text: string): 'happy' | 'sad' | 'angry' | 'neutral' | 'excited' { if (/开心|高兴|哈哈/.test(text)) return 'happy'; if (/难过|伤心|哭/.test(text)) return 'sad'; if (/愤怒|生气|气死/.test(text)) return 'angry'; if (/！|!|wow|太棒了/.test(text)) return 'excited'; return 'neutral'; } isValidEmotion(e: string): boolean { return ['happy', 'sad', 'angry', 'neutral', 'excited'].includes(e); } }
+export class ToneAnalyzer { analyze(text: string): { pitch: number; speed: number } { const exclamation = (text.match(/[!！]/g) || []).length; return { pitch: Math.min(1, 0.5 + exclamation * 0.1), speed: Math.min(1, 0.5 + exclamation * 0.05) }; } isHigh(t: { pitch: number }): boolean { return t.pitch > 0.7; } }
+export class StressDetector { private _baseline: number = 0.5; detect(amplitude: number): number { return Math.abs(amplitude - this._baseline); } isStressed(d: number, threshold: number = 0.3): boolean { return d > threshold; } }
+export class EnergyEstimator { estimate(features: { wordRate: number; pitch: number }): number { return Math.min(1, features.wordRate * 0.5 + features.pitch * 0.5); } isEnergetic(e: number, threshold: number = 0.6): boolean { return e >= threshold; } }
+export class FatigueDetector { detect(sessionMinutes: number): { fatigued: boolean; level: number } { return { fatigued: sessionMinutes > 120, level: Math.min(1, sessionMinutes / 240) }; } isFatigued(d: { fatigued: boolean }): boolean { return d.fatigued; } }
+export class SentimentScore { score(text: string): number { const positive = (text.match(/开心|好|棒|爱/g) || []).length; const negative = (text.match(/难过|差|恨|坏/g) || []).length; const total = positive + negative || 1; return (positive - negative) / total; } isPositive(s: number): boolean { return s > 0; } }
+export class PitchExtractor { extract(audio: { freq: number }): number { return audio.freq; } isValid(p: number): boolean { return p > 0 && p < 5000; } }
+export class TempoAnalyzer { analyze(audio: { rate: number }): number { return audio.rate; } isFast(t: number, threshold: number = 200): boolean { return t > threshold; } }
+export class VolumeAnalyzer { analyze(audio: { volume: number }): number { return audio.volume; } isLoud(v: number, threshold: number = 0.5): boolean { return v > threshold; } }
+export class EmotionTrajectory { private _emotions: { time: number; emotion: string }[] = []; add(emotion: string): void { this._emotions.push({ time: Date.now(), emotion }); } trend(): string { if (this._emotions.length === 0) return 'neutral'; return this._emotions[this._emotions.length - 1].emotion; } count(): number { return this._emotions.length; } }
+export class VoiceEmotionCoreIndex { list(): string[] { return ['EmotionClassifier', 'ToneAnalyzer', 'StressDetector', 'EnergyEstimator', 'FatigueDetector', 'SentimentScore', 'PitchExtractor', 'TempoAnalyzer', 'VolumeAnalyzer', 'EmotionTrajectory']; } count(): number { return this.list().length; } }
+export const CA_BATCH_1_ENGINES = { EmotionClassifier, ToneAnalyzer, StressDetector, EnergyEstimator, FatigueDetector, SentimentScore, PitchExtractor, TempoAnalyzer, VolumeAnalyzer, EmotionTrajectory, VoiceEmotionCoreIndex } as const;
