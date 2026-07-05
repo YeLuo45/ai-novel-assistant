@@ -82,6 +82,19 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **BZ Plugin Registry** — 插件注册 | 30 | 33 | ≥98% | [BZ_PLUGIN_README.md](./docs/BZ_PLUGIN_README.md) |
 | **CA Voice Emotion Detector** — 语音情感 | 30 | 32 | ≥98% | [CA_VOICE_EMOTION_README.md](./docs/CA_VOICE_EMOTION_README.md) |
 
+### Round 8（V4616-V4855 · 8 方向 · 240 engines · 940 tests）— 协作 + 离线/AI + 视觉/生态
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **CB AI Co-Author 2.0** — 多 Agent 协作 | 30 | 117 | ≥98% | [CB_COAUTHOR2_README.md](./docs/CB_COAUTHOR2_README.md) |
+| **CC WebSocket Sync 2.0** — 实时同步 | 30 | 117 | ≥98% | [CC_WS_SYNC_README.md](./docs/CC_WS_SYNC_README.md) |
+| **CD Mobile PWA Installer 2.0** — PWA 安装 | 30 | 117 | ≥98% | [CD_PWA_README.md](./docs/CD_PWA_README.md) |
+| **CE Offline-First Storage 2.0** — 离线存储 | 30 | 113 | ≥98% | [CE_OFFLINE_README.md](./docs/CE_OFFLINE_README.md) |
+| **CF Vector Database for Memory** — 向量数据库 | 30 | 78 | ≥98% | [CF_VECTOR_DB_README.md](./docs/CF_VECTOR_DB_README.md) |
+| **CG RAG for Chapter Context** — 检索增强 | 30 | 48 | ≥98% | [CG_RAG_README.md](./docs/CG_RAG_README.md) |
+| **CH Image Generation** — AI 图像生成 | 30 | 172 | ≥98% | [CH_IMAGE_GEN_README.md](./docs/CH_IMAGE_GEN_README.md) |
+| **CI Marketplace for Plugins 2.0** — 插件市场 | 30 | 178 | ≥98% | [CI_MARKETPLACE_README.md](./docs/CI_MARKETPLACE_README.md) |
+
 - **项目 ID**: ai-novel-assistant
 - **本地路径（WSL）**: `/home/hermes/projects/ai-novel-assistant`
 - **本地路径（Windows）**: `\\wsl$\Ubuntu\home\hermes\projects\ai-novel-assistant`
