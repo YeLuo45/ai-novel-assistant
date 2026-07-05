@@ -1,0 +1,19 @@
+/**
+ * TropeEncyclopediaIntegration.ts — Direction BJ, V4176-V4185 (Batch 3/3 收口)
+ * Trope Encyclopedia: 集成 + 收口
+ */
+
+import type { TropeEntry } from './TropeEncyclopediaCore';
+import { TropeLibrary } from './TropeEncyclopediaCore';
+
+export class TropeEncyclopedia { private _library = new TropeLibrary(); addTrope(trope: TropeEntry): void { this._library.add(trope); } search(query: string): TropeEntry[] { return Array.from(this._library['_tropes'].values() as IterableIterator<TropeEntry>).filter((t) => t.name.includes(query) || t.description.includes(query)); } count(): number { return this._library.count(); } }
+export class TropeCategoryFilter { filter(library: TropeLibrary, category: string): TropeEntry[] { return Array.from(library['_tropes'].values() as IterableIterator<TropeEntry>).filter((t) => t.genre === category); } hasMatch(entries: TropeEntry[]): boolean { return entries.length > 0; } }
+export class TropeImport { importJSON(library: TropeLibrary, json: string): void { const entries = JSON.parse(json) as TropeEntry[]; for (const e of entries) library.add(e); } isValid(s: string): boolean { return s.startsWith('['); } }
+export class TropeExport { export(library: TropeLibrary): string { return JSON.stringify(Array.from(library['_tropes'].values())); } isValidJSON(s: string): boolean { return s.startsWith('['); } }
+export class TropeSearchEngine2 { searchByTag(library: TropeLibrary, tag: string): TropeEntry[] { return Array.from(library['_tropes'].values() as IterableIterator<TropeEntry>).filter((t) => t.description.includes(tag)); } hasResults(r: TropeEntry[]): boolean { return r.length > 0; } }
+export class TropeIndexBuilder { build(library: TropeLibrary): { category: string; count: number }[] { const map: Record<string, number> = {}; for (const t of library['_tropes'].values() as IterableIterator<TropeEntry>) { map[t.genre] = (map[t.genre] || 0) + 1; } return Object.entries(map).map(([category, count]) => ({ category, count })); } isValid(idx: { category: string }[]): boolean { return idx.length > 0; } }
+export class TropeBrowser { browse(library: TropeLibrary, page: number = 0, perPage: number = 10): TropeEntry[] { const all = Array.from(library['_tropes'].values() as IterableIterator<TropeEntry>); return all.slice(page * perPage, (page + 1) * perPage); } hasNext(library: TropeLibrary, page: number, perPage: number): boolean { return (page + 1) * perPage < library.count(); } }
+export class TropeADirector { decide(state: { hasTropes: boolean; categorized: boolean }): string { if (!state.hasTropes) return 'add'; if (!state.categorized) return 'categorize'; return 'finalize'; } }
+export class TropeTools { tools: string[] = ['TVTropes', 'Custom']; isAvailable(t: string): boolean { return this.tools.includes(t); } count(): number { return this.tools.length; } }
+export class TropeEncyclopediaMasterIndex { list(): string[] { return ['TropeEntry', 'TropeLibrary', 'TropeSearchEngine', 'TropeFrequencyAnalyzer', 'TropeSubversionDetector', 'TropeCombo', 'TropeOrigin', 'TropeEvolution', 'TropeCategory', 'TropeSimilarity', 'TropePopularity', 'TropeExamples', 'TropeCounterTrope', 'TropeVariation', 'TropeMedia', 'TropeWarning', 'TropeRating', 'TropeReviewer', 'TropeEncyclopedia', 'TropeCategoryFilter', 'TropeImport', 'TropeExport', 'TropeSearchEngine2', 'TropeIndexBuilder', 'TropeBrowser', 'TropeADirector', 'TropeTools', 'TropeEncyclopediaMasterIndex']; } count(): number { return this.list().length; } }
+export const BJ_BATCH_3_ENGINES = { TropeEncyclopedia, TropeCategoryFilter, TropeImport, TropeExport, TropeSearchEngine2, TropeIndexBuilder, TropeBrowser, TropeADirector, TropeTools, TropeEncyclopediaMasterIndex } as const;
