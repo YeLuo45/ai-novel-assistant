@@ -1,0 +1,16 @@
+/**
+ * RatingAggregatorAdvanced.ts — Direction BN, V4286-V4295 (Batch 2/3)
+ * Beta Reader Rating Aggregator: 高级工具
+ */
+
+export class WeightedRating { weighted(ratings: { rating: number; weight: number }[]): number { if (ratings.length === 0) return 0; const totalWeight = ratings.reduce((s, r) => s + r.weight, 0); if (totalWeight === 0) return 0; return ratings.reduce((s, r) => s + r.rating * r.weight, 0) / totalWeight; } isValid(w: number): boolean { return !isNaN(w); } }
+export class RatingCategory { categories = new Map<string, number[]>(); add(category: string, rating: number): void { if (!this.categories.has(category)) this.categories.set(category, []); this.categories.get(category)!.push(rating); } avg(category: string): number { const r = this.categories.get(category) || []; if (r.length === 0) return 0; return r.reduce((s, n) => s + n, 0) / r.length; } }
+export class RatingThreshold { threshold: number = 3; set(t: number): void { this.threshold = t; } meets(rating: number): boolean { return rating >= this.threshold; } }
+export class RatingComparison { compare(a: number, b: number): 'better' | 'worse' | 'same' { return a > b ? 'better' : a < b ? 'worse' : 'same'; } isBetter(c: string): boolean { return c === 'better'; } }
+export class RatingNormalization { normalize(r: number, min: number = 1, max: number = 5): number { return (r - min) / (max - min); } isNormalized(n: number): boolean { return n >= 0 && n <= 1; } }
+export class RatingAggregationEngine { aggregate(ratings: { reader: string; rating: number; weight?: number }[]): { avg: number; weighted: number; count: number } { const avg = ratings.reduce((s, r) => s + r.rating, 0) / Math.max(1, ratings.length); const totalWeight = ratings.reduce((s, r) => s + (r.weight || 1), 0); const weighted = ratings.reduce((s, r) => s + r.rating * (r.weight || 1), 0) / Math.max(1, totalWeight); return { avg, weighted, count: ratings.length }; } isAggregated(r: { count: number }): boolean { return r.count > 0; } }
+export class RatingDashboard { generate(stats: { avg: number; count: number; categories: number }): string { return `平均 ${stats.avg.toFixed(1)}, ${stats.count} 评, ${stats.categories} 类`; } hasDashboard(s: string): boolean { return s.includes('平均'); } }
+export class RatingADirector { decide(state: { collected: boolean; aggregated: boolean }): string { if (!state.collected) return 'collect'; if (!state.aggregated) return 'aggregate'; return 'finalize'; } }
+export class RatingReportGenerator { report(stats: { ratings: { reader: string; rating: number }[] }): string { const avg = stats.ratings.reduce((s, r) => s + r.rating, 0) / Math.max(1, stats.ratings.length); return `${stats.ratings.length} 评, 平均 ${avg.toFixed(1)}`; } isValid(s: string): boolean { return s.length > 0; } }
+export class RatingAggregatorAdvancedIndex { list(): string[] { return ['WeightedRating', 'RatingCategory', 'RatingThreshold', 'RatingComparison', 'RatingNormalization', 'RatingAggregationEngine', 'RatingDashboard', 'RatingADirector', 'RatingReportGenerator']; } count(): number { return this.list().length; } }
+export const BN_BATCH_2_ENGINES = { WeightedRating, RatingCategory, RatingThreshold, RatingComparison, RatingNormalization, RatingAggregationEngine, RatingDashboard, RatingADirector, RatingReportGenerator, RatingAggregatorAdvancedIndex } as const;
