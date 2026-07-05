@@ -1,0 +1,18 @@
+/**
+ * TomatoStyleIntegration.ts — Direction BW, V4486-V4495 (Batch 3/3 收口)
+ * Tomato Style Adapter: 集成 + 收口
+ */
+
+import type { TomatoChapterLengthAdjuster } from './TomatoStyleCore';
+
+export class TomatoStylePipeline { steps: string[] = ['analyze', 'adapt', 'optimize', 'verify', 'finalize']; isComplete(step: string): boolean { return this.steps[this.steps.length - 1] === step; } next(step: string): string { const i = this.steps.indexOf(step); return i >= 0 && i < this.steps.length - 1 ? this.steps[i + 1] : 'done'; } }
+export class TomatoStyleDirector { decide(state: { analyzed: boolean; optimized: boolean }): string { if (!state.analyzed) return 'analyze'; if (!state.optimized) return 'optimize'; return 'finalize'; } }
+export class TomatoStyleReport { generate(stats: { chapters: number; avgLength: number; score: number }): string { return `${stats.chapters} 章, 平均 ${stats.avgLength} 字, 风格 ${(stats.score * 100).toFixed(0)}%`; } hasReport(s: string): boolean { return s.includes('章'); } }
+export class TomatoStyleLibrary { private _styles = new Map<string, unknown>(); save(key: string, style: unknown): void { this._styles.set(key, style); } get(key: string): unknown { return this._styles.get(key); } count(): number { return this._styles.size; } }
+export class TomatoStyleValidator { validate(book: { chapters: number; avgLength: number }): { valid: boolean } { return { valid: book.chapters >= 30 && book.avgLength >= 1500 && book.avgLength <= 3000 }; } isValid(r: { valid: boolean }): boolean { return r.valid; } }
+export class TomatoStyleTools { tools: string[] = ['TomatoAnalyzer', 'TomatoOptimizer', 'TomatoValidator']; isAvailable(t: string): boolean { return this.tools.includes(t); } count(): number { return this.tools.length; } }
+export class TomatoStyleQualityGate { gate(stats: { score: number; chapters: number }): boolean { return stats.score >= 0.8 && stats.chapters >= 30; } }
+export class TomatoStyleADirector { decide(state: { matched: boolean; optimized: boolean }): string { if (!state.matched) return 'match'; if (!state.optimized) return 'optimize'; return 'finalize'; } }
+export class TomatoStyleEvolution { history: number[] = []; record(score: number): void { this.history.push(score); } trend(): 'up' | 'down' { return this.history.length >= 2 && this.history[this.history.length - 1] > this.history[0] ? 'up' : 'down'; } }
+export class TomatoStyleMasterIndex { list(): string[] { return ['TomatoChapterLengthAdjuster', 'TomatoTitleStyleMatcher', 'TomatoOpeningHookGenerator', 'TomatoConflictPacer', 'TomatoCliffhangerInserter', 'TomatoForeshadowDensity', 'TomatoDialogueRatioBalancer', 'TomatoPOVOptimizer', 'TomatoNameFormatValidator', 'TomatoPunctuationFormatter', 'TomatoGenreTropeApplier', 'TomatoReaderRetentionOptimizer', 'TomatoRecommendAlgorithmMatcher', 'TomatoHotWordInserter', 'TomatoContractComplianceChecker', 'TomatoReviewRiskPredictor', 'TomatoMarketingTagGenerator', 'TomatoSynopsisOptimizer', 'TomatoAuthorBioGenerator', 'TomatoStyleBenchmark', 'TomatoStylePipeline', 'TomatoStyleDirector', 'TomatoStyleReport', 'TomatoStyleLibrary', 'TomatoStyleValidator', 'TomatoStyleTools', 'TomatoStyleQualityGate', 'TomatoStyleADirector', 'TomatoStyleEvolution', 'TomatoStyleMasterIndex']; } count(): number { return this.list().length; } }
+export const BW_BATCH_3_ENGINES = { TomatoStylePipeline, TomatoStyleDirector, TomatoStyleReport, TomatoStyleLibrary, TomatoStyleValidator, TomatoStyleTools, TomatoStyleQualityGate, TomatoStyleADirector, TomatoStyleEvolution, TomatoStyleMasterIndex } as const;
