@@ -1,8 +1,8 @@
 # ai-novel-assistant
 
-AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 32 创作大师方向 AB-X-Y-AA-AC-Z-AD-AE-AF-AG-AH-AI-AJ-AK-AL-AM-AN-AO-AP-AQ-AR-AS-AT-AU-AV-AW-AX-AY-AZ-BA-BB-BC 共 960 engines）。
+AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot + 40 创作大师方向 AB-BK 共 1200 engines）。
 
-## 创作大师方向（V3016-V3975 · 32 方向 · 960 engines · 2000+ tests · 100% pass · ≥98% coverage）
+## 创作大师方向（V3016-V4215 · 40 方向 · 1200 engines · 2400+ tests · 100% pass · ≥98% coverage）
 
 ### Round 1（V3016-V3255 · 8 方向 · 240 engines · 609 tests）
 
