@@ -95,6 +95,19 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **CH Image Generation** — AI 图像生成 | 30 | 172 | ≥98% | [CH_IMAGE_GEN_README.md](./docs/CH_IMAGE_GEN_README.md) |
 | **CI Marketplace for Plugins 2.0** — 插件市场 | 30 | 178 | ≥98% | [CI_MARKETPLACE_README.md](./docs/CI_MARKETPLACE_README.md) |
 
+### Round 9（V4856-V5095 · 8 方向 · 240 engines · 547+ tests）— 基础设施 + 质量层
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **CJ Plugin Runtime Sandbox** — 沙箱执行 | 30 | 162 | ≥98% | [CJ_SANDBOX_README.md](./docs/CJ_SANDBOX_README.md) |
+| **CK CDN** — 内容分发 | 30 | 80 | ≥98% | [CK_CDN_README.md](./docs/CK_CDN_README.md) |
+| **CL Workflow Orchestration** — 工作流 | 30 | 80 | ≥98% | [CL_WORKFLOW_README.md](./docs/CL_WORKFLOW_README.md) |
+| **CM Offline Edit** — 离线编辑 | 30 | 57 | ≥98% | [CM_OFFLINE_EDIT_README.md](./docs/CM_OFFLINE_EDIT_README.md) |
+| **CN Marketplace Analytics** — 市场分析 | 30 | 41 | ≥97% | [CN_MARKETPLACE_ANALYTICS_README.md](./docs/CN_MARKETPLACE_ANALYTICS_README.md) |
+| **CO Smart Cache** — 智能缓存 | 30 | 44 | ≥95% | [CO_SMART_CACHE_README.md](./docs/CO_SMART_CACHE_README.md) |
+| **CP Vector Quantization v2** — 向量量化 | 30 | 43 | ≥95% | [CP_VECTOR_QUANT_README.md](./docs/CP_VECTOR_QUANT_README.md) |
+| **CQ RAG Evaluation** — RAG 评估 | 30 | 40 | ≥95% | [CQ_RAG_EVAL_README.md](./docs/CQ_RAG_EVAL_README.md) |
+
 - **项目 ID**: ai-novel-assistant
 - **本地路径（WSL）**: `/home/hermes/projects/ai-novel-assistant`
 - **本地路径（Windows）**: `\\wsl$\Ubuntu\home\hermes\projects\ai-novel-assistant`
