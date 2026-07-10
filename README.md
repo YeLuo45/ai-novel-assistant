@@ -108,6 +108,19 @@ AI 写作助手，多 Agent 协作写作系统（V3 Agent Runtime + 270+ nanobot
 | **CP Vector Quantization v2** — 向量量化 | 30 | 43 | ≥95% | [CP_VECTOR_QUANT_README.md](./docs/CP_VECTOR_QUANT_README.md) |
 | **CQ RAG Evaluation** — RAG 评估 | 30 | 40 | ≥95% | [CQ_RAG_EVAL_README.md](./docs/CQ_RAG_EVAL_README.md) |
 
+### Round 10（V5096-V5335 · 8 方向 · ~230 engines · 510+ tests）— 商业化 + AI 基础设施
+
+| 方向 | 引擎数 | 测试 | Coverage | 文档 |
+|------|--------|------|----------|------|
+| **CR Advanced Plugin Marketplace** — 营收引擎 | 29 | 36 | ≥95% | [CR_PLUGIN_MARKETPLACE_README.md](./docs/CR_PLUGIN_MARKETPLACE_README.md) |
+| **CS Federated Learning** — 隐私训练 | 29 | 32 | ≥95% | [CS_FEDERATED_LEARNING_README.md](./docs/CS_FEDERATED_LEARNING_README.md) |
+| **CT Edge AI Inference** — 端侧 AI | 29 | 35 | ≥95% | [CT_EDGE_AI_README.md](./docs/CT_EDGE_AI_README.md) |
+| **CU Synthetic Data Generation** — 训练引导 | 28 | 35 | ≥95% | [CU_SYNTHETIC_DATA_README.md](./docs/CU_SYNTHETIC_DATA_README.md) |
+| **CV Agent Memory Long-term** — 持久 AI 记忆 | 29 | 31 | ≥95% | [CV_AGENT_MEMORY_README.md](./docs/CV_AGENT_MEMORY_README.md) |
+| **CW Multi-Modal Generation** — 多模态 | 27 | 26 | ≥95% | [CW_MULTIMODAL_README.md](./docs/CW_MULTIMODAL_README.md) |
+| **CX Real-time Collaboration 2.0** — 实时协作 | 29 | 36 | ≥95% | [CX_COLLAB_V2_README.md](./docs/CX_COLLAB_V2_README.md) |
+| **CY Performance Profiling 2.0** — 生产可观测性 | 28 | 30 | ≥95% | [CY_APM_README.md](./docs/CY_APM_README.md) |
+
 - **项目 ID**: ai-novel-assistant
 - **本地路径（WSL）**: `/home/hermes/projects/ai-novel-assistant`
 - **本地路径（Windows）**: `\\wsl$\Ubuntu\home\hermes\projects\ai-novel-assistant`
