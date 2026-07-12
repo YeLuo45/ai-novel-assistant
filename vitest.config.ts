@@ -18,7 +18,14 @@ export default defineConfig({
         branches: 50,
         statements: 25
       },
-      include: ['src/db.ts', 'src/store.ts', 'src/utils/**'],
+      include: [
+        'src/db.ts',
+        'src/store.ts',
+        'src/utils/**',
+        'src/ai/serverless/**',
+        'src/ai/agent_marketplace/**',
+        'src/ai/quantum/**'
+      ],
       exclude: [
         'node_modules/**',
         'src/test/**',
